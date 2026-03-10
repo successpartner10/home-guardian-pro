@@ -24,7 +24,7 @@ const CameraMode = () => {
   const sirenRef = useRef<OscillatorNode | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
 
-  const toggleSiren = () => {
+  const toggleSiren = async () => {
     if (sirenActive) {
       if (sirenRef.current) {
         try {
@@ -35,7 +35,14 @@ const CameraMode = () => {
       }
       setSirenActive(false);
     } else {
-      if (!audioCtxRef.current) audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      if (!audioCtxRef.current) {
+        audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      }
+
+      if (audioCtxRef.current.state === 'suspended') {
+        await audioCtxRef.current.resume();
+      }
+
       const osc = audioCtxRef.current.createOscillator();
       const gain = audioCtxRef.current.createGain();
 
@@ -141,7 +148,7 @@ const CameraMode = () => {
   const { isConnected: viewerConnected } = useWebRTC({
     deviceId: resolvedDeviceId || "",
     role: "camera",
-    stream,
+    localStream: stream,
   });
 
   const handleSnapshot = () => {
@@ -166,7 +173,7 @@ const CameraMode = () => {
 
         {/* 360° Tactical Radar Overlay */}
         <div className="absolute inset-0 pointer-events-none z-20 flex items-center justify-center opacity-40">
-          <div className="relative h-[600px] w-[600px]">
+          <div className="relative h-[280px] w-[280px]">
             <motion.div
               animate={{ rotate: 360 }}
               transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
@@ -175,8 +182,8 @@ const CameraMode = () => {
               <div className="absolute top-0 left-1/2 -translate-x-1/2 h-1/2 w-1 bg-gradient-to-t from-primary/60 via-primary/10 to-transparent origin-bottom" />
             </motion.div>
 
-            <div className="absolute inset-[100px] rounded-full border border-primary/10" />
-            <div className="absolute inset-[200px] rounded-full border border-primary/10" />
+            <div className="absolute inset-[40px] rounded-full border border-primary/10" />
+            <div className="absolute inset-[80px] rounded-full border border-primary/10" />
 
             {/* AI Object Markers on Radar */}
             {detectedObjects.map((obj, i) => (
@@ -242,72 +249,72 @@ const CameraMode = () => {
       </div>
 
       {/* Action Bar (ZoomOn Style) */}
-      <div className="bg-black/95 border-t-2 border-white/10 p-8 pb-safe backdrop-blur-3xl relative z-40">
-        <div className="grid grid-cols-5 gap-6 max-w-2xl mx-auto items-center">
+      <div className="bg-black/95 border-t-2 border-white/10 p-4 pb-safe backdrop-blur-3xl relative z-40">
+        <div className="grid grid-cols-5 gap-3 max-w-2xl mx-auto items-center">
 
           {/* Siren */}
-          <div className="flex flex-col items-center gap-3">
+          <div className="flex flex-col items-center gap-2">
             <Button
               variant="outline"
               size="icon"
               onClick={toggleSiren}
-              className={cn("h-16 w-16 rounded-2xl border-2 transition-all duration-300", sirenActive ? "bg-destructive text-destructive-foreground border-destructive animate-bounce" : "bg-white/5 text-white/70 border-white/10 hover:bg-white/10")}
+              className={cn("h-14 w-14 rounded-2xl border-2 transition-all duration-300", sirenActive ? "bg-destructive text-destructive-foreground border-destructive animate-bounce" : "bg-white/5 text-white/70 border-white/10 hover:bg-white/10")}
             >
-              <AlertTriangle className="h-7 w-7" />
+              <AlertTriangle className="h-6 w-6" />
             </Button>
-            <span className="text-[10px] font-black text-white/60 uppercase tracking-widest leading-none">Siren</span>
+            <span className="text-[9px] font-black text-white/60 uppercase tracking-widest leading-none">Siren</span>
           </div>
 
           {/* Night Vision */}
-          <div className="flex flex-col items-center gap-3">
+          <div className="flex flex-col items-center gap-2">
             <Button
               variant="outline"
               size="icon"
               onClick={() => { setNightVision(!nightVision); setAutoNightVision(false); }}
-              className={cn("h-16 w-16 rounded-2xl border-2 transition-all duration-300", nightVision ? "bg-primary/20 text-primary border-primary" : "bg-white/5 text-white/70 border-white/10")}
+              className={cn("h-14 w-14 rounded-2xl border-2 transition-all duration-300", nightVision ? "bg-primary/20 text-primary border-primary" : "bg-white/5 text-white/70 border-white/10")}
             >
-              {nightVision ? <Moon className="h-7 w-7" /> : <Sun className="h-7 w-7" />}
+              {nightVision ? <Moon className="h-6 w-6" /> : <Sun className="h-6 w-6" />}
             </Button>
-            <span className="text-[10px] font-black text-white/60 uppercase tracking-widest leading-none">{nightVision ? 'Night' : 'Day'}</span>
+            <span className="text-[9px] font-black text-white/60 uppercase tracking-widest leading-none">{nightVision ? 'Night' : 'Day'}</span>
           </div>
 
           {/* Snapshot (Center Big) */}
-          <div className="flex flex-col items-center gap-3 -mt-4">
+          <div className="flex flex-col items-center gap-2 -mt-2">
             <Button
               size="icon"
               onClick={handleSnapshot}
-              className="h-24 w-24 rounded-[2rem] bg-primary hover:bg-primary/90 hover:scale-110 active:scale-95 transition-all shadow-[0_0_50px_rgba(var(--primary-rgb),0.6)] border-4 border-black group"
+              className="h-20 w-20 rounded-[2rem] bg-primary hover:bg-primary/90 hover:scale-110 active:scale-95 transition-all shadow-[0_0_50px_rgba(var(--primary-rgb),0.6)] border-4 border-black group"
             >
               <div className="relative">
-                <Camera className="h-10 w-10 text-primary-foreground group-hover:rotate-12 transition-transform" />
+                <Camera className="h-8 w-8 text-primary-foreground group-hover:rotate-12 transition-transform" />
               </div>
             </Button>
           </div>
 
           {/* Mic */}
-          <div className="flex flex-col items-center gap-3">
+          <div className="flex flex-col items-center gap-2">
             <Button
               variant="outline"
               size="icon"
               onClick={toggleMute}
-              className={cn("h-16 w-16 rounded-2xl border-2 transition-all duration-300", !isMuted ? "bg-primary/20 text-primary border-primary" : "bg-white/5 text-white/70 border-white/10")}
+              className={cn("h-14 w-14 rounded-2xl border-2 transition-all duration-300", !isMuted ? "bg-primary/20 text-primary border-primary" : "bg-white/5 text-white/70 border-white/10")}
             >
-              {isMuted ? <MicOff className="h-7 w-7" /> : <Mic className="h-7 w-7" />}
+              {isMuted ? <MicOff className="h-6 w-6" /> : <Mic className="h-6 w-6" />}
             </Button>
-            <span className="text-[10px] font-black text-white/60 uppercase tracking-widest leading-none">Mic</span>
+            <span className="text-[9px] font-black text-white/60 uppercase tracking-widest leading-none">Mic</span>
           </div>
 
           {/* Flash */}
-          <div className="flex flex-col items-center gap-3">
+          <div className="flex flex-col items-center gap-2">
             <Button
               variant="outline"
               size="icon"
               onClick={toggleFlash}
-              className={cn("h-16 w-16 rounded-2xl border-2 transition-all duration-300", flashOn ? "bg-yellow-500/20 text-yellow-500 border-yellow-500" : "bg-white/5 text-white/70 border-white/10")}
+              className={cn("h-14 w-14 rounded-2xl border-2 transition-all duration-300", flashOn ? "bg-yellow-500/20 text-yellow-500 border-yellow-500" : "bg-white/5 text-white/70 border-white/10")}
             >
-              {flashOn ? <Flashlight className="h-7 w-7" /> : <FlashlightOff className="h-7 w-7" />}
+              {flashOn ? <Flashlight className="h-6 w-6" /> : <FlashlightOff className="h-6 w-6" />}
             </Button>
-            <span className="text-[10px] font-black text-white/60 uppercase tracking-widest leading-none">Light</span>
+            <span className="text-[9px] font-black text-white/60 uppercase tracking-widest leading-none">Light</span>
           </div>
 
         </div>

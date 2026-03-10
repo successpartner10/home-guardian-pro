@@ -66,9 +66,12 @@ export const useWebRTC = ({
             audioEl = document.createElement("audio");
             audioEl.id = "incoming-viewer-audio";
             audioEl.autoplay = true;
+            (audioEl as any).playsInline = true;
+            audioEl.style.display = "none";
             document.body.appendChild(audioEl);
           }
           audioEl.srcObject = event.streams[0];
+          audioEl.play().catch(e => console.warn("Auto-play blocked, interaction might be needed:", e));
         }
       }
     };
@@ -112,6 +115,7 @@ export const useWebRTC = ({
           const answer = await pc.createAnswer();
           await pc.setLocalDescription(answer);
 
+          console.log("Sending answer to renegotiated offer");
           channelRef.current?.send({
             type: "broadcast",
             event: "signal",
