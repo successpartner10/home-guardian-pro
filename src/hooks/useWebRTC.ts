@@ -58,6 +58,18 @@ export const useWebRTC = ({
     pc.ontrack = (event) => {
       if (event.streams[0]) {
         onRemoteStream?.(event.streams[0]);
+
+        // If we are the camera and we receive an audio track, it's 2-way talk from the viewer!
+        if (role === "camera" && event.track.kind === "audio") {
+          let audioEl = document.getElementById("incoming-viewer-audio") as HTMLAudioElement;
+          if (!audioEl) {
+            audioEl = document.createElement("audio");
+            audioEl.id = "incoming-viewer-audio";
+            audioEl.autoplay = true;
+            document.body.appendChild(audioEl);
+          }
+          audioEl.srcObject = event.streams[0];
+        }
       }
     };
 
@@ -76,7 +88,7 @@ export const useWebRTC = ({
 
     pcRef.current = pc;
     return pc;
-  }, [localStream, onRemoteStream, onConnectionStateChange, peerId]);
+  }, [localStream, onRemoteStream, onConnectionStateChange, peerId, role]);
 
   const handleSignal = useCallback(
     async (message: SignalMessage) => {
@@ -209,6 +221,75 @@ export const useWebRTC = ({
     setConnectionState("closed");
     setIsConnected(false);
   }, [peerId]);
+
+  // Two-way audio support for Viewer
+  useEffect(() => {
+    if (role !== "viewer") return;
+    let localAudioStream: MediaStream | null = null;
+    let audioSender: RTCRtpSender | null = null;
+
+    (window as any).startTwoWayAudio = async () => {
+      try {
+        localAudioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const track = localAudioStream.getAudioTracks()[0];
+
+        if (pcRef.current) {
+          // Find the audio transceiver we added earlier
+          const transceivers = pcRef.current.getTransceivers();
+          const audioTransceiver = transceivers.find(t => t.receiver.track.kind === 'audio');
+
+          if (audioTransceiver) {
+            audioTransceiver.direction = "sendrecv";
+            await audioTransceiver.sender.replaceTrack(track);
+            audioSender = audioTransceiver.sender;
+          } else {
+            audioSender = pcRef.current.addTrack(track, localAudioStream);
+          }
+
+          // Renegotiate offer when adding track
+          const offer = await pcRef.current.createOffer();
+          await pcRef.current.setLocalDescription(offer);
+          channelRef.current?.send({
+            type: "broadcast",
+            event: "signal",
+            payload: {
+              type: "offer",
+              payload: offer,
+              from: peerId,
+            } as SignalMessage,
+          });
+        }
+      } catch (e) {
+        console.error("Failed to start two-way audio:", e);
+      }
+    };
+
+    (window as any).stopTwoWayAudio = () => {
+      if (localAudioStream) {
+        localAudioStream.getTracks().forEach(t => t.stop());
+        localAudioStream = null;
+      }
+
+      if (pcRef.current && audioSender) {
+        const transceivers = pcRef.current.getTransceivers();
+        const audioTransceiver = transceivers.find(t => t.sender === audioSender);
+        if (audioTransceiver) {
+          // Switch back to receive only
+          audioTransceiver.direction = "recvonly";
+          audioTransceiver.sender.replaceTrack(null);
+        }
+        audioSender = null;
+      }
+    };
+
+    return () => {
+      if ((window as any).stopTwoWayAudio) {
+        (window as any).stopTwoWayAudio();
+      }
+      delete (window as any).startTwoWayAudio;
+      delete (window as any).stopTwoWayAudio;
+    };
+  }, [role, peerId]);
 
   return {
     connectionState,

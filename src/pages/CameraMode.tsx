@@ -21,13 +21,27 @@ const CameraMode = () => {
   useEffect(() => {
     if (deviceId || !user) return;
     const resolve = async () => {
-      const { data } = await supabase
+      let { data } = await supabase
         .from("devices")
         .select("id")
         .eq("user_id", user.id)
         .eq("type", "camera")
         .limit(1)
         .single();
+
+      if (!data) {
+        // Create it if it doesn't exist, fixing "Offline" bug for fresh sessions
+        const { data: newData } = await supabase.from("devices").insert({
+          user_id: user.id,
+          name: `${navigator.platform} Camera`,
+          type: "camera" as const,
+          status: "online" as const,
+          pairing_code: Math.random().toString(36).substring(2, 8).toUpperCase()
+        }).select().single();
+
+        data = newData;
+      }
+
       if (data) setResolvedDeviceId(data.id);
     };
     resolve();
@@ -183,6 +197,23 @@ const CameraMode = () => {
             )}
           </div>
         </div>
+
+        {/* Right side floating controls (Zoom/Tools) */}
+        {isConnected && (
+          <div className="absolute right-4 top-1/2 -translate-y-1/2 flex flex-col gap-3 z-40">
+            {/* Add hidden audio element to play incoming 2-way audio stream */}
+            {stream && <audio autoPlay className="hidden" ref={(el) => {
+              if (el && !el.srcObject && stream) {
+                // We get the incoming audio from the remote viewer via the peer connection
+                // This is handled in useWebRTC, but we need an audio element to play it
+              }
+            }} />}
+
+            <div className="flex flex-col items-center gap-1 bg-black/40 backdrop-blur-md border border-white/10 rounded-full p-1.5 shadow-2xl">
+              <span className="text-[10px] font-bold text-white/70 py-1">LIVE</span>
+            </div>
+          </div>
+        )}
 
         {error && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/90 backdrop-blur-md z-50">

@@ -218,11 +218,40 @@ const LiveFeed = () => {
               <Button
                 size="icon"
                 className={`h-20 w-20 rounded-full transition-all duration-300 shadow-2xl ${isTalking ? 'bg-primary scale-95 shadow-[0_0_30px_hsl(var(--primary)/0.6)]' : 'bg-primary/90 hover:bg-primary hover:scale-105'}`}
-                onMouseDown={() => setIsTalking(true)}
-                onMouseUp={() => setIsTalking(false)}
-                onMouseLeave={() => setIsTalking(false)}
-                onTouchStart={() => setIsTalking(true)}
-                onTouchEnd={() => setIsTalking(false)}
+                onMouseDown={async () => {
+                  setIsTalking(true);
+                  if (typeof (window as any).startTwoWayAudio === "function") {
+                    await (window as any).startTwoWayAudio();
+                  }
+                }}
+                onMouseUp={() => {
+                  setIsTalking(false);
+                  if (typeof (window as any).stopTwoWayAudio === "function") {
+                    (window as any).stopTwoWayAudio();
+                  }
+                }}
+                onMouseLeave={() => {
+                  if (isTalking) {
+                    setIsTalking(false);
+                    if (typeof (window as any).stopTwoWayAudio === "function") {
+                      (window as any).stopTwoWayAudio();
+                    }
+                  }
+                }}
+                onTouchStart={async (e) => {
+                  e.preventDefault(); // prevent mouse emulation
+                  setIsTalking(true);
+                  if (typeof (window as any).startTwoWayAudio === "function") {
+                    await (window as any).startTwoWayAudio();
+                  }
+                }}
+                onTouchEnd={(e) => {
+                  e.preventDefault();
+                  setIsTalking(false);
+                  if (typeof (window as any).stopTwoWayAudio === "function") {
+                    (window as any).stopTwoWayAudio();
+                  }
+                }}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={isTalking ? 'animate-pulse' : ''}>
                   <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
