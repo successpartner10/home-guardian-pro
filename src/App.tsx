@@ -14,6 +14,8 @@ import CameraMode from "./pages/CameraMode";
 import LiveFeed from "./pages/LiveFeed";
 import Alerts from "./pages/Alerts";
 import SettingsPage from "./pages/SettingsPage";
+import PendingApproval from "./pages/PendingApproval";
+import UserManagement from "./pages/UserManagement";
 import NotFound from "./pages/NotFound";
 import InstallPrompt from "./components/InstallPrompt";
 
@@ -38,6 +40,8 @@ const App = () => (
             <Route path="/live/:deviceId" element={<ProtectedRoute><LiveFeed /></ProtectedRoute>} />
             <Route path="/alerts" element={<ProtectedRoute><Alerts /></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+            <Route path="/pending-approval" element={<ProtectedRoute><PendingApproval /></ProtectedRoute>} />
+            <Route path="/users" element={<ProtectedRoute><UserManagement /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           <InstallPrompt />

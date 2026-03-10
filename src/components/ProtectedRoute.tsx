@@ -1,8 +1,11 @@
 import { useAuth } from "@/contexts/AuthContext";
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
+
+const ADMIN_EMAIL = "successpartner10@gmail.com";
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
+  const location = useLocation();
 
   if (loading) {
     return (
@@ -16,6 +19,18 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   }
 
   if (!user) return <Navigate to="/login" replace />;
+
+  const isApproved = user.email === ADMIN_EMAIL || user.user_metadata?.approved === true;
+  const isPendingPage = location.pathname === "/pending-approval";
+
+  if (!isApproved && !isPendingPage) {
+    return <Navigate to="/pending-approval" replace />;
+  }
+
+  if (isApproved && isPendingPage) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   return <>{children}</>;
 };
 
