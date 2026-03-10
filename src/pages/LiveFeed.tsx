@@ -24,7 +24,7 @@ const LiveFeed = () => {
     }
   }, []);
 
-  const { connectionState, isConnected, connect, disconnect } = useWebRTC({
+  const { connectionState, isConnected, isChannelReady, connect, disconnect } = useWebRTC({
     deviceId: deviceId || "",
     role: "viewer",
     onRemoteStream: handleRemoteStream,
@@ -53,10 +53,10 @@ const LiveFeed = () => {
   // Auto-connect when device is online
   useEffect(() => {
     const isOnline = device?.status === "online" || device?.status === "recording";
-    if (isOnline && connectionState === "new") {
+    if (isOnline && connectionState === "new" && isChannelReady) {
       connect();
     }
-  }, [device?.status, connectionState, connect]);
+  }, [device?.status, connectionState, connect, isChannelReady]);
 
   // Attach stream to video element when ref is ready
   useEffect(() => {
@@ -66,7 +66,7 @@ const LiveFeed = () => {
   }, [remoteStream]);
 
   const [zoomLevel, setZoomLevel] = useState(1);
-  const [isHD, setIsHD] = useState(false);
+  const [isHD, setIsHD] = useState(true);
   const [isTalking, setIsTalking] = useState(false);
 
   const toggleMute = () => {

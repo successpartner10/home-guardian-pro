@@ -157,6 +157,9 @@ export const useWebRTC = ({
     [role, peerId, createPeerConnection]
   );
 
+  const [isChannelReady, setIsChannelReady] = useState(false);
+  const hasInitiatedConnection = useRef(false);
+
   // Set up signaling channel
   useEffect(() => {
     if (!deviceId) return;
@@ -170,8 +173,8 @@ export const useWebRTC = ({
         handleSignal(payload as SignalMessage);
       })
       .subscribe((status) => {
-        if (status === "SUBSCRIBED" && role === "camera" && localStream) {
-          // Camera is ready, waiting for viewer offers
+        if (status === "SUBSCRIBED") {
+          setIsChannelReady(true);
         }
       });
 
@@ -180,30 +183,39 @@ export const useWebRTC = ({
     return () => {
       supabase.removeChannel(channel);
       channelRef.current = null;
+      setIsChannelReady(false);
     };
-  }, [deviceId, signalingChannel, handleSignal, role, localStream]);
+  }, [deviceId, signalingChannel, handleSignal]);
 
   // Viewer initiates connection by sending an offer
   const connect = useCallback(async () => {
-    if (role !== "viewer") return;
+    if (role !== "viewer" || hasInitiatedConnection.current) return;
+    hasInitiatedConnection.current = true;
+    setConnectionState("connecting");
 
-    const pc = createPeerConnection();
-    // Add transceiver for receiving video/audio even without local stream
-    pc.addTransceiver("video", { direction: "recvonly" });
-    pc.addTransceiver("audio", { direction: "recvonly" });
+    try {
+      const pc = createPeerConnection();
+      // Add transceiver for receiving video/audio even without local stream
+      pc.addTransceiver("video", { direction: "recvonly" });
+      pc.addTransceiver("audio", { direction: "recvonly" });
 
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
 
-    channelRef.current?.send({
-      type: "broadcast",
-      event: "signal",
-      payload: {
-        type: "offer",
-        payload: offer,
-        from: peerId,
-      } as SignalMessage,
-    });
+      channelRef.current?.send({
+        type: "broadcast",
+        event: "signal",
+        payload: {
+          type: "offer",
+          payload: offer,
+          from: peerId,
+        } as SignalMessage,
+      });
+    } catch (e) {
+      console.error("Error creating connection:", e);
+      setConnectionState("failed");
+      hasInitiatedConnection.current = false;
+    }
   }, [role, createPeerConnection, peerId]);
 
   const disconnect = useCallback(() => {
@@ -220,6 +232,7 @@ export const useWebRTC = ({
     pcRef.current = null;
     setConnectionState("closed");
     setIsConnected(false);
+    hasInitiatedConnection.current = false;
   }, [peerId]);
 
   // Two-way audio support for Viewer
@@ -294,6 +307,7 @@ export const useWebRTC = ({
   return {
     connectionState,
     isConnected,
+    isChannelReady,
     connect,
     disconnect,
   };
