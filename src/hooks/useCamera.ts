@@ -12,6 +12,7 @@ export const useCamera = ({ onMotionDetected, motionSensitivity = 50 }: UseCamer
   const streamRef = useRef<MediaStream | null>(null);
   const motionIntervalRef = useRef<number | null>(null);
   const [isActive, setIsActive] = useState(false);
+  const [activeStream, setActiveStream] = useState<MediaStream | null>(null);
   const [isMuted, setIsMuted] = useState(false);
   const [flashOn, setFlashOn] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -23,6 +24,7 @@ export const useCamera = ({ onMotionDetected, motionSensitivity = 50 }: UseCamer
         audio: true,
       });
       streamRef.current = stream;
+      setActiveStream(stream);
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         await videoRef.current.play();
@@ -37,6 +39,7 @@ export const useCamera = ({ onMotionDetected, motionSensitivity = 50 }: UseCamer
   const stopCamera = useCallback(() => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
+    setActiveStream(null);
     if (videoRef.current) videoRef.current.srcObject = null;
     setIsActive(false);
     if (motionIntervalRef.current) {
@@ -134,7 +137,7 @@ export const useCamera = ({ onMotionDetected, motionSensitivity = 50 }: UseCamer
     isMuted,
     flashOn,
     error,
-    stream: streamRef.current,
+    stream: activeStream,
     startCamera,
     stopCamera,
     toggleMute,
