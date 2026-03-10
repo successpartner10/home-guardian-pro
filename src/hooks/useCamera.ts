@@ -39,6 +39,7 @@ export const useCamera = ({ onMotionDetected, motionSensitivity = 50 }: UseCamer
   const stopCamera = useCallback(() => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
+    setActiveStream(null);
     if (videoRef.current) videoRef.current.srcObject = null;
     setIsActive(false);
     if (motionIntervalRef.current) {
