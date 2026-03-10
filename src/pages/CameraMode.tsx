@@ -111,20 +111,28 @@ const CameraMode = () => {
 
       // If Google Drive is connected, upload it
       import("@/lib/driveService").then(async ({ driveService }) => {
-        if (driveService.isReady()) {
+        const folderId = user?.user_metadata?.drive_folder_id;
+
+        if (driveService.isReady() && folderId) {
           try {
             // Convert base64 Data URL to Blob
             const res = await fetch(dataUrl);
             const blob = await res.blob();
             const filename = `Snapshot_${new Date().toISOString().replace(/[:.]/g, '-')}.jpg`;
 
-            toast({ title: "Uploading...", description: "Saving to Google Drive." });
-            await driveService.uploadFile(blob, filename);
+            toast({ title: "Uploading...", description: "Saving to your Google Drive folder." });
+            await driveService.uploadFile(blob, filename, folderId);
             toast({ title: "Cloud Save Complete", description: "Snapshot saved to Google Drive safely." });
           } catch (e) {
             console.error(e);
             toast({ title: "Upload Failed", description: "Could not save to Google Drive.", variant: "destructive" });
           }
+        } else if (driveService.isReady() && !folderId) {
+          toast({
+            title: "Storage Not Configured",
+            description: "Please select a folder in Settings to enable Drive uploads.",
+            variant: "destructive"
+          });
         }
       });
     }

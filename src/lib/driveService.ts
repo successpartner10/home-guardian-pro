@@ -1,12 +1,12 @@
-export const DRIVE_FOLDER_ID = "1wnxHFaXI43BA7_5Lc32Fhq8r64XV038O";
 export const DRIVE_STORAGE_LIMIT_BYTES = 10 * 1024 * 1024 * 1024; // 10 GB
 
 export interface DriveFile {
     id: string;
     name: string;
-    size: string;
+    size?: string;
     createdTime: string;
     thumbnailLink?: string;
+    mimeType?: string;
 }
 
 export class DriveService {
@@ -43,21 +43,47 @@ export class DriveService {
             throw new Error(`Drive API Error: ${response.status} ${response.statusText}`);
         }
 
+        if (response.status === 204) return null;
         return response.json();
     }
 
     /**
-     * List files in the designated folder ordered by creation time
+     * List folders in the user's drive
      */
-    async listFiles(): Promise<DriveFile[]> {
-        const query = encodeURIComponent(`'${DRIVE_FOLDER_ID}' in parents and trashed=false`);
+    async listFolders(): Promise<DriveFile[]> {
+        const query = encodeURIComponent(`mimeType='application/vnd.google-apps.folder' and trashed=false`);
+        const fields = encodeURIComponent("files(id, name, createdTime)");
+        const data = await this.fetchApi(`/files?q=${query}&fields=${fields}&orderBy=name`);
+        return data.files || [];
+    }
+
+    /**
+     * Create a new folder
+     */
+    async createFolder(name: string): Promise<string> {
+        const response = await this.fetchApi("/files", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                name,
+                mimeType: "application/vnd.google-apps.folder",
+            }),
+        });
+        return response.id;
+    }
+
+    /**
+     * List files in a specific folder
+     */
+    async listFiles(folderId: string): Promise<DriveFile[]> {
+        const query = encodeURIComponent(`'${folderId}' in parents and trashed=false`);
         const fields = encodeURIComponent("files(id, name, size, createdTime, thumbnailLink)");
 
         try {
             const data = await this.fetchApi(`/files?q=${query}&fields=${fields}&orderBy=createdTime asc`);
             return data.files || [];
         } catch (e) {
-            console.error("Failed to list internal files", e);
+            console.error("Failed to list files", e);
             return [];
         }
     }
@@ -67,9 +93,6 @@ export class DriveService {
      */
     async deleteFiles(fileIds: string[]) {
         if (!this.accessToken) return;
-
-        // We can use a batch request, or run them sequentially. For simplicity and reliability, 
-        // run sequentially with Promise.all
         await Promise.allSettled(
             fileIds.map(id =>
                 fetch(`https://www.googleapis.com/drive/v3/files/${id}`, {
@@ -81,56 +104,42 @@ export class DriveService {
     }
 
     /**
-     * Delete all files in the folder (Bulk Delete)
-     */
-    async deleteAllFiles() {
-        const files = await this.listFiles();
-        const ids = files.map(f => f.id);
-        await this.deleteFiles(ids);
-    }
-
-    /**
      * Check total size and delete oldest files if > 10GB limit
      */
-    async enforceStorageLimit() {
+    async enforceStorageLimit(folderId: string) {
         console.log("Checking storage limit...");
-        const files = await this.listFiles();
+        const files = await this.listFiles(folderId);
 
         let totalSize = 0;
         const filesToDelete: string[] = [];
 
-        // Calculate total size
         for (const file of files) {
             totalSize += parseInt(file.size || "0", 10);
         }
 
         console.log(`Current Drive Folder Size: ${(totalSize / 1024 / 1024).toFixed(2)} MB`);
 
-        // If over limit, start deleting the oldest files (files are sorted ascending by createdTime)
         if (totalSize > DRIVE_STORAGE_LIMIT_BYTES) {
             console.log("Storage limit exceeded. Trimming oldest files...");
             for (const file of files) {
                 if (totalSize <= DRIVE_STORAGE_LIMIT_BYTES) break;
-
                 const size = parseInt(file.size || "0", 10);
                 filesToDelete.push(file.id);
                 totalSize -= size;
             }
-
-            console.log(`Deleting ${filesToDelete.length} files to free up space.`);
             await this.deleteFiles(filesToDelete);
         }
     }
 
     /**
-     * Upload a Blob to the Drive folder using simple upload format
+     * Upload a Blob to a specific Drive folder
      */
-    async uploadFile(blob: Blob, filename: string): Promise<any> {
+    async uploadFile(blob: Blob, filename: string, folderId: string): Promise<any> {
         if (!this.accessToken) throw new Error("No token");
 
         const metadata = {
             name: filename,
-            parents: [DRIVE_FOLDER_ID]
+            parents: [folderId]
         };
 
         const formData = new FormData();
@@ -153,10 +162,7 @@ export class DriveService {
         }
 
         const data = await response.json();
-
-        // After upload, enforce the limit in the background
-        this.enforceStorageLimit().catch(console.error);
-
+        this.enforceStorageLimit(folderId).catch(console.error);
         return data;
     }
 }

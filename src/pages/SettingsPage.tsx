@@ -31,6 +31,11 @@ const SettingsPage = () => {
   const [driveFiles, setDriveFiles] = useState<DriveFile[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
   const [isDeleting, setIsDeleting] = useState(false);
+  const [userFolders, setUserFolders] = useState<DriveFile[]>([]);
+  const [isSettingUpFolder, setIsSettingUpFolder] = useState(false);
+  const [newFolderName, setNewFolderName] = useState("Home Guardian Pro");
+
+  const driveFolderId = user?.user_metadata?.drive_folder_id;
 
   useEffect(() => {
     if (!user) return;
@@ -44,15 +49,54 @@ const SettingsPage = () => {
     };
     fetch();
 
-    // Load drive files if connected
     if (driveConnected) {
-      loadDriveFiles();
+      if (driveFolderId) {
+        loadDriveFiles(driveFolderId);
+      } else {
+        fetchUserFolders();
+      }
     }
-  }, [user, driveConnected]);
+  }, [user, driveConnected, driveFolderId]);
 
-  const loadDriveFiles = async () => {
+  const fetchUserFolders = async () => {
     try {
-      const files = await driveService.listFiles();
+      const folders = await driveService.listFolders();
+      setUserFolders(folders);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleSelectFolder = async (folderId: string) => {
+    setLoading(true);
+    const { error } = await supabase.auth.updateUser({
+      data: { drive_folder_id: folderId }
+    });
+    if (!error) {
+      toast({ title: "Storage folder set" });
+      loadDriveFiles(folderId);
+    } else {
+      toast({ title: "Failed to update profile", variant: "destructive" });
+    }
+    setLoading(false);
+  };
+
+  const handleCreateFolder = async () => {
+    if (!newFolderName.trim()) return;
+    setIsSettingUpFolder(true);
+    try {
+      const id = await driveService.createFolder(newFolderName);
+      await handleSelectFolder(id);
+      setIsSettingUpFolder(false);
+    } catch (e) {
+      toast({ title: "Folder creation failed", variant: "destructive" });
+      setIsSettingUpFolder(false);
+    }
+  };
+
+  const loadDriveFiles = async (id: string) => {
+    try {
+      const files = await driveService.listFiles(id);
       setDriveFiles(files);
     } catch (e) {
       console.error(e);
@@ -64,7 +108,7 @@ const SettingsPage = () => {
     onSuccess: (codeResponse) => {
       driveService.setToken(codeResponse.access_token);
       setDriveConnected(true);
-      toast({ title: "Google Drive Connected", description: "Your recordings will now be saved to the cloud." });
+      toast({ title: "Google Drive Connected", description: "Now select or create a folder for storage." });
     },
     onError: (error) => toast({ title: "Login Failed", description: "Could not connect to Google", variant: "destructive" }),
     scope: "https://www.googleapis.com/auth/drive.file",
@@ -72,13 +116,13 @@ const SettingsPage = () => {
   });
 
   const handleBulkDelete = async () => {
-    if (selectedFiles.size === 0) return;
+    if (selectedFiles.size === 0 || !driveFolderId) return;
     setIsDeleting(true);
     try {
       await driveService.deleteFiles(Array.from(selectedFiles));
       toast({ title: "Files deleted" });
       setSelectedFiles(new Set());
-      await loadDriveFiles();
+      await loadDriveFiles(driveFolderId);
     } catch {
       toast({ title: "Delete Failed", variant: "destructive" });
     }
@@ -117,7 +161,7 @@ const SettingsPage = () => {
         <h1 className="text-2xl font-bold">Settings</h1>
 
         {/* Profile */}
-        <Card className="border-border/50 bg-card/80">
+        <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
           <CardHeader>
             <CardTitle className="text-lg">Profile</CardTitle>
           </CardHeader>
@@ -137,7 +181,7 @@ const SettingsPage = () => {
         </Card>
 
         {/* Motion Settings */}
-        <Card className="border-border/50 bg-card/80">
+        <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
           <CardHeader>
             <CardTitle className="text-lg">Motion Detection</CardTitle>
             <CardDescription>Configure sensitivity for all cameras</CardDescription>
@@ -160,68 +204,83 @@ const SettingsPage = () => {
           </CardContent>
         </Card>
 
-        {/* Devices */}
-        <Card className="border-border/50 bg-card/80">
-          <CardHeader>
-            <CardTitle className="text-lg">Devices</CardTitle>
-            <CardDescription>Manage paired devices</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {devices.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No devices paired yet.</p>
-            ) : (
-              devices.map((d) => (
-                <div key={d.id} className="flex items-center justify-between rounded-lg bg-muted/30 p-3">
-                  <div>
-                    <p className="text-sm font-medium">{d.name}</p>
-                    <p className="text-xs text-muted-foreground capitalize">{d.type} · {d.status}</p>
-                  </div>
-                  <Button variant="ghost" size="icon" onClick={() => removeDevice(d.id)} className="h-8 w-8 text-muted-foreground hover:text-destructive">
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))
-            )}
-          </CardContent>
-        </Card>
-
         {/* Google Drive Storage */}
-        <Card className="border-border/50 bg-card/80">
+        <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2 text-primary"><DownloadCloud className="w-5 h-5" /> Cloud Storage</CardTitle>
-            <CardDescription>Save snapshots & recordings to Google Drive (10GB limit)</CardDescription>
+            <CardDescription>Save snapshots & recordings to your Google Drive</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {!driveConnected ? (
-              <Button onClick={() => loginGoogle()} className="w-full gap-2" variant="outline">
+              <Button onClick={() => loginGoogle()} className="w-full h-12 gap-2" variant="outline">
                 <svg className="w-5 h-5" viewBox="0 0 24 24"><path fill="currentColor" d="M21.35,11.1H12.18V13.83H18.69C18.36,17.64 15.19,19.27 12.19,19.27C8.36,19.27 5,16.25 5,12C5,7.9 8.2,4.73 12.2,4.73C15.29,4.73 17.1,6.7 17.1,6.7L19,4.72C19,4.72 16.56,2 12.1,2C6.42,2 2.03,6.8 2.03,12C2.03,17.05 6.16,22 12.25,22C17.6,22 21.5,18.33 21.5,12.91C21.5,11.76 21.35,11.1 21.35,11.1V11.1Z" /></svg>
                 Connect Google Account
               </Button>
+            ) : !driveFolderId ? (
+              <div className="space-y-4 animate-in fade-in slide-in-from-top-4">
+                <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 space-y-4">
+                  <p className="text-sm font-medium">Select a folder for your recordings</p>
+                  <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                    {userFolders.map(folder => (
+                      <Button
+                        key={folder.id}
+                        variant="ghost"
+                        className="w-full justify-start text-left h-auto py-2 px-3 hover:bg-primary/10 transition-colors"
+                        onClick={() => handleSelectFolder(folder.id)}
+                      >
+                        <div className="min-w-0">
+                          <p className="text-sm truncate font-normal">{folder.name}</p>
+                          <p className="text-[10px] opacity-50">Created {new Date(folder.createdTime).toLocaleDateString()}</p>
+                        </div>
+                      </Button>
+                    ))}
+                    {userFolders.length === 0 && <p className="text-xs text-muted-foreground italic py-2">No folders found.</p>}
+                  </div>
+
+                  <div className="pt-2 border-t border-primary/10">
+                    <p className="text-xs text-muted-foreground mb-2">Or create a new one:</p>
+                    <div className="flex gap-2">
+                      <Input
+                        value={newFolderName}
+                        onChange={(e) => setNewFolderName(e.target.value)}
+                        placeholder="Folder Name"
+                        className="h-10 bg-background/50"
+                      />
+                      <Button onClick={handleCreateFolder} disabled={isSettingUpFolder || !newFolderName.trim()}>
+                        {isSettingUpFolder ? "..." : "Create"}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
             ) : (
               <div className="space-y-4">
-                <div className="flex items-center gap-2 text-sm text-green-500 bg-green-500/10 p-3 rounded-lg border border-green-500/20">
-                  <span className="relative flex h-3 w-3"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span><span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span></span>
-                  Connected to Google Drive
+                <div className="flex items-center justify-between gap-2 text-sm text-green-500 bg-green-500/10 p-3 rounded-lg border border-green-500/20">
+                  <div className="flex items-center gap-2">
+                    <span className="relative flex h-3 w-3"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span><span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span></span>
+                    Connected to Drive
+                  </div>
+                  <Button variant="ghost" size="sm" className="h-7 text-[10px] uppercase font-bold tracking-wider" onClick={() => handleSelectFolder("")}>Change Folder</Button>
                 </div>
 
                 <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 flex gap-3 text-sm text-destructive items-start">
                   <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
                   <div>
                     <p className="font-semibold">Automated Storage Limit</p>
-                    <p className="opacity-80">Oldest files are automatically hard-deleted when the target folder exceeds 10GB to prevent quota errors.</p>
+                    <p className="opacity-80">Oldest files are automatically deleted when this folder exceeds 10GB.</p>
                   </div>
                 </div>
 
                 <div className="space-y-2 mt-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
                   {driveFiles.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-4">No recordings saved yet.</p>
+                    <p className="text-sm text-muted-foreground text-center py-4">No recordings saved in this folder yet.</p>
                   ) : (
                     <>
                       <div className="flex justify-between items-center mb-2">
-                        <span className="text-xs font-medium uppercase tracking-widest text-muted-foreground">{driveFiles.length} files saved</span>
+                        <span className="text-xs font-medium uppercase tracking-widest text-muted-foreground">{driveFiles.length} files</span>
                         {selectedFiles.size > 0 && (
                           <Button size="sm" variant="destructive" onClick={handleBulkDelete} disabled={isDeleting} className="h-8">
-                            {isDeleting ? "Deleting..." : `Delete Selected (${selectedFiles.size})`}
+                            {isDeleting ? "Deleting..." : `Delete (${selectedFiles.size})`}
                           </Button>
                         )}
                       </div>
@@ -247,9 +306,34 @@ const SettingsPage = () => {
           </CardContent>
         </Card>
 
+        {/* Devices */}
+        <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
+          <CardHeader>
+            <CardTitle className="text-lg">Devices</CardTitle>
+            <CardDescription>Manage paired devices</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {devices.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No devices paired yet.</p>
+            ) : (
+              devices.map((d) => (
+                <div key={d.id} className="flex items-center justify-between rounded-lg bg-muted/30 p-3">
+                  <div>
+                    <p className="text-sm font-medium">{d.name}</p>
+                    <p className="text-xs text-muted-foreground capitalize">{d.type} · {d.status}</p>
+                  </div>
+                  <Button variant="ghost" size="icon" onClick={() => removeDevice(d.id)} className="h-8 w-8 text-muted-foreground hover:text-destructive">
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
+
         <Separator />
 
-        <Button variant="destructive" onClick={handleSignOut} className="w-full gap-2">
+        <Button variant="destructive" onClick={handleSignOut} className="w-full h-12 gap-2">
           <LogOut className="h-4 w-4" /> Sign Out
         </Button>
       </div>
