@@ -16,6 +16,7 @@ import PairDevice from "./pages/PairDevice";
 import Alerts from "./pages/Alerts";
 import SettingsPage from "./pages/SettingsPage";
 import NotFound from "./pages/NotFound";
+import InstallPrompt from "./components/InstallPrompt";
 
 const queryClient = new QueryClient();
 
@@ -41,6 +42,7 @@ const App = () => (
             <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
+          <InstallPrompt />
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
