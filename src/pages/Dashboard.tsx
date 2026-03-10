@@ -68,6 +68,46 @@ const Dashboard = () => {
     return () => { supabase.removeChannel(channel); };
   }, [user]);
 
+  const handleUseAsViewer = async () => {
+    if (!user) return;
+    setRegistering(true);
+
+    const deviceName = `${navigator.platform} Viewer`;
+
+    // Check for existing viewer
+    const { data: existingDevice } = await supabase
+      .from('devices')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('name', deviceName)
+      .eq('type', 'viewer')
+      .limit(1)
+      .single();
+
+    if (existingDevice) {
+      await supabase.from("devices").update({ status: 'online' }).eq('id', existingDevice.id);
+      toast({ title: "Viewer Active", description: "You are now monitoring cameras." });
+      setRegistering(false);
+      return;
+    }
+
+    // Register this device as a new viewer
+    const { error } = await supabase.from("devices").insert({
+      user_id: user.id,
+      name: deviceName,
+      type: "viewer" as const,
+      status: "online" as const,
+      pairing_code: Math.random().toString(36).substring(2, 8).toUpperCase()
+    });
+
+    if (error) {
+      toast({ title: "Error", description: "Failed to initialize viewer mode.", variant: "destructive" });
+    } else {
+      toast({ title: "Viewer Active", description: "You are now monitoring cameras." });
+    }
+    setRegistering(false);
+  };
+
   const handleUseAsCamera = async () => {
     if (!user) return;
     setRegistering(true);
@@ -130,7 +170,8 @@ const Dashboard = () => {
               <Button
                 variant="outline"
                 className="flex-1 md:flex-none h-14 px-6 gap-3 bg-primary/20 backdrop-blur-md border-primary text-primary transition-all text-base shadow-[0_0_15px_hsl(var(--primary)/0.2)]"
-                onClick={() => toast({ title: "Viewer Mode Active", description: "You are currently in Viewer Mode. Any available cameras will appear below." })}
+                onClick={handleUseAsViewer}
+                disabled={registering}
               >
                 <MonitorSmartphone className="h-5 w-5" />
                 <span className="font-semibold">Viewer (Active)</span>

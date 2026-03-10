@@ -79,10 +79,29 @@ const CameraMode = () => {
     return () => { updateStatus("offline"); };
   }, [isActive, user, resolvedDeviceId]);
 
-  const handleSnapshot = () => {
-    const data = takeSnapshot();
-    if (data) {
+  const handleSnapshot = async () => {
+    const dataUrl = takeSnapshot();
+    if (dataUrl) {
       toast({ title: "Snapshot taken", description: "Image captured successfully." });
+
+      // If Google Drive is connected, upload it
+      import("@/lib/driveService").then(async ({ driveService }) => {
+        if (driveService.isReady()) {
+          try {
+            // Convert base64 Data URL to Blob
+            const res = await fetch(dataUrl);
+            const blob = await res.blob();
+            const filename = `Snapshot_${new Date().toISOString().replace(/[:.]/g, '-')}.jpg`;
+
+            toast({ title: "Uploading...", description: "Saving to Google Drive." });
+            await driveService.uploadFile(blob, filename);
+            toast({ title: "Cloud Save Complete", description: "Snapshot saved to Google Drive safely." });
+          } catch (e) {
+            console.error(e);
+            toast({ title: "Upload Failed", description: "Could not save to Google Drive.", variant: "destructive" });
+          }
+        }
+      });
     }
   };
 

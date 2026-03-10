@@ -9,9 +9,11 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { Trash2, Save, LogOut } from "lucide-react";
+import { Trash2, Save, LogOut, DownloadCloud, AlertTriangle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
+import { useGoogleLogin } from "@react-oauth/google";
+import { driveService, DriveFile } from "@/lib/driveService";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Device = Tables<"devices">;
@@ -25,6 +27,10 @@ const SettingsPage = () => {
   const [notifications, setNotifications] = useState(true);
   const [displayName, setDisplayName] = useState("");
   const [loading, setLoading] = useState(false);
+  const [driveConnected, setDriveConnected] = useState(driveService.isReady());
+  const [driveFiles, setDriveFiles] = useState<DriveFile[]>([]);
+  const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -37,7 +43,53 @@ const SettingsPage = () => {
       if (profileRes.data?.display_name) setDisplayName(profileRes.data.display_name);
     };
     fetch();
-  }, [user]);
+
+    // Load drive files if connected
+    if (driveConnected) {
+      loadDriveFiles();
+    }
+  }, [user, driveConnected]);
+
+  const loadDriveFiles = async () => {
+    try {
+      const files = await driveService.listFiles();
+      setDriveFiles(files);
+    } catch (e) {
+      console.error(e);
+      toast({ title: "Failed to load Drive files", variant: "destructive" });
+    }
+  };
+
+  const loginGoogle = useGoogleLogin({
+    onSuccess: (codeResponse) => {
+      driveService.setToken(codeResponse.access_token);
+      setDriveConnected(true);
+      toast({ title: "Google Drive Connected", description: "Your recordings will now be saved to the cloud." });
+    },
+    onError: (error) => toast({ title: "Login Failed", description: "Could not connect to Google", variant: "destructive" }),
+    scope: "https://www.googleapis.com/auth/drive.file",
+  });
+
+  const handleBulkDelete = async () => {
+    if (selectedFiles.size === 0) return;
+    setIsDeleting(true);
+    try {
+      await driveService.deleteFiles(Array.from(selectedFiles));
+      toast({ title: "Files deleted" });
+      setSelectedFiles(new Set());
+      await loadDriveFiles();
+    } catch {
+      toast({ title: "Delete Failed", variant: "destructive" });
+    }
+    setIsDeleting(false);
+  };
+
+  const toggleFileSelection = (fileId: string) => {
+    const next = new Set(selectedFiles);
+    if (next.has(fileId)) next.delete(fileId);
+    else next.add(fileId);
+    setSelectedFiles(next);
+  };
 
   const saveProfile = async () => {
     if (!user) return;
@@ -128,6 +180,68 @@ const SettingsPage = () => {
                   </Button>
                 </div>
               ))
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Google Drive Storage */}
+        <Card className="border-border/50 bg-card/80">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2 text-primary"><DownloadCloud className="w-5 h-5" /> Cloud Storage</CardTitle>
+            <CardDescription>Save snapshots & recordings to Google Drive (10GB limit)</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {!driveConnected ? (
+              <Button onClick={() => loginGoogle()} className="w-full gap-2" variant="outline">
+                <svg className="w-5 h-5" viewBox="0 0 24 24"><path fill="currentColor" d="M21.35,11.1H12.18V13.83H18.69C18.36,17.64 15.19,19.27 12.19,19.27C8.36,19.27 5,16.25 5,12C5,7.9 8.2,4.73 12.2,4.73C15.29,4.73 17.1,6.7 17.1,6.7L19,4.72C19,4.72 16.56,2 12.1,2C6.42,2 2.03,6.8 2.03,12C2.03,17.05 6.16,22 12.25,22C17.6,22 21.5,18.33 21.5,12.91C21.5,11.76 21.35,11.1 21.35,11.1V11.1Z" /></svg>
+                Connect Google Account
+              </Button>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 text-sm text-green-500 bg-green-500/10 p-3 rounded-lg border border-green-500/20">
+                  <span className="relative flex h-3 w-3"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span><span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span></span>
+                  Connected to Google Drive
+                </div>
+
+                <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 flex gap-3 text-sm text-destructive items-start">
+                  <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-semibold">Automated Storage Limit</p>
+                    <p className="opacity-80">Oldest files are automatically hard-deleted when the target folder exceeds 10GB to prevent quota errors.</p>
+                  </div>
+                </div>
+
+                <div className="space-y-2 mt-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                  {driveFiles.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">No recordings saved yet.</p>
+                  ) : (
+                    <>
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-xs font-medium uppercase tracking-widest text-muted-foreground">{driveFiles.length} files saved</span>
+                        {selectedFiles.size > 0 && (
+                          <Button size="sm" variant="destructive" onClick={handleBulkDelete} disabled={isDeleting} className="h-8">
+                            {isDeleting ? "Deleting..." : `Delete Selected (${selectedFiles.size})`}
+                          </Button>
+                        )}
+                      </div>
+                      {driveFiles.map(file => (
+                        <div key={file.id} className="flex items-center gap-3 p-3 rounded-lg bg-card border border-border/50 hover:bg-muted/50 transition-colors">
+                          <Switch
+                            checked={selectedFiles.has(file.id)}
+                            onCheckedChange={() => toggleFileSelection(file.id)}
+                          />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium truncate">{file.name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {new Date(file.createdTime).toLocaleDateString()} · {(parseInt(file.size || "0") / 1024 / 1024).toFixed(1)} MB
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </>
+                  )}
+                </div>
+              </div>
             )}
           </CardContent>
         </Card>
