@@ -12,7 +12,6 @@ import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
 import CameraMode from "./pages/CameraMode";
 import LiveFeed from "./pages/LiveFeed";
-import PairDevice from "./pages/PairDevice";
 import Alerts from "./pages/Alerts";
 import SettingsPage from "./pages/SettingsPage";
 import NotFound from "./pages/NotFound";
@@ -37,7 +36,6 @@ const App = () => (
             <Route path="/camera" element={<ProtectedRoute><CameraMode /></ProtectedRoute>} />
             <Route path="/camera/:deviceId" element={<ProtectedRoute><CameraMode /></ProtectedRoute>} />
             <Route path="/live/:deviceId" element={<ProtectedRoute><LiveFeed /></ProtectedRoute>} />
-            <Route path="/pair" element={<ProtectedRoute><PairDevice /></ProtectedRoute>} />
             <Route path="/alerts" element={<ProtectedRoute><Alerts /></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />

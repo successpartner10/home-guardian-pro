@@ -80,6 +80,67 @@ export const useCamera = ({ onMotionDetected, motionSensitivity = 50 }: UseCamer
     return canvas.toDataURL("image/jpeg", 0.8);
   }, []);
 
+  // Sound detection setup
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const soundIntervalRef = useRef<number | null>(null);
+  const [soundLevel, setSoundLevel] = useState(0);
+
+  useEffect(() => {
+    if (!isActive || !activeStream || !!isMuted) {
+      if (soundIntervalRef.current) {
+        clearInterval(soundIntervalRef.current);
+        soundIntervalRef.current = null;
+      }
+      setSoundLevel(0);
+      return;
+    }
+
+    try {
+      if (!audioContextRef.current) {
+        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      }
+      if (audioContextRef.current.state === "suspended") {
+        audioContextRef.current.resume();
+      }
+
+      const audioSource = audioContextRef.current.createMediaStreamSource(activeStream);
+      analyserRef.current = audioContextRef.current.createAnalyser();
+      analyserRef.current.fftSize = 256;
+      audioSource.connect(analyserRef.current);
+
+      const bufferLength = analyserRef.current.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+
+      soundIntervalRef.current = window.setInterval(() => {
+        if (!analyserRef.current) return;
+        analyserRef.current.getByteFrequencyData(dataArray);
+
+        let sum = 0;
+        for (let i = 0; i < bufferLength; i++) {
+          sum += dataArray[i];
+        }
+
+        const avg = sum / bufferLength;
+        const normalizedVolume = Math.min(100, Math.round((avg / 255) * 100 * 2)); // Amplify slightly
+
+        setSoundLevel(normalizedVolume);
+
+        // Trigger sound alert if volume > threshold (e.g. 60)
+        // (onSoundDetected callback would go here in the future)
+      }, 100);
+
+    } catch (err) {
+      console.error("Audio detection error:", err);
+    }
+
+    return () => {
+      if (soundIntervalRef.current) {
+        clearInterval(soundIntervalRef.current);
+      }
+    };
+  }, [isActive, activeStream, isMuted]);
+
   // Motion detection
   useEffect(() => {
     if (!isActive || !onMotionDetected) return;
@@ -138,6 +199,7 @@ export const useCamera = ({ onMotionDetected, motionSensitivity = 50 }: UseCamer
     flashOn,
     error,
     stream: activeStream,
+    soundLevel,
     startCamera,
     stopCamera,
     toggleMute,

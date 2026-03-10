@@ -51,7 +51,7 @@ const CameraMode = () => {
     [user, resolvedDeviceId]
   );
 
-  const { videoRef, canvasRef, isActive, isMuted, flashOn, error, stream, startCamera, stopCamera, toggleMute, toggleFlash, takeSnapshot } =
+  const { videoRef, canvasRef, isActive, isMuted, flashOn, error, stream, soundLevel, startCamera, stopCamera, toggleMute, toggleFlash, takeSnapshot } =
     useCamera({ onMotionDetected: handleMotion, motionSensitivity: 50 });
 
   const { connectionState, isConnected } = useWebRTC({
@@ -89,59 +89,133 @@ const CameraMode = () => {
   const viewerConnected = isConnected || connectionState === "connecting";
 
   return (
-    <div className="relative flex min-h-screen flex-col bg-black">
+    <div className="relative flex min-h-screen flex-col bg-black overflow-hidden tracking-tight">
       {/* Video feed */}
       <div className="relative flex-1">
         <video ref={videoRef} className="h-full w-full object-cover" autoPlay playsInline muted />
         <canvas ref={canvasRef} className="hidden" />
 
-        {/* Status overlay */}
-        <div className="absolute left-4 top-4 flex items-center gap-2">
-          <button onClick={() => navigate("/dashboard")} className="flex h-10 w-10 items-center justify-center rounded-full bg-background/50 backdrop-blur-sm">
-            <ArrowLeft className="h-5 w-5 text-foreground" />
-          </button>
-        </div>
-
-        <div className="absolute right-4 top-4 flex flex-col items-end gap-2">
-          <div className="flex items-center gap-1.5 rounded-full bg-background/50 px-3 py-1.5 backdrop-blur-sm">
-            <span className="h-2 w-2 animate-pulse rounded-full bg-destructive" />
-            <span className="text-xs font-medium text-foreground">LIVE</span>
-          </div>
-          {viewerConnected && (
-            <div className="flex items-center gap-1.5 rounded-full bg-primary/80 px-3 py-1.5 backdrop-blur-sm">
-              <Users className="h-3 w-3 text-primary-foreground" />
-              <span className="text-xs font-medium text-primary-foreground">Viewer connected</span>
-            </div>
-          )}
-        </div>
-
-        {motionCount > 0 && (
-          <div className="absolute left-4 bottom-24 flex items-center gap-2 rounded-full bg-destructive/80 px-3 py-1.5 backdrop-blur-sm">
-            <span className="text-xs font-medium text-destructive-foreground">Motion: {motionCount}</span>
+        {/* 360 Sound Radar Overlay */}
+        {!isMuted && soundLevel > 5 && (
+          <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+            <div
+              className="absolute rounded-full border border-primary/40 bg-primary/10 transition-all duration-75 ease-out"
+              style={{
+                width: `${100 + soundLevel * 3}px`,
+                height: `${100 + soundLevel * 3}px`,
+                opacity: soundLevel > 50 ? 0.6 : 0.3,
+                boxShadow: `0 0 ${soundLevel}px hsl(var(--primary) / 0.5)`
+              }}
+            />
+            <div
+              className="absolute rounded-full border border-primary/20 bg-primary/5 transition-all duration-150 ease-out delay-75"
+              style={{
+                width: `${150 + soundLevel * 4}px`,
+                height: `${150 + soundLevel * 4}px`,
+                opacity: soundLevel > 70 ? 0.4 : 0.1,
+              }}
+            />
           </div>
         )}
 
+        {/* Top Status Bar */}
+        <div className="absolute top-0 left-0 right-0 p-4 flex justify-between items-start bg-gradient-to-b from-black/80 to-transparent pt-safe">
+          <div className="flex gap-3 items-center">
+            <button
+              onClick={() => navigate("/dashboard")}
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-black/40 border border-white/10 backdrop-blur-md hover:bg-black/60 transition-colors"
+            >
+              <ArrowLeft className="h-5 w-5 text-white" />
+            </button>
+
+            <div className="flex items-center gap-2 rounded-full bg-black/40 border border-white/10 px-3 py-1.5 backdrop-blur-md">
+              <span className="h-2 w-2 animate-pulse rounded-full bg-destructive shadow-[0_0_8px_hsl(var(--destructive))]" />
+              <span className="text-xs font-semibold text-white tracking-widest">LIVE</span>
+            </div>
+          </div>
+
+          <div className="flex flex-col items-end gap-2">
+            {viewerConnected && (
+              <div className="flex items-center gap-2 rounded-full bg-primary/80 border border-primary/50 px-3 py-1.5 backdrop-blur-md shadow-[0_0_15px_hsl(var(--primary)/0.3)]">
+                <Users className="h-3.5 w-3.5 text-primary-foreground" />
+                <span className="text-xs font-semibold text-primary-foreground">Viewer Connected</span>
+              </div>
+            )}
+
+            {!isMuted && (
+              <div className="flex flex-col items-end gap-1 mt-2">
+                <span className="text-[10px] uppercase font-bold text-white/70 tracking-widest">Sound Detection</span>
+                <div className="flex gap-1 h-3 items-end">
+                  {[...Array(5)].map((_, i) => (
+                    <div
+                      key={i}
+                      className={`w-1.5 rounded-t-sm transition-all duration-75 ${soundLevel > i * 20 ? 'bg-primary' : 'bg-white/20'}`}
+                      style={{ height: soundLevel > i * 20 ? `${Math.max(40, (soundLevel - i * 20) * 2)}%` : '20%' }}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {motionCount > 0 && (
+              <div className="flex items-center gap-2 rounded-full bg-destructive/80 border border-destructive/50 px-3 py-1.5 backdrop-blur-md mt-2 shadow-[0_0_15px_hsl(var(--destructive)/0.3)]">
+                <span className="text-xs font-bold text-destructive-foreground">Motion events: {motionCount}</span>
+              </div>
+            )}
+          </div>
+        </div>
+
         {error && (
-          <div className="absolute inset-0 flex items-center justify-center bg-background/90">
-            <div className="text-center space-y-3">
-              <p className="text-destructive font-medium">{error}</p>
-              <Button onClick={startCamera}>Retry</Button>
+          <div className="absolute inset-0 flex items-center justify-center bg-black/90 backdrop-blur-md z-50">
+            <div className="bg-card/20 p-8 rounded-3xl border border-white/10 glass-panel max-w-sm text-center space-y-4">
+              <div className="h-16 w-16 bg-destructive/20 text-destructive rounded-full flex items-center justify-center mx-auto mb-2">
+                <Camera className="h-8 w-8" />
+              </div>
+              <h3 className="text-xl font-bold text-white">Camera Access Error</h3>
+              <p className="text-white/70 text-sm leading-relaxed">{error}</p>
+              <Button onClick={startCamera} className="w-full mt-4 h-12 shadow-[0_0_20px_hsl(var(--primary)/0.3)]">
+                Retry Connection
+              </Button>
             </div>
           </div>
         )}
       </div>
 
-      {/* Controls */}
-      <div className="flex items-center justify-center gap-6 bg-background/80 p-6 backdrop-blur-sm">
-        <Button variant="ghost" size="icon" onClick={toggleMute} className="h-14 w-14 rounded-full">
-          {isMuted ? <MicOff className="h-6 w-6" /> : <Mic className="h-6 w-6" />}
-        </Button>
-        <Button size="icon" onClick={handleSnapshot} className="h-16 w-16 rounded-full bg-primary hover:bg-primary/90">
-          <Camera className="h-7 w-7" />
-        </Button>
-        <Button variant="ghost" size="icon" onClick={toggleFlash} className="h-14 w-14 rounded-full">
-          {flashOn ? <FlashlightOff className="h-6 w-6" /> : <Flashlight className="h-6 w-6" />}
-        </Button>
+      {/* Bottom Controls */}
+      <div className="bg-black/80 border-t border-white/10 p-6 pb-safe backdrop-blur-xl relative z-20">
+        <div className="flex items-center justify-center gap-8 max-w-sm mx-auto">
+          <div className="flex flex-col items-center gap-2">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={toggleMute}
+              className={`h-14 w-14 rounded-full border-white/10 transition-colors ${!isMuted ? 'bg-primary/20 text-primary border-primary/50' : 'bg-white/5 text-white/70 hover:bg-white/10 hover:text-white'}`}
+            >
+              {isMuted ? <MicOff className="h-6 w-6" /> : <Mic className="h-6 w-6" />}
+            </Button>
+            <span className="text-[10px] font-medium text-white/50 uppercase tracking-widest">{isMuted ? 'Mic Off' : 'Mic On'}</span>
+          </div>
+
+          <Button
+            size="icon"
+            onClick={handleSnapshot}
+            className="h-20 w-20 rounded-full bg-primary hover:bg-primary/90 hover:scale-105 active:scale-95 transition-all shadow-[0_0_30px_hsl(var(--primary)/0.4)] border-4 border-black"
+          >
+            <Camera className="h-8 w-8 text-primary-foreground" />
+          </Button>
+
+          <div className="flex flex-col items-center gap-2">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={toggleFlash}
+              className={`h-14 w-14 rounded-full border-white/10 transition-colors ${flashOn ? 'bg-primary/20 text-primary border-primary/50' : 'bg-white/5 text-white/70 hover:bg-white/10 hover:text-white'}`}
+            >
+              {flashOn ? <Flashlight className="h-6 w-6" /> : <FlashlightOff className="h-6 w-6" />}
+            </Button>
+            <span className="text-[10px] font-medium text-white/50 uppercase tracking-widest">{flashOn ? 'Flash On' : 'Flash Off'}</span>
+          </div>
+        </div>
       </div>
     </div>
   );
