@@ -63,7 +63,7 @@ const LiveFeed = () => {
     if (remoteVideoRef.current && remoteStream) {
       remoteVideoRef.current.srcObject = remoteStream;
     }
-  }, [remoteStream]);
+  }, [remoteStream, isConnected]);
 
   const [zoomLevel, setZoomLevel] = useState(1);
   const [isHD, setIsHD] = useState(true);
