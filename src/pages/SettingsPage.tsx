@@ -14,22 +14,37 @@ import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { useGoogleLogin } from "@react-oauth/google";
 import { driveService, DriveFile } from "@/lib/driveService";
+import { useTheme, ThemeType } from "@/contexts/ThemeContext";
 import { cn } from "@/lib/utils";
 import PinModal from "@/components/PinModal";
 import type { Tables } from "@/integrations/supabase/types";
+import { Palette, Bell, VolumeX, Smartphone, Music, Clock, Calendar } from "lucide-react";
 
 type Device = Tables<"devices">;
 
 const ADMIN_EMAIL = "successpartner10@gmail.com";
 
+const THEMES: { id: ThemeType; label: string; colors: string[] }[] = [
+  { id: "dark-blue", label: "Midnight Blue", colors: ["#0f172a", "#3b82f6"] },
+  { id: "dark-onyx", label: "Onyx Black", colors: ["#050505", "#f8fafc"] },
+  { id: "dark-slate", label: "Slate Pro", colors: ["#1e293b", "#10b981"] },
+  { id: "pastel", label: "Lavender", colors: ["#fdfaff", "#8b5cf6"] },
+  { id: "light-pure", label: "Pure White", colors: ["#ffffff", "#0f172a"] },
+  { id: "light-cream", label: "Warm Cream", colors: ["#fdfaf6", "#ea580c"] },
+];
+
 const SettingsPage = () => {
   const { user, signOut } = useAuth();
+  const { theme, setTheme } = useTheme();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [devices, setDevices] = useState<Device[]>([]);
   const [sensitivity, setSensitivity] = useState(50);
-  const [notifications, setNotifications] = useState(true);
+  const [notificationPref, setNotificationPref] = useState<"mute" | "vibrate" | "ring">(user?.user_metadata?.notifications || "ring");
   const [displayName, setDisplayName] = useState("");
+  const [snapshotCount, setSnapshotCount] = useState<number | null>(null);
+  const [autoCleanup, setAutoCleanup] = useState<boolean>(user?.user_metadata?.auto_cleanup ?? true);
+  const [cleanupLimit, setCleanupLimit] = useState<number>(user?.user_metadata?.cleanup_limit ?? 1000);
   const [loading, setLoading] = useState(false);
   const [driveConnected, setDriveConnected] = useState(false);
   const [driveFiles, setDriveFiles] = useState<DriveFile[]>([]);
@@ -42,6 +57,12 @@ const SettingsPage = () => {
   const [securityPin, setSecurityPin] = useState(user?.user_metadata?.security_pin || "");
   const [newPin, setNewPin] = useState("");
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
+
+  const [schedule, setSchedule] = useState<{ enabled: boolean, start: string, end: string }>({
+    enabled: user?.user_metadata?.detection_schedule?.enabled ?? false,
+    start: user?.user_metadata?.detection_schedule?.start ?? "22:00",
+    end: user?.user_metadata?.detection_schedule?.end ?? "06:00"
+  });
 
   const isAdmin = user?.email === ADMIN_EMAIL;
   const driveFolderId = user?.user_metadata?.drive_folder_id;
@@ -137,6 +158,76 @@ const SettingsPage = () => {
     }
   };
 
+  useEffect(() => {
+    if (!user) return;
+    const init = async () => {
+      try {
+        // ... (existing init logic)
+        fetchSnapshotCount();
+      } catch (e) {
+        console.error("Settings initialization error:", e);
+      }
+    };
+    init();
+  }, [user]);
+
+  const fetchSnapshotCount = async () => {
+    if (!user) return;
+    try {
+      const { data, error } = await supabase.storage.from("snapshots").list(user.id);
+      if (!error && data) {
+        setSnapshotCount(data.length);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleCleanup = async (manual: boolean = false) => {
+    if (!user || !snapshotCount) return;
+
+    // Only cleanup if manual OR if count exceeds limit
+    if (!manual && snapshotCount <= cleanupLimit) return;
+
+    setLoading(true);
+    try {
+      const { data: files, error } = await supabase.storage.from("snapshots").list(user.id, {
+        sortBy: { column: 'created_at', order: 'asc' }
+      });
+
+      if (error || !files) throw error;
+
+      // Keep the most recent ones
+      const toDeleteCount = manual ? files.length : files.length - cleanupLimit;
+      if (toDeleteCount <= 0) return;
+
+      const toDelete = files.slice(0, toDeleteCount).map(f => `${user.id}/${f.name}`);
+      const { error: deleteError } = await supabase.storage.from("snapshots").remove(toDelete);
+
+      if (!deleteError) {
+        toast({ title: "Cleanup Complete", description: `Removed ${toDeleteCount} old snapshots from Supabase.` });
+        fetchSnapshotCount();
+      }
+    } catch (e) {
+      console.error(e);
+      toast({ title: "Cleanup Failed", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const saveStoragePrefs = async (prefs: { auto_cleanup?: boolean, cleanup_limit?: number }) => {
+    setAutoCleanup(prefs.auto_cleanup ?? autoCleanup);
+    setCleanupLimit(prefs.cleanup_limit ?? cleanupLimit);
+
+    await supabase.auth.updateUser({
+      data: {
+        auto_cleanup: prefs.auto_cleanup ?? autoCleanup,
+        cleanup_limit: prefs.cleanup_limit ?? cleanupLimit
+      }
+    });
+  };
+
   const loginGoogle = useGoogleLogin({
     onSuccess: (codeResponse) => {
       driveService.setToken(codeResponse.access_token);
@@ -222,12 +313,167 @@ const SettingsPage = () => {
     toast({ title: "Device removed" });
   };
 
+  const handleNotificationChange = async (pref: "mute" | "vibrate" | "ring") => {
+    setNotificationPref(pref);
+    const { error } = await supabase.auth.updateUser({
+      data: { notifications: pref }
+    });
+    if (!error) {
+      toast({ title: "Alert preference saved", description: `Notifications set to ${pref}.` });
+      if (pref === "vibrate" && "vibrate" in navigator) {
+        navigator.vibrate(200);
+      }
+    }
+  };
+
+  const saveSchedule = async (newSchedule: typeof schedule) => {
+    setSchedule(newSchedule);
+    await supabase.auth.updateUser({
+      data: { detection_schedule: newSchedule }
+    });
+    toast({ title: "Schedule Updated", description: `Auto-detection ${newSchedule.enabled ? 'enabled' : 'disabled'}.` });
+  };
+
   return (
     <AppLayout>
       <div className="p-6 max-w-2xl mx-auto space-y-10 mb-20 tracking-tighter">
         <div className="space-y-2">
           <h1 className="text-4xl font-black uppercase leading-none">Settings</h1>
-          <p className="text-lg text-muted-foreground font-medium">Control your security mesh and cloud storage.</p>
+          <p className="text-lg text-muted-foreground font-medium">Control your security mesh and visual style.</p>
+        </div>
+
+        {/* Visual Style Gallery */}
+        <div className="zoomon-card space-y-6">
+          <div className="flex items-center gap-3 text-primary">
+            <Palette className="w-8 h-8" />
+            <h2 className="text-2xl font-black uppercase tracking-tight">App Appearance</h2>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            {THEMES.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setTheme(t.id)}
+                className={cn(
+                  "relative flex flex-col items-center gap-3 p-4 rounded-[2rem] border-2 transition-all group overflow-hidden",
+                  theme === t.id ? "border-primary bg-primary/10 shadow-[0_0_30px_rgba(var(--primary-rgb),0.2)]" : "border-border/40 bg-card/40 hover:border-primary/30"
+                )}
+              >
+                <div className="flex -space-x-2">
+                  <div className="w-10 h-10 rounded-full border-2 border-background shadow-lg" style={{ backgroundColor: t.colors[0] }} />
+                  <div className="w-10 h-10 rounded-full border-2 border-background shadow-lg" style={{ backgroundColor: t.colors[1] }} />
+                </div>
+                <span className={cn("text-[10px] font-black uppercase tracking-widest", theme === t.id ? "text-primary" : "text-muted-foreground")}>
+                  {t.label}
+                </span>
+                {theme === t.id && (
+                  <div className="absolute top-2 right-2 h-2 w-2 rounded-full bg-primary animate-pulse" />
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Alert Preferences */}
+        <div className="zoomon-card space-y-6">
+          <div className="flex items-center gap-3 text-primary">
+            <Bell className="w-8 h-8" />
+            <h2 className="text-2xl font-black uppercase tracking-tight">Alert Preferences</h2>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <Button
+              variant="outline"
+              onClick={() => handleNotificationChange("mute")}
+              className={cn(
+                "h-24 flex-col gap-2 rounded-3xl border-2 transition-all",
+                notificationPref === "mute" ? "bg-primary/10 border-primary text-primary" : "bg-card/40 border-border/40"
+              )}
+            >
+              <VolumeX className="w-8 h-8" />
+              <span className="text-[10px] font-black uppercase tracking-widest">Mute</span>
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => handleNotificationChange("vibrate")}
+              className={cn(
+                "h-24 flex-col gap-2 rounded-3xl border-2 transition-all",
+                notificationPref === "vibrate" ? "bg-primary/10 border-primary text-primary" : "bg-card/40 border-border/40"
+              )}
+            >
+              <Smartphone className="w-8 h-8" />
+              <span className="text-[10px] font-black uppercase tracking-widest">Vibrate</span>
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => handleNotificationChange("ring")}
+              className={cn(
+                "h-24 flex-col gap-2 rounded-3xl border-2 transition-all",
+                notificationPref === "ring" ? "bg-primary/10 border-primary text-primary" : "bg-card/40 border-border/40"
+              )}
+            >
+              <Music className="w-8 h-8" />
+              <span className="text-[10px] font-black uppercase tracking-widest">Ring</span>
+            </Button>
+          </div>
+          <p className="text-[10px] font-bold text-center opacity-40 uppercase tracking-widest px-4">
+            These settings affect events on this device only.
+          </p>
+        </div>
+
+        {/* Detection Schedule */}
+        <div className="zoomon-card space-y-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3 text-primary">
+              <Clock className="w-8 h-8" />
+              <h2 className="text-2xl font-black uppercase tracking-tight">Focus Hours</h2>
+            </div>
+            <Switch
+              checked={schedule.enabled}
+              onCheckedChange={(enabled) => saveSchedule({ ...schedule, enabled })}
+              className="scale-125"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className={cn(
+              "p-6 rounded-[2rem] border-2 transition-all space-y-3",
+              schedule.enabled ? "bg-card/40 border-border/40" : "opacity-40 grayscale"
+            )}>
+              <div className="flex items-center gap-2 text-primary/60">
+                <Clock className="w-4 h-4" />
+                <span className="text-[10px] font-black uppercase tracking-widest">Starts</span>
+              </div>
+              <Input
+                type="time"
+                value={schedule.start}
+                onChange={(e) => saveSchedule({ ...schedule, start: e.target.value })}
+                className="h-12 bg-black/20 border-0 text-xl font-black rounded-xl"
+                disabled={!schedule.enabled}
+              />
+            </div>
+            <div className={cn(
+              "p-6 rounded-[2rem] border-2 transition-all space-y-3",
+              schedule.enabled ? "bg-card/40 border-border/40" : "opacity-40 grayscale"
+            )}>
+              <div className="flex items-center gap-2 text-primary/60">
+                <Clock className="w-4 h-4" />
+                <span className="text-[10px] font-black uppercase tracking-widest">Ends</span>
+              </div>
+              <Input
+                type="time"
+                value={schedule.end}
+                onChange={(e) => saveSchedule({ ...schedule, end: e.target.value })}
+                className="h-12 bg-black/20 border-0 text-xl font-black rounded-xl"
+                disabled={!schedule.enabled}
+              />
+            </div>
+          </div>
+
+          <div className="p-4 bg-primary/5 rounded-2xl border border-primary/20 flex items-center gap-3">
+            <Calendar className="w-5 h-5 text-primary shrink-0" />
+            <p className="text-[10px] font-bold text-primary uppercase tracking-widest leading-normal">
+              hGuard will only record events during this window. Automatic night vision will still function.
+            </p>
+          </div>
         </div>
 
         {/* Access Control & PIN */}
@@ -277,6 +523,74 @@ const SettingsPage = () => {
                   {isAdmin ? "Global Admin" : "User Account"}
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Storage Health & Rotation */}
+        <div className="zoomon-card space-y-6">
+          <div className="flex items-center gap-3 text-primary">
+            <DownloadCloud className="w-8 h-8" />
+            <h2 className="text-2xl font-black uppercase tracking-tight">Storage Health</h2>
+          </div>
+
+          <div className="p-6 bg-card/40 border-2 border-border/40 rounded-[2rem] space-y-6">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <p className="text-xs font-black uppercase opacity-40 tracking-widest leading-none mb-1">Active Snapshots</p>
+                <div className="flex items-baseline gap-2">
+                  <p className="text-4xl font-black tracking-tighter">
+                    {snapshotCount !== null ? snapshotCount.toLocaleString() : "..."}
+                  </p>
+                  <span className="text-sm font-bold opacity-30 uppercase tracking-tight">in Supabase</span>
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => handleCleanup(true)}
+                className="h-14 w-14 rounded-2xl bg-destructive/10 text-destructive border-2 border-transparent hover:border-destructive/30"
+              >
+                <Trash2 className="h-6 w-6" />
+              </Button>
+            </div>
+
+            <div className="space-y-4 pt-4 border-t-2 border-border/10">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <p className="text-lg font-black uppercase leading-none">Auto-Rotation</p>
+                  <p className="text-[10px] font-bold opacity-40 uppercase tracking-widest">Keep snapshots under limit</p>
+                </div>
+                <Switch
+                  checked={autoCleanup}
+                  onCheckedChange={(c) => saveStoragePrefs({ auto_cleanup: c })}
+                  className="scale-125"
+                />
+              </div>
+
+              {autoCleanup && (
+                <div className="space-y-3 pt-2">
+                  <div className="flex justify-between text-[10px] font-black uppercase tracking-tighter">
+                    <span>Rotation Limit</span>
+                    <span className="text-primary">{cleanupLimit} Snapshots</span>
+                  </div>
+                  <Slider
+                    value={[cleanupLimit]}
+                    onValueChange={([v]) => setCleanupLimit(v)}
+                    onValueCommit={([v]) => saveStoragePrefs({ cleanup_limit: v })}
+                    min={100}
+                    max={2000}
+                    step={100}
+                    className="py-4"
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="p-4 bg-primary/5 rounded-2xl border border-primary/20">
+              <p className="text-[9px] font-bold text-primary uppercase tracking-[0.15em] leading-relaxed text-center">
+                Note: Supabase snapshots are for fast app loading. Permanent archival is kept in your Private Google Drive.
+              </p>
             </div>
           </div>
         </div>

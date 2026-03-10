@@ -58,11 +58,11 @@ const Login = () => {
         className="w-full max-w-md"
       >
         <div className="mb-8 flex flex-col items-center gap-3">
-          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 glow-primary">
-            <Shield className="h-8 w-8 text-primary" />
+          <div className="flex h-32 w-32 items-center justify-center rounded-2xl bg-primary/10 glow-primary overflow-hidden p-2">
+            <img src="/logo.png" alt="hGuard Logo" className="h-full w-full object-contain" />
           </div>
-          <h1 className="text-3xl font-bold text-foreground tracking-tight">SecureCam</h1>
-          <p className="text-sm text-muted-foreground font-medium uppercase tracking-widest opacity-70">Private Security Protocol</p>
+          <h1 className="text-4xl font-black text-foreground tracking-tighter uppercase">hGuard</h1>
+          <p className="text-xs text-muted-foreground font-black uppercase tracking-[0.3em] opacity-80">Elite Defense Protocol</p>
         </div>
 
         <Card className="border-border/50 bg-card/80 backdrop-blur-xl mb-12 shadow-2xl relative overflow-hidden group">

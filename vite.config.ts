@@ -23,9 +23,9 @@ export default defineConfig(({ mode }) => ({
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024, // Increase to 4MB for TensorFlow.js
       },
       manifest: {
-        name: 'Home Guardian Pro',
-        short_name: 'Guardian',
-        description: 'Premium AI Security Camera via Web',
+        name: 'hGuard Elite Security',
+        short_name: 'hGuard',
+        description: 'Elite AI Security Camera Protocol',
         theme_color: '#0e1116',
         background_color: '#0e1116',
         display: 'standalone',

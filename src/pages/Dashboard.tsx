@@ -111,13 +111,9 @@ const Dashboard = () => {
 
   const handleUseAsCamera = async () => {
     if (!user) return;
-    setRegistering(true);
 
-    // Check if we already have a camera registered for this specific session/browser to avoid duplicates
+    // Instant feedback: start a small ripple or logic check
     const deviceName = `${navigator.platform} Camera`;
-
-    // In a real device, we'd use a unique hardware ID. For web, we'll just create a new one every time 
-    // or try to find an existing offline one with the same name.
 
     const { data: existingDevice } = await supabase
       .from('devices')
@@ -129,18 +125,18 @@ const Dashboard = () => {
       .single();
 
     if (existingDevice) {
-      await supabase.from("devices").update({ status: 'online' }).eq('id', existingDevice.id);
+      // Don't await update if we want "instant"
+      supabase.from("devices").update({ status: 'online' }).eq('id', existingDevice.id);
       navigate(`/camera/${existingDevice.id}`);
       return;
     }
 
-    // Register this device as a new camera
+    setRegistering(true); // Only show for brand new registration
     const { data, error } = await supabase.from("devices").insert({
       user_id: user.id,
       name: deviceName,
       type: "camera" as const,
       status: "online" as const,
-      // pairing_code is required by DB schema currently but ignored in UI
       pairing_code: Math.random().toString(36).substring(2, 8).toUpperCase()
     }).select().single();
 
@@ -171,7 +167,7 @@ const Dashboard = () => {
             <div className="flex flex-col sm:flex-row w-full xl:w-auto gap-5">
               <Button
                 size="sm"
-                className="zoomon-btn-large flex-1 sm:min-w-[200px] bg-primary/20 hover:bg-primary/30 border-2 border-primary text-primary shadow-lg"
+                className="zoomon-btn-large flex-1 sm:min-w-[200px] bg-primary/20 hover:bg-primary/30 border-2 border-primary text-primary shadow-lg instant-hover"
                 onClick={handleUseAsViewer}
                 disabled={registering}
               >
@@ -182,7 +178,7 @@ const Dashboard = () => {
               <Button
                 size="sm"
                 variant="outline"
-                className="zoomon-btn-large flex-1 sm:min-w-[200px] bg-muted/30 border-2 border-border/50 hover:bg-muted/50"
+                className="zoomon-btn-large flex-1 sm:min-w-[200px] bg-muted/30 border-2 border-border/50 hover:bg-muted/50 instant-hover"
                 onClick={handleUseAsCamera}
                 disabled={registering}
               >

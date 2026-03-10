@@ -1,17 +1,22 @@
 {
-  "name": "SecureCam - Smart Security Camera",
-  "short_name": "SecureCam",
-  "description": "Turn old smartphones into security cameras with real-time streaming and motion detection.",
+  "name": "hGuard - Elite Security Camera",
+  "short_name": "hGuard",
+  "description": "Elite AI security camera protocol. Secure, private, and powered by hGuard.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0f1419",
-  "theme_color": "#0f1419",
+  "background_color": "#0e1116",
+  "theme_color": "#0e1116",
   "orientation": "any",
   "icons": [
     {
-      "src": "/favicon.ico",
-      "sizes": "64x64",
-      "type": "image/x-icon"
+      "src": "/logo.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
     }
   ]
 }

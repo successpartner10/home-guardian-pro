@@ -6,50 +6,121 @@
 
 @layer base {
   :root {
+    --radius: 0.75rem;
+  }
+
+  /* Default / Dark Blue */
+  .dark-blue,
+  :root:not(.light-pure):not(.light-cream):not(.pastel):not(.dark-ony):not(.dark-slate) {
     --background: 220 20% 7%;
     --foreground: 210 20% 92%;
-
     --card: 220 18% 10%;
     --card-foreground: 210 20% 92%;
-
     --popover: 220 18% 12%;
     --popover-foreground: 210 20% 92%;
-
-    --primary: 160 84% 39%;
-    --primary-foreground: 220 20% 7%;
-
+    --primary: 200 85% 45%;
+    /* Vibrant Blue */
+    --primary-foreground: 220 20% 98%;
     --secondary: 220 16% 16%;
     --secondary-foreground: 210 20% 80%;
-
     --muted: 220 14% 14%;
-    --muted-foreground: 215 12% 50%;
-
+    --muted-foreground: 215 12% 55%;
     --accent: 200 80% 50%;
     --accent-foreground: 220 20% 7%;
-
     --destructive: 0 72% 51%;
     --destructive-foreground: 210 20% 95%;
-
-    --success: 160 84% 39%;
-    --success-foreground: 220 20% 7%;
-
-    --warning: 38 92% 50%;
-    --warning-foreground: 220 20% 7%;
-
     --border: 220 14% 18%;
     --input: 220 14% 18%;
-    --ring: 160 84% 39%;
+    --ring: 200 85% 45%;
+  }
 
-    --radius: 0.75rem;
+  /* Dark Onyx (Jet Black) */
+  .dark-onyx {
+    --background: 0 0% 2%;
+    --foreground: 0 0% 95%;
+    --card: 0 0% 5%;
+    --card-foreground: 0 0% 95%;
+    --popover: 0 0% 7%;
+    --popover-foreground: 0 0% 95%;
+    --primary: 0 0% 98%;
+    /* Silver/White stroke */
+    --primary-foreground: 0 0% 5%;
+    --secondary: 0 0% 12%;
+    --secondary-foreground: 0 0% 80%;
+    --muted: 0 0% 10%;
+    --muted-foreground: 0 0% 45%;
+    --accent: 0 0% 98%;
+    --border: 0 0% 15%;
+    --ring: 0 0% 90%;
+  }
 
-    --sidebar-background: 220 20% 9%;
-    --sidebar-foreground: 210 20% 80%;
-    --sidebar-primary: 160 84% 39%;
-    --sidebar-primary-foreground: 220 20% 7%;
-    --sidebar-accent: 220 14% 14%;
-    --sidebar-accent-foreground: 210 20% 80%;
-    --sidebar-border: 220 14% 18%;
-    --sidebar-ring: 160 84% 39%;
+  /* Dark Slate (Pro Gray) */
+  .dark-slate {
+    --background: 220 10% 12%;
+    --foreground: 220 10% 90%;
+    --card: 220 10% 15%;
+    --card-foreground: 220 10% 90%;
+    --primary: 160 84% 39%;
+    /* Emerald */
+    --primary-foreground: 220 10% 10%;
+    --border: 220 10% 22%;
+    --muted-foreground: 220 5% 50%;
+  }
+
+  /* Pastel Lavender */
+  .pastel {
+    --background: 260 30% 98%;
+    --foreground: 260 20% 20%;
+    --card: 0 0% 100%;
+    --card-foreground: 260 20% 20%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 260 20% 20%;
+    --primary: 260 50% 60%;
+    /* Soft Purple */
+    --primary-foreground: 260 30% 98%;
+    --secondary: 260 30% 90%;
+    --secondary-foreground: 260 20% 30%;
+    --muted: 260 20% 94%;
+    --muted-foreground: 260 10% 50%;
+    --accent: 260 50% 60%;
+    --border: 260 20% 88%;
+    --input: 260 20% 88%;
+    --ring: 260 50% 60%;
+  }
+
+  /* Light Pure */
+  .light-pure {
+    --background: 0 0% 100%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    --primary: 222 47% 11%;
+    /* Contrast Black */
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 220 80% 50%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 222 47% 11%;
+  }
+
+  /* Light Cream */
+  .light-cream {
+    --background: 30 40% 96%;
+    --foreground: 30 10% 15%;
+    --card: 35 30% 98%;
+    --card-foreground: 30 10% 15%;
+    --primary: 25 70% 45%;
+    /* Teracotta */
+    --primary-foreground: 30 40% 98%;
+    --border: 30 20% 85%;
+    --muted-foreground: 30 10% 50%;
+    --ring: 25 70% 45%;
   }
 }
 
@@ -123,4 +194,23 @@
   .safe-area-pb {
     padding-bottom: env(safe-area-inset-bottom);
   }
+}
+/* Performance & Instant UI */
+.gpu-accelerated {
+  will-change: transform, opacity;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+* {
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+video {
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+.instant-hover {
+  transition: transform 0.15s cubic-bezier(0.2, 0, 0, 1) !important;
 }

@@ -24,8 +24,8 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
       {/* Top bar */}
       <header className="glass-panel sticky top-0 z-50 flex h-14 items-center justify-between px-4">
         <Link to="/dashboard" className="flex items-center gap-2">
-          <Shield className="h-6 w-6 text-primary" />
-          <span className="text-lg font-black text-foreground tracking-tighter uppercase">SecureCam</span>
+          <img src="/logo.png" alt="hGuard Logo" className="h-8 w-8 object-contain rounded-lg" />
+          <span className="text-xl font-black text-foreground tracking-tighter uppercase">hGuard</span>
         </Link>
         <button onClick={signOut} className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
           <LogOut className="h-5 w-5" />

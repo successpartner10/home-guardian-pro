@@ -1,13 +1,16 @@
 import { useRef, useState, useCallback, useEffect } from "react";
-import * as tf from "@tensorflow/tfjs";
-import * as cocoSsd from "@tensorflow-models/coco-ssd";
+import type { DetectedObject } from "@tensorflow-models/coco-ssd";
 
 interface UseCameraOptions {
   onMotionDetected?: (imageData: string, objectLabel?: string) => void;
   onSoundDetected?: () => void;
-  onObjectDetected?: (objects: cocoSsd.DetectedObject[]) => void;
+  onObjectDetected?: (objects: DetectedObject[]) => void;
   motionSensitivity?: number;
   soundSensitivity?: number;
+  aiFrequency?: number;
+  autoZoom?: boolean;
+  onZoneChange?: (zone: { x: number, y: number, width: number, height: number } | null) => void;
+  detectionSchedule?: { enabled: boolean, start: string, end: string };
 }
 
 export const useCamera = ({
@@ -16,14 +19,18 @@ export const useCamera = ({
   onObjectDetected,
   motionSensitivity = 50,
   soundSensitivity = 50,
+  aiFrequency = 10,
+  autoZoom = false,
+  detectionSchedule,
 }: UseCameraOptions = {}) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const prevFrameRef = useRef<ImageData | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const motionIntervalRef = useRef<number | null>(null);
-  const modelRef = useRef<cocoSsd.ObjectDetection | null>(null);
+  const workerRef = useRef<Worker | null>(null);
   const frameCountRef = useRef(0);
+  const isModelLoaded = useRef(false);
 
   const [isActive, setIsActive] = useState(false);
   const [activeStream, setActiveStream] = useState<MediaStream | null>(null);
@@ -31,8 +38,11 @@ export const useCamera = ({
   const [flashOn, setFlashOn] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [brightness, setBrightness] = useState(100);
-  const [detectedObjects, setDetectedObjects] = useState<cocoSsd.DetectedObject[]>([]);
+  const [detectedObjects, setDetectedObjects] = useState<DetectedObject[]>([]);
+  const [zoomLevel, setZoomLevel] = useState(1);
+  const [zoomCenter, setZoomCenter] = useState({ x: 50, y: 50 });
   const [soundLevel, setSoundLevel] = useState(0);
+  const [detectionZone, setDetectionZone] = useState<{ x: number, y: number, width: number, height: number } | null>(null);
 
   const lastSoundAlertRef = useRef<number>(0);
   const lastMotionAlertRef = useRef<number>(0);
@@ -42,13 +52,22 @@ export const useCamera = ({
       let stream;
       try {
         stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } },
+          video: {
+            facingMode: "environment",
+            width: { min: 1280, ideal: 1920, max: 1920 },
+            height: { min: 720, ideal: 1080, max: 1080 },
+            frameRate: { ideal: 30, max: 60 }
+          },
           audio: true,
         });
       } catch (e) {
         console.warn("Environment camera failed, falling back to user camera:", e);
         stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } },
+          video: {
+            facingMode: "user",
+            width: { min: 1280, ideal: 1920, max: 1920 },
+            height: { min: 720, ideal: 1080, max: 1080 }
+          },
           audio: true,
         });
       }
@@ -109,26 +128,90 @@ export const useCamera = ({
     return canvas.toDataURL("image/jpeg", 0.8);
   }, []);
 
-  // AI Model Loading
+  // AI Worker Initialization
   useEffect(() => {
-    const loadAI = async () => {
+    const initWorker = async () => {
       try {
-        await tf.ready();
-        const model = await cocoSsd.load();
-        modelRef.current = model;
-        console.log("coco-ssd model loaded");
+        const DetectionWorker = (await import("@/workers/detection.worker?worker")).default;
+        const worker = new DetectionWorker();
+        workerRef.current = worker;
+
+        worker.onmessage = (e) => {
+          if (e.data.type === "MODEL_LOADED") {
+            isModelLoaded.current = true;
+            console.log("AI Worker: Model Loaded");
+          } else if (e.data.type === "DETECTIONS") {
+            const detections = e.data.predictions as DetectedObject[];
+            setDetectedObjects(detections);
+            if (onObjectDetected) onObjectDetected(detections);
+
+            // AI Smart Zoom Logic
+            if (autoZoom && detections.length > 0) {
+              const primary = detections.find(d => d.class === 'person') || detections[0];
+              const [x, y, width, height] = primary.bbox;
+
+              // Only zoom if object is small (too far)
+              const areaRatio = (width * height) / (320 * 240);
+              if (areaRatio < 0.25) {
+                // Calculate zoom level (max 4.0)
+                const targetZoom = Math.min(4.0, Math.max(1.0, 0.4 / areaRatio));
+                setZoomLevel(targetZoom);
+
+                // Calculate center percentage
+                const centerX = ((x + width / 2) / 320) * 100;
+                const centerY = ((y + height / 2) / 240) * 100;
+                setZoomCenter({ x: centerX, y: centerY });
+              } else {
+                setZoomLevel(1);
+              }
+            } else if (autoZoom) {
+              setZoomLevel(1);
+            }
+          }
+        };
+
+        worker.postMessage({ type: "LOAD_MODEL" });
       } catch (e) {
-        console.error("AI load failed", e);
+        console.error("Worker initialization failed", e);
       }
     };
-    loadAI();
+    initWorker();
+
+    return () => {
+      workerRef.current?.terminate();
+      workerRef.current = null;
+    };
   }, []);
+
+  // Sync Zone to Worker
+  useEffect(() => {
+    if (workerRef.current) {
+      workerRef.current.postMessage({ type: "SET_ZONE", zone: detectionZone });
+    }
+  }, [detectionZone]);
 
   // Motion & AI Detection Loop
   useEffect(() => {
     if (!isActive) return;
 
+    const checkSchedule = () => {
+      if (!detectionSchedule?.enabled) return true;
+      const now = new Date();
+      const [sh, sm] = detectionSchedule.start.split(':').map(Number);
+      const [eh, em] = detectionSchedule.end.split(':').map(Number);
+      const startTime = new Date(now).setHours(sh, sm, 0, 0);
+      let endTime = new Date(now).setHours(eh, em, 0, 0);
+
+      // Handle overnight schedules
+      if (endTime < startTime) {
+        if (now.getTime() < endTime) return true;
+        endTime += 24 * 60 * 60 * 1000;
+      }
+      return now.getTime() >= startTime && now.getTime() <= endTime;
+    };
+
     const detect = async () => {
+      if (!checkSchedule()) return;
       if (!videoRef.current || !canvasRef.current) return;
       const video = videoRef.current;
       const canvas = canvasRef.current;
@@ -149,13 +232,19 @@ export const useCamera = ({
       }
       setBrightness(Math.round(totalB / (currentFrame.data.length / 16)));
 
-      // AI Detection (every 10th frame)
-      let currentObjects: cocoSsd.DetectedObject[] = [];
+      // AI Detection (every X frames) - Offload to Worker
+      let currentObjects: DetectedObject[] = detectedObjects;
       frameCountRef.current++;
-      if (modelRef.current && frameCountRef.current % 10 === 0) {
-        currentObjects = await modelRef.current.detect(video);
-        setDetectedObjects(currentObjects);
-        if (onObjectDetected) onObjectDetected(currentObjects);
+
+      if (workerRef.current && isModelLoaded.current && frameCountRef.current % aiFrequency === 0) {
+        // Send a copy for processing to allow worker to use transferable
+        const processingData = new Uint8ClampedArray(currentFrame.data);
+        workerRef.current.postMessage({
+          type: "DETECT",
+          imageData: processingData.buffer,
+          width: 320,
+          height: 240
+        }, [processingData.buffer]);
       }
 
       // Motion Comparison
@@ -184,7 +273,7 @@ export const useCamera = ({
 
     const interval = window.setInterval(detect, 500);
     return () => clearInterval(interval);
-  }, [isActive, motionSensitivity, onMotionDetected, onObjectDetected]);
+  }, [isActive, motionSensitivity, onMotionDetected, onObjectDetected, aiFrequency, detectionSchedule]);
 
   // Sound detection
   useEffect(() => {
@@ -235,6 +324,10 @@ export const useCamera = ({
     soundLevel,
     brightness,
     detectedObjects,
+    zoomLevel,
+    zoomCenter,
+    detectionZone,
+    setDetectionZone,
     startCamera,
     stopCamera,
     toggleMute,

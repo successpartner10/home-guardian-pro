@@ -66,7 +66,7 @@ const LiveFeed = () => {
   }, [remoteStream, isConnected]);
 
   const [zoomLevel, setZoomLevel] = useState(1);
-  const [isHD, setIsHD] = useState(true);
+  const isHD = true;
   const [isTalking, setIsTalking] = useState(false);
 
   const toggleMute = () => {
@@ -84,7 +84,6 @@ const LiveFeed = () => {
 
   const handleZoomIn = () => setZoomLevel(prev => Math.min(prev + 0.5, 4));
   const handleZoomOut = () => setZoomLevel(prev => Math.max(prev - 0.5, 1));
-  const toggleHD = () => setIsHD(!isHD);
 
   if (loading) {
     return (
@@ -175,14 +174,7 @@ const LiveFeed = () => {
           </div>
 
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={toggleHD}
-              className={`rounded-full shadow-lg backdrop-blur-md border-white/10 transition-all ${isHD ? 'bg-primary/20 text-primary border-primary/30 glow-primary' : 'bg-black/40 text-white/70 hover:bg-white/10 hover:text-white'}`}
-            >
-              HD
-            </Button>
+            {/* HD is now permanent */}
           </div>
         </div>
 
