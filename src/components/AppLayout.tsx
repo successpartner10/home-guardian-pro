@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 const navItems = [
   { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
   { to: "/camera", icon: Camera, label: "Camera" },
-  { to: "/alerts", icon: Bell, label: "Alerts" },
+  { to: "/alerts", icon: Bell, label: "Events" },
   { to: "/settings", icon: Settings, label: "Settings" },
 ];
 

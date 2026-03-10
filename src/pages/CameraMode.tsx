@@ -56,10 +56,29 @@ const CameraMode = () => {
 
       if (!user || !resolvedDeviceId) return;
 
+      let thumbnail_url = null;
+      const folderId = user?.user_metadata?.drive_folder_id;
+
+      // Try to upload motion snapshot to Google Drive if configured
+      try {
+        const { driveService } = await import("@/lib/driveService");
+        if (driveService.isReady() && folderId) {
+          const res = await fetch(imageData);
+          const blob = await res.blob();
+          const filename = `Motion_${new Date().toISOString().replace(/[:.]/g, '-')}.jpg`;
+          const driveFile = await driveService.uploadFile(blob, filename, folderId);
+          // Use the webContentLink or thumbnailLink from Google Drive
+          thumbnail_url = driveFile.thumbnailLink || null;
+        }
+      } catch (e) {
+        console.error("Failed to upload motion thumbnail:", e);
+      }
+
       await supabase.from("alerts").insert({
         device_id: resolvedDeviceId,
         user_id: user.id,
         type: "motion",
+        thumbnail_url: thumbnail_url,
       });
     },
     [user, resolvedDeviceId]
