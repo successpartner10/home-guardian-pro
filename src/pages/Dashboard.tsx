@@ -128,6 +128,7 @@ const Dashboard = () => {
       .single();
 
     if (existingDevice) {
+      await supabase.from("devices").update({ status: 'online' }).eq('id', existingDevice.id);
       navigate(`/camera/${existingDevice.id}`);
       return;
     }
