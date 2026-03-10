@@ -129,24 +129,25 @@ const Dashboard = () => {
             <div className="flex w-full md:w-auto gap-4">
               <Button
                 variant="outline"
-                className="flex-1 md:flex-none h-14 px-6 gap-3 bg-background/50 backdrop-blur-md border-primary/20 hover:border-primary/50 hover:bg-primary/5 transition-all text-base"
-                disabled={true} // Already in Viewer mode technically by being on Dashboard
+                className="flex-1 md:flex-none h-14 px-6 gap-3 bg-primary/20 backdrop-blur-md border-primary text-primary transition-all text-base shadow-[0_0_15px_hsl(var(--primary)/0.2)]"
+                onClick={() => toast({ title: "Viewer Mode Active", description: "You are currently in Viewer Mode. Any available cameras will appear below." })}
               >
-                <MonitorSmartphone className="h-5 w-5 text-primary" />
-                <span className="font-semibold text-foreground">Viewer Mode</span>
+                <MonitorSmartphone className="h-5 w-5" />
+                <span className="font-semibold">Viewer (Active)</span>
               </Button>
 
               <Button
-                className="flex-1 md:flex-none h-14 px-6 gap-3 shadow-[0_0_20px_hsl(var(--primary)/0.3)] hover:shadow-[0_0_30px_hsl(var(--primary)/0.5)] transition-all text-base"
+                variant="outline"
+                className="flex-1 md:flex-none h-14 px-6 gap-3 bg-background/50 hover:bg-card/80 backdrop-blur-md border-border transition-all text-base"
                 onClick={handleUseAsCamera}
                 disabled={registering}
               >
                 {registering ? (
                   <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
                 ) : (
-                  <Smartphone className="h-5 w-5" />
+                  <Smartphone className="h-5 w-5 text-muted-foreground" />
                 )}
-                <span className="font-semibold">Use as Camera</span>
+                <span className="font-semibold text-foreground">Switch to Camera</span>
               </Button>
             </div>
           </div>
