@@ -1,3 +1,5 @@
+import { supabase } from "@/integrations/supabase/client";
+
 export const DRIVE_STORAGE_LIMIT_BYTES = 10 * 1024 * 1024 * 1024; // 10 GB
 
 export interface DriveFile {
@@ -20,17 +22,31 @@ export class DriveService {
         this.accessToken = null;
     }
 
-    isReady() {
-        return !!this.accessToken;
+    async isReady() {
+        const token = await this.getToken();
+        return !!token;
+    }
+
+    private async getToken(): Promise<string | null> {
+        if (this.accessToken) return this.accessToken;
+
+        // Try to get provider token from session (Google SSO)
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.provider_token) {
+            this.accessToken = session.provider_token;
+            return this.accessToken;
+        }
+        return null;
     }
 
     private async fetchApi(path: string, options: RequestInit = {}) {
-        if (!this.accessToken) {
+        const token = await this.getToken();
+        if (!token) {
             throw new Error("Google Drive access token is not set.");
         }
 
         const headers = new Headers(options.headers || {});
-        headers.set("Authorization", `Bearer ${this.accessToken}`);
+        headers.set("Authorization", `Bearer ${token}`);
 
         const response = await fetch(`https://www.googleapis.com/drive/v3${path}`, {
             ...options,

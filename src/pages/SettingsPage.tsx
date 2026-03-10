@@ -31,7 +31,7 @@ const SettingsPage = () => {
   const [notifications, setNotifications] = useState(true);
   const [displayName, setDisplayName] = useState("");
   const [loading, setLoading] = useState(false);
-  const [driveConnected, setDriveConnected] = useState(driveService.isReady());
+  const [driveConnected, setDriveConnected] = useState(false);
   const [driveFiles, setDriveFiles] = useState<DriveFile[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
   const [isDeleting, setIsDeleting] = useState(false);
@@ -54,19 +54,27 @@ const SettingsPage = () => {
 
   useEffect(() => {
     if (!user) return;
-    const fetch = async () => {
+    const init = async () => {
       try {
+        // 1. Check devices
         const { data } = await supabase.from("devices").select("*").order("created_at");
         if (data) setDevices(data);
 
+        // 2. Load profile
         const { data: profile } = await supabase.from("profiles").select("display_name").eq("user_id", user.id).single();
         if (profile?.display_name) setDisplayName(profile.display_name);
+
+        // 3. Check Drive status (SSO or manual)
+        const isReady = await driveService.isReady();
+        setDriveConnected(isReady);
       } catch (e) {
-        console.error("Fetch devices error:", e);
+        console.error("Settings initialization error:", e);
       }
     };
-    fetch();
+    init();
+  }, [user]);
 
+  useEffect(() => {
     if (driveConnected) {
       if (driveFolderId) {
         loadDriveFiles(driveFolderId);
@@ -282,10 +290,15 @@ const SettingsPage = () => {
 
           <div className="space-y-6">
             {!driveConnected ? (
-              <Button onClick={() => loginGoogle()} className="zoomon-btn-large w-full bg-background border-2 border-primary text-primary hover:bg-primary/5">
-                <svg className="w-6 h-6 mr-3" viewBox="0 0 24 24"><path fill="currentColor" d="M21.35,11.1H12.18V13.83H18.69C18.36,17.64 15.19,19.27 12.19,19.27C8.36,19.27 5,16.25 5,12C5,7.9 8.2,4.73 12.2,4.73C15.29,4.73 17.1,6.7 17.1,6.7L19,4.72C19,4.72 16.56,2 12.1,2C6.42,2 2.03,6.8 2.03,12C2.03,17.05 6.16,22 12.25,22C17.6,22 21.5,18.33 21.5,12.91C21.5,11.76 21.35,11.1 21.35,11.1V11.1Z" /></svg>
-                AUTHORIZE GOOGLE DRIVE
-              </Button>
+              <div className="space-y-4">
+                <Button onClick={() => loginGoogle()} className="zoomon-btn-large w-full bg-background border-2 border-primary text-primary hover:bg-primary/5">
+                  <svg className="w-6 h-6 mr-3" viewBox="0 0 24 24"><path fill="currentColor" d="M21.35,11.1H12.18V13.83H18.69C18.36,17.64 15.19,19.27 12.19,19.27C8.36,19.27 5,16.25 5,12C5,7.9 8.2,4.73 12.2,4.73C15.29,4.73 17.1,6.7 17.1,6.7L19,4.72C19,4.72 16.56,2 12.1,2C6.42,2 2.03,6.8 2.03,12C2.03,17.05 6.16,22 12.25,22C17.6,22 21.5,18.33 21.5,12.91C21.5,11.76 21.35,11.1 21.35,11.1V11.1Z" /></svg>
+                  SYNC ADDITIONAL GOOGLE ACCOUNT
+                </Button>
+                <p className="text-[10px] font-bold text-center opacity-40 uppercase tracking-widest">
+                  Tip: Login with Google on the home screen for automatic sync.
+                </p>
+              </div>
             ) : !driveFolderId ? (
               <div className="space-y-4">
                 <p className="text-lg font-bold uppercase">Select Storage Vault:</p>
