@@ -145,6 +145,25 @@ const CameraMode = () => {
     }
   }, [brightness, autoNightVision, nightVision]);
 
+  // Auto Start Camera
+  useEffect(() => {
+    startCamera();
+    return () => stopCamera();
+  }, [startCamera, stopCamera]);
+
+  // Update device status in Supabase
+  useEffect(() => {
+    if (!resolvedDeviceId) return;
+
+    const updateStatus = async () => {
+      await supabase
+        .from("devices")
+        .update({ status: isActive ? "online" : "offline" })
+        .eq("id", resolvedDeviceId);
+    };
+    updateStatus();
+  }, [isActive, resolvedDeviceId]);
+
   const { isConnected: viewerConnected } = useWebRTC({
     deviceId: resolvedDeviceId || "",
     role: "camera",
