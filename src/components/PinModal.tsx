@@ -16,10 +16,10 @@ const PinModal = ({ isOpen, onClose, onSuccess, correctPin, title = "Security Ve
     const [error, setError] = useState(false);
 
     useEffect(() => {
-        if (pin.length === correctPin.length) {
+        if (pin.length === correctPin.length && pin.length > 0) {
             if (pin === correctPin) {
+                setPin(""); // Clear first to prevent re-trigger
                 onSuccess();
-                setPin("");
             } else {
                 setError(true);
                 setTimeout(() => {

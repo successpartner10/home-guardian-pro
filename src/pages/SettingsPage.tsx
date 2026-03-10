@@ -44,17 +44,26 @@ const SettingsPage = () => {
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
 
   const isAdmin = user?.email === ADMIN_EMAIL;
-  const canDelete = true;
   const driveFolderId = user?.user_metadata?.drive_folder_id;
+
+  useEffect(() => {
+    if (user?.user_metadata?.security_pin) {
+      setSecurityPin(user.user_metadata.security_pin);
+    }
+  }, [user]);
 
   useEffect(() => {
     if (!user) return;
     const fetch = async () => {
-      const { data } = await supabase.from("devices").select("*").order("created_at");
-      if (data) setDevices(data);
+      try {
+        const { data } = await supabase.from("devices").select("*").order("created_at");
+        if (data) setDevices(data);
 
-      const { data: profile } = await supabase.from("profiles").select("display_name").eq("user_id", user.id).single();
-      if (profile?.display_name) setDisplayName(profile.display_name);
+        const { data: profile } = await supabase.from("profiles").select("display_name").eq("user_id", user.id).single();
+        if (profile?.display_name) setDisplayName(profile.display_name);
+      } catch (e) {
+        console.error("Fetch devices error:", e);
+      }
     };
     fetch();
 
@@ -70,24 +79,30 @@ const SettingsPage = () => {
   const fetchUserFolders = async () => {
     try {
       const folders = await driveService.listFolders();
-      setUserFolders(folders);
+      setUserFolders(folders || []);
     } catch (e) {
-      console.error(e);
+      console.error("Fetch folders error:", e);
+      toast({ title: "Drive Error", description: "Failed to load folders.", variant: "destructive" });
     }
   };
 
   const handleSelectFolder = async (folderId: string) => {
-    setLoading(true);
-    const { error } = await supabase.auth.updateUser({
-      data: { drive_folder_id: folderId }
-    });
-    if (!error) {
-      toast({ title: "Storage folder set" });
-      loadDriveFiles(folderId);
-    } else {
-      toast({ title: "Failed to update profile", variant: "destructive" });
+    try {
+      setLoading(true);
+      const { error } = await supabase.auth.updateUser({
+        data: { drive_folder_id: folderId }
+      });
+      if (!error) {
+        toast({ title: "Storage folder set" });
+        if (folderId) loadDriveFiles(folderId);
+      } else {
+        toast({ title: "Failed to update profile", variant: "destructive" });
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleCreateFolder = async () => {
@@ -96,17 +111,18 @@ const SettingsPage = () => {
     try {
       const id = await driveService.createFolder(newFolderName);
       await handleSelectFolder(id);
-      setIsSettingUpFolder(false);
     } catch (e) {
       toast({ title: "Folder creation failed", variant: "destructive" });
+    } finally {
       setIsSettingUpFolder(false);
     }
   };
 
   const loadDriveFiles = async (id: string) => {
+    if (!id) return;
     try {
       const files = await driveService.listFiles(id);
-      setDriveFiles(files);
+      setDriveFiles(files || []);
     } catch (e) {
       console.error(e);
       toast({ title: "Failed to load Drive files", variant: "destructive" });
@@ -140,11 +156,12 @@ const SettingsPage = () => {
       await driveService.deleteFiles(Array.from(selectedFiles));
       toast({ title: "Files deleted" });
       setSelectedFiles(new Set());
-      await loadDriveFiles(driveFolderId!);
+      if (driveFolderId) await loadDriveFiles(driveFolderId);
     } catch {
       toast({ title: "Delete Failed", variant: "destructive" });
+    } finally {
+      setIsDeleting(false);
     }
-    setIsDeleting(false);
   };
 
   const savePin = async () => {
@@ -152,18 +169,23 @@ const SettingsPage = () => {
       toast({ title: "Invalid PIN", description: "PIN must be exactly 4 digits.", variant: "destructive" });
       return;
     }
-    setLoading(true);
-    const { error } = await supabase.auth.updateUser({
-      data: { security_pin: newPin }
-    });
-    if (!error) {
-      setSecurityPin(newPin);
-      setNewPin("");
-      toast({ title: "Security PIN Set", description: "Now required for deleting recordings." });
-    } else {
-      toast({ title: "Failed to set PIN", variant: "destructive" });
+    try {
+      setLoading(true);
+      const { error } = await supabase.auth.updateUser({
+        data: { security_pin: newPin }
+      });
+      if (!error) {
+        setSecurityPin(newPin);
+        setNewPin("");
+        toast({ title: "Security PIN Set", description: "Now required for deleting recordings." });
+      } else {
+        toast({ title: "Failed to set PIN", variant: "destructive" });
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const toggleFileSelection = (fileId: string) => {

@@ -20,7 +20,8 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
   if (!user) return <Navigate to="/login" replace />;
 
-  const isApproved = user.email === ADMIN_EMAIL || user.user_metadata?.approved === true;
+  // Admin always has access; others check for the approved flag
+  const isApproved = user.email === ADMIN_EMAIL || user.user_metadata?.is_approved === true || user.user_metadata?.approved === true;
   const isPendingPage = location.pathname === "/pending-approval";
 
   if (!isApproved && !isPendingPage) {

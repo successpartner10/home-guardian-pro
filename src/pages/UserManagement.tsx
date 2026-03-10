@@ -29,22 +29,24 @@ const UserManagement = () => {
     }, []);
 
     const fetchUsers = async () => {
-        setLoading(true);
-        // Note: We're fetching from profiles. In a real app, you'd join with auth.users 
-        // but client-side Supabase limits this. We'll rely on profiles and metadata.
-        const { data, error } = await supabase
-            .from("profiles")
-            .select("*")
-            .order("created_at", { ascending: false });
+        try {
+            setLoading(true);
+            const { data, error } = await supabase
+                .from("profiles")
+                .select("id, user_id, display_name, created_at, is_approved")
+                .order("created_at", { ascending: false });
 
-        if (error) {
-            toast({ title: "Error", description: "Could not fetch users", variant: "destructive" });
-        } else {
-            // For this demo, we'll simulate the 'is_approved' status from a custom app_metadata or similar logic
-            // In a production app, you'd use a database column.
-            setUsers(data.map(u => ({ ...u, is_approved: (u as any).is_approved ?? false })) as UserProfile[]);
+            if (error) {
+                toast({ title: "Error", description: "Could not fetch users", variant: "destructive" });
+            } else if (data) {
+                setUsers(data as UserProfile[]);
+            }
+        } catch (err) {
+            console.error(err);
+            toast({ title: "Error", description: "A system error occurred while fetching users.", variant: "destructive" });
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
     };
 
     const handleToggleApproval = async (userId: string, currentStatus: boolean) => {
