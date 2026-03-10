@@ -1,50 +1,64 @@
 import { useEffect, useCallback, useRef, useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useCamera } from "@/hooks/useCamera";
+import { useWebRTC } from "@/hooks/useWebRTC";
 import { Button } from "@/components/ui/button";
-import { Mic, MicOff, Flashlight, FlashlightOff, Camera, Square, ArrowLeft } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Mic, MicOff, Flashlight, FlashlightOff, Camera, ArrowLeft, Users } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const CameraMode = () => {
+  const { deviceId } = useParams<{ deviceId: string }>();
   const { user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const lastMotionRef = useRef(0);
   const [motionCount, setMotionCount] = useState(0);
+  const [resolvedDeviceId, setResolvedDeviceId] = useState<string | null>(deviceId || null);
 
-  const handleMotion = useCallback(
-    async (imageData: string) => {
-      const now = Date.now();
-      if (now - lastMotionRef.current < 10000) return; // Throttle to every 10s
-      lastMotionRef.current = now;
-      setMotionCount((c) => c + 1);
-
-      if (!user) return;
-
-      // Get first camera device for this user
-      const { data: device } = await supabase
+  // Resolve device ID if not provided in URL
+  useEffect(() => {
+    if (deviceId || !user) return;
+    const resolve = async () => {
+      const { data } = await supabase
         .from("devices")
         .select("id")
         .eq("user_id", user.id)
         .eq("type", "camera")
         .limit(1)
         .single();
+      if (data) setResolvedDeviceId(data.id);
+    };
+    resolve();
+  }, [deviceId, user]);
 
-      if (device) {
-        await supabase.from("alerts").insert({
-          device_id: device.id,
-          user_id: user.id,
-          type: "motion",
-        });
-      }
+  const handleMotion = useCallback(
+    async (imageData: string) => {
+      const now = Date.now();
+      if (now - lastMotionRef.current < 10000) return;
+      lastMotionRef.current = now;
+      setMotionCount((c) => c + 1);
+
+      if (!user || !resolvedDeviceId) return;
+
+      await supabase.from("alerts").insert({
+        device_id: resolvedDeviceId,
+        user_id: user.id,
+        type: "motion",
+      });
     },
-    [user]
+    [user, resolvedDeviceId]
   );
 
-  const { videoRef, canvasRef, isActive, isMuted, flashOn, error, startCamera, stopCamera, toggleMute, toggleFlash, takeSnapshot } =
+  const { videoRef, canvasRef, isActive, isMuted, flashOn, error, stream, startCamera, stopCamera, toggleMute, toggleFlash, takeSnapshot } =
     useCamera({ onMotionDetected: handleMotion, motionSensitivity: 50 });
+
+  const { connectionState, isConnected } = useWebRTC({
+    deviceId: resolvedDeviceId || "",
+    role: "camera",
+    localStream: stream,
+  });
 
   useEffect(() => {
     startCamera();
@@ -53,18 +67,17 @@ const CameraMode = () => {
 
   // Update device status
   useEffect(() => {
-    if (!user) return;
+    if (!user || !resolvedDeviceId) return;
     const updateStatus = async (status: "online" | "offline") => {
       await supabase
         .from("devices")
         .update({ status, last_seen: new Date().toISOString() })
-        .eq("user_id", user.id)
-        .eq("type", "camera");
+        .eq("id", resolvedDeviceId);
     };
 
     if (isActive) updateStatus("online");
     return () => { updateStatus("offline"); };
-  }, [isActive, user]);
+  }, [isActive, user, resolvedDeviceId]);
 
   const handleSnapshot = () => {
     const data = takeSnapshot();
@@ -72,6 +85,8 @@ const CameraMode = () => {
       toast({ title: "Snapshot taken", description: "Image captured successfully." });
     }
   };
+
+  const viewerConnected = isConnected || connectionState === "connecting";
 
   return (
     <div className="relative flex min-h-screen flex-col bg-black">
@@ -87,11 +102,17 @@ const CameraMode = () => {
           </button>
         </div>
 
-        <div className="absolute right-4 top-4 flex items-center gap-2">
+        <div className="absolute right-4 top-4 flex flex-col items-end gap-2">
           <div className="flex items-center gap-1.5 rounded-full bg-background/50 px-3 py-1.5 backdrop-blur-sm">
             <span className="h-2 w-2 animate-pulse rounded-full bg-destructive" />
             <span className="text-xs font-medium text-foreground">LIVE</span>
           </div>
+          {viewerConnected && (
+            <div className="flex items-center gap-1.5 rounded-full bg-primary/80 px-3 py-1.5 backdrop-blur-sm">
+              <Users className="h-3 w-3 text-primary-foreground" />
+              <span className="text-xs font-medium text-primary-foreground">Viewer connected</span>
+            </div>
+          )}
         </div>
 
         {motionCount > 0 && (
