@@ -137,7 +137,7 @@ export const useCamera = ({ onMotionDetected, motionSensitivity = 50 }: UseCamer
     isMuted,
     flashOn,
     error,
-    stream: streamRef.current,
+    stream: activeStream,
     startCamera,
     stopCamera,
     toggleMute,
