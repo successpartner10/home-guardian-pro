@@ -36,7 +36,7 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
       <main className="flex-1 pb-32">{children}</main>
 
       {/* Bottom navigation */}
-      <nav className="glass-panel fixed bottom-0 left-0 right-0 z-50 flex h-24 items-center justify-around px-4 safe-area-pb">
+      <nav className="glass-panel fixed bottom-0 left-0 right-0 z-50 flex h-20 items-center justify-around px-2 safe-area-pb">
         {filteredItems.map(({ to, icon: Icon, label }) => {
           const active = location.pathname === to;
           return (
@@ -44,12 +44,12 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
               key={to}
               to={to}
               className={cn(
-                "flex flex-col items-center gap-1.5 transition-all duration-300 px-4 py-2 rounded-2xl",
-                active ? "text-primary bg-primary/10 scale-110" : "text-muted-foreground hover:bg-muted/50"
+                "flex flex-col items-center gap-1 transition-all duration-300 px-2 py-1.5 rounded-xl",
+                active ? "text-primary bg-primary/10 scale-105" : "text-muted-foreground hover:bg-muted/50"
               )}
             >
-              <Icon className={cn("h-7 w-7", active && "glow-primary")} />
-              <span className={cn("text-sm font-bold tracking-tight uppercase", active ? "opacity-100" : "opacity-60")}>
+              <Icon className={cn("h-6 w-6", active && "glow-primary")} />
+              <span className={cn("text-[10px] font-black tracking-tighter uppercase", active ? "opacity-100" : "opacity-60")}>
                 {label}
               </span>
             </Link>
