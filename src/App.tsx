@@ -16,6 +16,7 @@ import PairDevice from "./pages/PairDevice";
 import Alerts from "./pages/Alerts";
 import SettingsPage from "./pages/SettingsPage";
 import NotFound from "./pages/NotFound";
+import InstallPrompt from "./components/InstallPrompt";
 
 const queryClient = new QueryClient();
 
