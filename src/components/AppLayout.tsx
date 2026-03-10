@@ -22,21 +22,21 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
   return (
     <div className="flex min-h-screen flex-col bg-background">
       {/* Top bar */}
-      <header className="glass-panel sticky top-0 z-50 flex h-14 items-center justify-between px-4">
-        <Link to="/dashboard" className="flex items-center gap-2">
-          <Shield className="h-6 w-6 text-primary" />
-          <span className="text-lg font-bold text-foreground tracking-tight">SecureCam</span>
+      <header className="glass-panel sticky top-0 z-50 flex h-20 items-center justify-between px-6">
+        <Link to="/dashboard" className="flex items-center gap-3">
+          <Shield className="h-8 w-8 text-primary" />
+          <span className="text-2xl font-black text-foreground tracking-tighter uppercase">SecureCam</span>
         </Link>
-        <button onClick={signOut} className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
-          <LogOut className="h-5 w-5" />
+        <button onClick={signOut} className="flex h-12 w-12 items-center justify-center rounded-xl bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
+          <LogOut className="h-6 w-6" />
         </button>
       </header>
 
       {/* Main content */}
-      <main className="flex-1 pb-20">{children}</main>
+      <main className="flex-1 pb-32">{children}</main>
 
       {/* Bottom navigation */}
-      <nav className="glass-panel fixed bottom-0 left-0 right-0 z-50 flex h-16 items-center justify-around px-2 safe-area-pb">
+      <nav className="glass-panel fixed bottom-0 left-0 right-0 z-50 flex h-24 items-center justify-around px-4 safe-area-pb">
         {filteredItems.map(({ to, icon: Icon, label }) => {
           const active = location.pathname === to;
           return (
@@ -44,12 +44,14 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
               key={to}
               to={to}
               className={cn(
-                "flex flex-col items-center gap-1 rounded-xl px-4 py-2 transition-colors min-w-[64px]",
-                active ? "text-primary" : "text-muted-foreground hover:text-foreground"
+                "flex flex-col items-center gap-1.5 transition-all duration-300 px-4 py-2 rounded-2xl",
+                active ? "text-primary bg-primary/10 scale-110" : "text-muted-foreground hover:bg-muted/50"
               )}
             >
-              <Icon className="h-5 w-5" />
-              <span className="text-[10px] font-medium">{label}</span>
+              <Icon className={cn("h-7 w-7", active && "glow-primary")} />
+              <span className={cn("text-sm font-bold tracking-tight uppercase", active ? "opacity-100" : "opacity-60")}>
+                {label}
+              </span>
             </Link>
           );
         })}

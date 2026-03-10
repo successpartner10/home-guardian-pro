@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Camera, Wifi, WifiOff, Video, MonitorSmartphone, Smartphone } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Device = Tables<"devices">;
@@ -155,83 +156,77 @@ const Dashboard = () => {
     <AppLayout>
       <div className="p-4 space-y-8 max-w-7xl mx-auto">
 
-        {/* Alfred-Style Mode Selector */}
-        <div className="bg-card/40 border border-border/40 backdrop-blur-xl rounded-2xl p-6 glass-panel relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
+        {/* ZoomOn-Style Mode Selector */}
+        <div className="zoomon-card relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-80 h-80 bg-primary/20 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2 pointer-events-none group-hover:bg-primary/30 transition-colors duration-700" />
 
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6 relative z-10">
-            <div>
-              <h2 className="text-2xl font-bold tracking-tight mb-2">How do you want to use this device?</h2>
-              <p className="text-muted-foreground max-w-lg">
-                You are securely logged in. Choose whether this device acts as the Viewer monitor, or if it should become a security Camera.
+          <div className="flex flex-col xl:flex-row items-center justify-between gap-8 relative z-10">
+            <div className="text-center xl:text-left space-y-3">
+              <h2 className="text-3xl font-black tracking-tighter uppercase leading-none">Setup Mode</h2>
+              <p className="text-lg text-muted-foreground max-w-xl font-medium">
+                Choose how this device should operate in your secure network.
               </p>
             </div>
 
-            <div className="flex w-full md:w-auto gap-4">
+            <div className="flex flex-col sm:flex-row w-full xl:w-auto gap-5">
               <Button
-                variant="outline"
-                className="flex-1 md:flex-none h-14 px-6 gap-3 bg-primary/20 backdrop-blur-md border-primary text-primary transition-all text-base shadow-[0_0_15px_hsl(var(--primary)/0.2)]"
+                size="lg"
+                className="zoomon-btn-large flex-1 sm:min-w-[240px] bg-primary/20 hover:bg-primary/30 border-2 border-primary text-primary shadow-[0_0_30px_rgba(var(--primary-rgb),0.3)]"
                 onClick={handleUseAsViewer}
                 disabled={registering}
               >
-                <MonitorSmartphone className="h-5 w-5" />
-                <span className="font-semibold">Viewer (Active)</span>
+                <MonitorSmartphone className="h-7 w-7" />
+                <span className="text-xl">USE AS VIEWER</span>
               </Button>
 
               <Button
+                size="lg"
                 variant="outline"
-                className="flex-1 md:flex-none h-14 px-6 gap-3 bg-background/50 hover:bg-card/80 backdrop-blur-md border-border transition-all text-base"
+                className="zoomon-btn-large flex-1 sm:min-w-[240px] bg-muted/30 border-2 border-border/50 hover:bg-muted/50"
                 onClick={handleUseAsCamera}
                 disabled={registering}
               >
                 {registering ? (
-                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
+                  <div className="h-7 w-7 animate-spin rounded-full border-4 border-primary border-t-transparent" />
                 ) : (
-                  <Smartphone className="h-5 w-5 text-muted-foreground" />
+                  <Camera className="h-7 w-7 text-muted-foreground" />
                 )}
-                <span className="font-semibold text-foreground">Switch to Camera</span>
+                <span className="text-xl">USE AS CAMERA</span>
               </Button>
             </div>
           </div>
         </div>
 
-        <div>
-          <div className="flex items-center justify-between mb-6">
-            <h1 className="text-2xl font-bold tracking-tight">Your Cameras</h1>
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h1 className="text-3xl font-black tracking-tighter uppercase">My Cameras</h1>
             {unreadAlerts > 0 && (
               <Link to="/alerts">
-                <Badge variant="destructive" className="mt-1 shadow-[0_0_15px_hsl(var(--destructive)/0.3)] px-3 py-1">
-                  {unreadAlerts} unread alert{unreadAlerts > 1 ? "s" : ""}
+                <Badge variant="destructive" className="h-10 px-5 text-sm font-black rounded-full shadow-lg shadow-destructive/30">
+                  {unreadAlerts} NEW EVENTS
                 </Badge>
               </Link>
             )}
           </div>
 
           {loading ? (
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
               {[1, 2, 3].map((i) => (
-                <Card key={i} className="animate-pulse bg-card/40 border-border/30 glass-panel">
-                  <CardContent className="p-0">
-                    <div className="aspect-video bg-muted/30" />
-                    <div className="p-4">
-                      <div className="h-4 w-24 rounded bg-muted/50" />
-                    </div>
-                  </CardContent>
-                </Card>
+                <div key={i} className="zoomon-card animate-pulse h-64 bg-muted/20" />
               ))}
             </div>
           ) : devices.length === 0 ? (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center gap-4 py-20 px-4 text-center">
-              <div className="flex h-24 w-24 items-center justify-center rounded-full bg-primary/10 glow-primary border border-primary/20">
-                <Camera className="h-10 w-10 text-primary" />
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center gap-6 py-24 px-4 text-center">
+              <div className="flex h-32 w-32 items-center justify-center rounded-full bg-primary/10 glow-primary border-2 border-primary/20">
+                <Camera className="h-14 w-14 text-primary" />
               </div>
-              <h2 className="text-2xl font-semibold tracking-tight">No cameras connected</h2>
-              <p className="text-muted-foreground max-w-sm">
-                Log in with the same account on an old phone or tablet, and select <strong className="text-foreground">"Use as Camera"</strong> to see it here automatically.
+              <h2 className="text-3xl font-black tracking-tighter uppercase">No Active Cameras</h2>
+              <p className="text-xl text-muted-foreground max-w-md font-medium leading-relaxed">
+                Connect your first device by selecting <span className="text-primary">"Use as Camera"</span> on another phone.
               </p>
             </motion.div>
           ) : (
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
               <AnimatePresence>
                 {devices.map((device) => {
                   const status = statusConfig[device.status];
@@ -239,42 +234,38 @@ const Dashboard = () => {
                   return (
                     <motion.div
                       key={device.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, scale: 0.95 }}
-                      whileHover={{ y: -4 }}
-                      transition={{ duration: 0.3 }}
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.9 }}
+                      whileHover={{ scale: 1.02 }}
+                      transition={{ type: "spring", stiffness: 300, damping: 20 }}
                       layout
                     >
                       <Link to={`/live/${device.id}`}>
-                        <Card className={`group cursor-pointer overflow-hidden border-border/40 glass-panel transition-all duration-300 hover:border-primary/50 hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)] hover:glow-primary ${status.className}`}>
-                          <div className="relative aspect-video bg-black/40 overflow-hidden">
-                            {/* Simulated premium gradient overlay */}
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent z-10" />
+                        <Card className={`group relative zoomon-card cursor-pointer overflow-hidden border-2 transition-all duration-300 hover:border-primary px-0 py-0 ${status.className}`}>
+                          <div className="relative aspect-video bg-black overflow-hidden rounded-t-[1.8rem]">
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent z-10" />
 
                             <div className="absolute inset-0 flex items-center justify-center">
-                              <Camera className="h-12 w-12 text-white/10 group-hover:scale-110 transition-transform duration-500" />
+                              <Camera className="h-16 w-16 text-white/5 group-hover:text-primary/20 transition-colors duration-500" />
                             </div>
 
-                            <div className="absolute right-3 top-3 z-20 flex items-center gap-1.5 rounded-full bg-black/60 border border-white/10 px-2.5 py-1 text-xs backdrop-blur-md shadow-sm">
-                              <span className={`h-2 w-2 rounded-full ${status.color} ${device.status === "recording" ? "animate-pulse" : ""}`} />
-                              <span className="text-white font-medium tracking-wide">{status.label}</span>
-                            </div>
-
-                            <div className="absolute left-3 top-3 z-20">
-                              <Badge variant="outline" className="bg-primary/20 hover:bg-primary/30 text-primary border-primary/30 backdrop-blur-md transition-colors font-semibold tracking-wide shadow-[0_0_10px_hsl(var(--primary)/0.2)]">
-                                PREMIUM FREE
-                              </Badge>
+                            <div className="absolute right-4 top-4 z-20">
+                              <div className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-black uppercase backdrop-blur-xl border-2 shadow-xl ${device.status === 'online' ? 'bg-green-500/80 border-green-400' : 'bg-black/60 border-white/20'}`}>
+                                <span className={`h-3 w-3 rounded-full ${status.color} ${device.status === "recording" ? "animate-pulse" : ""}`} />
+                                <span className="text-white">{status.label}</span>
+                              </div>
                             </div>
                           </div>
-                          <CardContent className="p-4 bg-card/40 backdrop-blur-sm border-t border-border/30">
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <p className="font-semibold text-lg tracking-tight group-hover:text-primary transition-colors">{device.name}</p>
-                                <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium mt-0.5">{device.type}</p>
+
+                          <CardContent className="p-6">
+                            <div className="flex items-center justify-between gap-4">
+                              <div className="min-w-0">
+                                <h3 className="text-2xl font-black tracking-tighter uppercase truncate group-hover:text-primary transition-colors">{device.name}</h3>
+                                <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest mt-1">High Quality Stream</p>
                               </div>
-                              <div className="h-8 w-8 rounded-full bg-white/5 flex items-center justify-center border border-white/5 group-hover:bg-primary/10 group-hover:border-primary/20 transition-all">
-                                <StatusIcon className={`h-4 w-4 ${device.status === 'online' ? 'text-primary' : 'text-muted-foreground'}`} />
+                              <div className="h-14 w-14 rounded-2xl bg-muted/50 flex items-center justify-center border-2 border-border/20 group-hover:bg-primary group-hover:border-primary transition-all duration-300">
+                                <StatusIcon className={cn("h-7 w-7 transition-colors", device.status === 'online' ? "text-primary-foreground" : "text-muted-foreground group-hover:text-primary-foreground")} />
                               </div>
                             </div>
                           </CardContent>

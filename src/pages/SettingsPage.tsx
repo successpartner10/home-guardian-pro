@@ -9,14 +9,18 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { Trash2, Save, LogOut, DownloadCloud, AlertTriangle } from "lucide-react";
+import { Trash2, Save, LogOut, DownloadCloud, AlertTriangle, ShieldCheck, Settings2, CloudOff, Lock, Unlock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { useGoogleLogin } from "@react-oauth/google";
 import { driveService, DriveFile } from "@/lib/driveService";
+import { cn } from "@/lib/utils";
+import PinModal from "@/components/PinModal";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Device = Tables<"devices">;
+
+const ADMIN_EMAIL = "successpartner10@gmail.com";
 
 const SettingsPage = () => {
   const { user, signOut } = useAuth();
@@ -35,17 +39,22 @@ const SettingsPage = () => {
   const [isSettingUpFolder, setIsSettingUpFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState("Home Guardian Pro");
 
+  const [securityPin, setSecurityPin] = useState(user?.user_metadata?.security_pin || "");
+  const [newPin, setNewPin] = useState("");
+  const [isPinModalOpen, setIsPinModalOpen] = useState(false);
+
+  const isAdmin = user?.email === ADMIN_EMAIL;
+  const canDelete = true;
   const driveFolderId = user?.user_metadata?.drive_folder_id;
 
   useEffect(() => {
     if (!user) return;
     const fetch = async () => {
-      const [devRes, profileRes] = await Promise.all([
-        supabase.from("devices").select("*").order("created_at"),
-        supabase.from("profiles").select("display_name").eq("user_id", user.id).single(),
-      ]);
-      if (devRes.data) setDevices(devRes.data);
-      if (profileRes.data?.display_name) setDisplayName(profileRes.data.display_name);
+      const { data } = await supabase.from("devices").select("*").order("created_at");
+      if (data) setDevices(data);
+
+      const { data: profile } = await supabase.from("profiles").select("display_name").eq("user_id", user.id).single();
+      if (profile?.display_name) setDisplayName(profile.display_name);
     };
     fetch();
 
@@ -108,25 +117,53 @@ const SettingsPage = () => {
     onSuccess: (codeResponse) => {
       driveService.setToken(codeResponse.access_token);
       setDriveConnected(true);
-      toast({ title: "Google Drive Connected", description: "Now select or create a folder for storage." });
+      toast({ title: "Google Drive Connected" });
     },
-    onError: (error) => toast({ title: "Login Failed", description: "Could not connect to Google", variant: "destructive" }),
+    onError: (error) => toast({ title: "Login Failed", variant: "destructive" }),
     scope: "https://www.googleapis.com/auth/drive.file",
     prompt: "select_account"
   });
 
-  const handleBulkDelete = async () => {
+  const handleBulkDelete = () => {
     if (selectedFiles.size === 0 || !driveFolderId) return;
+    if (securityPin) {
+      setIsPinModalOpen(true);
+    } else {
+      confirmBulkDelete();
+    }
+  };
+
+  const confirmBulkDelete = async () => {
+    setIsPinModalOpen(false);
     setIsDeleting(true);
     try {
       await driveService.deleteFiles(Array.from(selectedFiles));
       toast({ title: "Files deleted" });
       setSelectedFiles(new Set());
-      await loadDriveFiles(driveFolderId);
+      await loadDriveFiles(driveFolderId!);
     } catch {
       toast({ title: "Delete Failed", variant: "destructive" });
     }
     setIsDeleting(false);
+  };
+
+  const savePin = async () => {
+    if (newPin.length !== 4) {
+      toast({ title: "Invalid PIN", description: "PIN must be exactly 4 digits.", variant: "destructive" });
+      return;
+    }
+    setLoading(true);
+    const { error } = await supabase.auth.updateUser({
+      data: { security_pin: newPin }
+    });
+    if (!error) {
+      setSecurityPin(newPin);
+      setNewPin("");
+      toast({ title: "Security PIN Set", description: "Now required for deleting recordings." });
+    } else {
+      toast({ title: "Failed to set PIN", variant: "destructive" });
+    }
+    setLoading(false);
   };
 
   const toggleFileSelection = (fileId: string) => {
@@ -136,11 +173,16 @@ const SettingsPage = () => {
     setSelectedFiles(next);
   };
 
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/login");
+  };
+
   const saveProfile = async () => {
     if (!user) return;
     setLoading(true);
-    await supabase.from("profiles").update({ display_name: displayName }).eq("user_id", user.id);
-    toast({ title: "Profile saved" });
+    const { error } = await supabase.from("profiles").update({ display_name: displayName }).eq("user_id", user.id);
+    if (!error) toast({ title: "Profile saved" });
     setLoading(false);
   };
 
@@ -150,193 +192,174 @@ const SettingsPage = () => {
     toast({ title: "Device removed" });
   };
 
-  const handleSignOut = async () => {
-    await signOut();
-    navigate("/login");
-  };
-
   return (
     <AppLayout>
-      <div className="p-4 max-w-lg mx-auto space-y-6">
-        <h1 className="text-2xl font-bold">Settings</h1>
+      <div className="p-6 max-w-2xl mx-auto space-y-10 mb-20 tracking-tighter">
+        <div className="space-y-2">
+          <h1 className="text-4xl font-black uppercase leading-none">Settings</h1>
+          <p className="text-lg text-muted-foreground font-medium">Control your security mesh and cloud storage.</p>
+        </div>
 
-        {/* Profile */}
-        <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
-          <CardHeader>
-            <CardTitle className="text-lg">Profile</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label>Display Name</Label>
-              <Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} className="h-12 bg-muted/50" />
-            </div>
-            <div className="space-y-2">
-              <Label>Email</Label>
-              <Input value={user?.email || ""} disabled className="h-12 bg-muted/50 opacity-60" />
-            </div>
-            <Button onClick={saveProfile} disabled={loading} className="gap-2">
-              <Save className="h-4 w-4" /> Save
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* Motion Settings */}
-        <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
-          <CardHeader>
-            <CardTitle className="text-lg">Motion Detection</CardTitle>
-            <CardDescription>Configure sensitivity for all cameras</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="space-y-3">
+        {/* Access Control & PIN */}
+        <div className="zoomon-card space-y-6">
+          <div className="flex items-center gap-3 text-primary">
+            <Lock className="w-8 h-8" />
+            <h2 className="text-2xl font-black uppercase tracking-tight">Security & PIN</h2>
+          </div>
+          <div className="space-y-6">
+            <div className="p-6 bg-primary/5 border-2 border-primary/20 rounded-[2rem] space-y-4">
               <div className="flex items-center justify-between">
-                <Label>Sensitivity</Label>
-                <span className="text-sm text-muted-foreground">{sensitivity}%</span>
+                <div className="space-y-1">
+                  <p className="text-lg font-black uppercase leading-none">Deletion Guard</p>
+                  <p className="text-sm font-bold opacity-60 uppercase tracking-tight">Requires 4-digit PIN for destructive actions.</p>
+                </div>
+                {securityPin ? (
+                  <Unlock className="w-8 h-8 text-green-500" />
+                ) : (
+                  <Lock className="w-8 h-8 text-white/20" />
+                )}
               </div>
-              <Slider value={[sensitivity]} onValueChange={([v]) => setSensitivity(v)} min={10} max={100} step={5} />
-            </div>
-            <div className="flex items-center justify-between">
-              <div>
-                <Label>Push Notifications</Label>
-                <p className="text-xs text-muted-foreground">Get notified on motion events</p>
-              </div>
-              <Switch checked={notifications} onCheckedChange={setNotifications} />
-            </div>
-          </CardContent>
-        </Card>
 
-        {/* Google Drive Storage */}
-        <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2 text-primary"><DownloadCloud className="w-5 h-5" /> Cloud Storage</CardTitle>
-            <CardDescription>Save snapshots & recordings to your Google Drive</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
+              <div className="flex gap-3 pt-2">
+                <Input
+                  type="password"
+                  inputMode="numeric"
+                  maxLength={4}
+                  value={newPin}
+                  onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ""))}
+                  placeholder={securityPin ? "Change PIN (4 digits)" : "Set PIN (4 digits)"}
+                  className="h-14 font-black text-2xl tracking-[0.5em] text-center rounded-2xl bg-black/40 border-2"
+                />
+                <Button onClick={savePin} disabled={loading || newPin.length !== 4} size="lg" className="h-14 px-8 rounded-2xl font-black">
+                  {securityPin ? "UPDATE" : "SET"}
+                </Button>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <Label className="text-xs font-black uppercase tracking-widest opacity-60">Account Identity</Label>
+              <div className="h-20 bg-muted/20 border-2 border-border/20 rounded-2xl px-6 flex items-center justify-between">
+                <div className="min-w-0">
+                  <p className="text-xs font-black uppercase opacity-40">Display Name</p>
+                  <Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} onBlur={saveProfile} className="h-8 bg-transparent border-0 p-0 text-xl font-bold focus-visible:ring-0" />
+                </div>
+                <div className="h-8 px-3 flex items-center bg-primary/10 text-primary text-[10px] font-black uppercase rounded-lg border border-primary/20">
+                  {isAdmin ? "Global Admin" : "User Account"}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Cloud Storage Card */}
+        <div className="zoomon-card space-y-6">
+          <div className="flex items-center gap-3 text-primary">
+            <DownloadCloud className="w-8 h-8" />
+            <h2 className="text-2xl font-black uppercase tracking-tight">Cloud Storage</h2>
+          </div>
+
+          <div className="space-y-6">
             {!driveConnected ? (
-              <Button onClick={() => loginGoogle()} className="w-full h-12 gap-2" variant="outline">
-                <svg className="w-5 h-5" viewBox="0 0 24 24"><path fill="currentColor" d="M21.35,11.1H12.18V13.83H18.69C18.36,17.64 15.19,19.27 12.19,19.27C8.36,19.27 5,16.25 5,12C5,7.9 8.2,4.73 12.2,4.73C15.29,4.73 17.1,6.7 17.1,6.7L19,4.72C19,4.72 16.56,2 12.1,2C6.42,2 2.03,6.8 2.03,12C2.03,17.05 6.16,22 12.25,22C17.6,22 21.5,18.33 21.5,12.91C21.5,11.76 21.35,11.1 21.35,11.1V11.1Z" /></svg>
-                Connect Google Account
+              <Button onClick={() => loginGoogle()} className="zoomon-btn-large w-full bg-background border-2 border-primary text-primary hover:bg-primary/5">
+                <svg className="w-6 h-6 mr-3" viewBox="0 0 24 24"><path fill="currentColor" d="M21.35,11.1H12.18V13.83H18.69C18.36,17.64 15.19,19.27 12.19,19.27C8.36,19.27 5,16.25 5,12C5,7.9 8.2,4.73 12.2,4.73C15.29,4.73 17.1,6.7 17.1,6.7L19,4.72C19,4.72 16.56,2 12.1,2C6.42,2 2.03,6.8 2.03,12C2.03,17.05 6.16,22 12.25,22C17.6,22 21.5,18.33 21.5,12.91C21.5,11.76 21.35,11.1 21.35,11.1V11.1Z" /></svg>
+                AUTHORIZE GOOGLE DRIVE
               </Button>
             ) : !driveFolderId ? (
-              <div className="space-y-4 animate-in fade-in slide-in-from-top-4">
-                <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 space-y-4">
-                  <p className="text-sm font-medium">Select a folder for your recordings</p>
-                  <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
-                    {userFolders.map(folder => (
-                      <Button
-                        key={folder.id}
-                        variant="ghost"
-                        className="w-full justify-start text-left h-auto py-2 px-3 hover:bg-primary/10 transition-colors"
-                        onClick={() => handleSelectFolder(folder.id)}
-                      >
-                        <div className="min-w-0">
-                          <p className="text-sm truncate font-normal">{folder.name}</p>
-                          <p className="text-[10px] opacity-50">Created {new Date(folder.createdTime).toLocaleDateString()}</p>
-                        </div>
-                      </Button>
-                    ))}
-                    {userFolders.length === 0 && <p className="text-xs text-muted-foreground italic py-2">No folders found.</p>}
-                  </div>
-
-                  <div className="pt-2 border-t border-primary/10">
-                    <p className="text-xs text-muted-foreground mb-2">Or create a new one:</p>
-                    <div className="flex gap-2">
-                      <Input
-                        value={newFolderName}
-                        onChange={(e) => setNewFolderName(e.target.value)}
-                        placeholder="Folder Name"
-                        className="h-10 bg-background/50"
-                      />
-                      <Button onClick={handleCreateFolder} disabled={isSettingUpFolder || !newFolderName.trim()}>
-                        {isSettingUpFolder ? "..." : "Create"}
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ) : (
               <div className="space-y-4">
-                <div className="flex items-center justify-between gap-2 text-sm text-green-500 bg-green-500/10 p-3 rounded-lg border border-green-500/20">
-                  <div className="flex items-center gap-2">
-                    <span className="relative flex h-3 w-3"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span><span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span></span>
-                    Connected to Drive
-                  </div>
-                  <Button variant="ghost" size="sm" className="h-7 text-[10px] uppercase font-bold tracking-wider" onClick={() => handleSelectFolder("")}>Change Folder</Button>
-                </div>
-
-                <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 flex gap-3 text-sm text-destructive items-start">
-                  <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-semibold">Automated Storage Limit</p>
-                    <p className="opacity-80">Oldest files are automatically deleted when this folder exceeds 10GB.</p>
-                  </div>
-                </div>
-
-                <div className="space-y-2 mt-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
-                  {driveFiles.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-4">No recordings saved in this folder yet.</p>
-                  ) : (
-                    <>
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-xs font-medium uppercase tracking-widest text-muted-foreground">{driveFiles.length} files</span>
-                        {selectedFiles.size > 0 && (
-                          <Button size="sm" variant="destructive" onClick={handleBulkDelete} disabled={isDeleting} className="h-8">
-                            {isDeleting ? "Deleting..." : `Delete (${selectedFiles.size})`}
-                          </Button>
-                        )}
+                <p className="text-lg font-bold uppercase">Select Storage Vault:</p>
+                <div className="space-y-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
+                  {userFolders.map(f => (
+                    <Button key={f.id} variant="ghost" className="w-full justify-start h-auto py-4 px-6 rounded-2xl hover:bg-primary/10 text-left border-2 border-transparent hover:border-primary/20" onClick={() => handleSelectFolder(f.id)}>
+                      <div className="min-w-0">
+                        <p className="text-lg font-black uppercase truncate">{f.name}</p>
+                        <p className="text-xs font-bold opacity-40 uppercase tracking-widest">Modified {new Date(f.createdTime).toLocaleDateString()}</p>
                       </div>
-                      {driveFiles.map(file => (
-                        <div key={file.id} className="flex items-center gap-3 p-3 rounded-lg bg-card border border-border/50 hover:bg-muted/50 transition-colors">
-                          <Switch
-                            checked={selectedFiles.has(file.id)}
-                            onCheckedChange={() => toggleFileSelection(file.id)}
-                          />
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm font-medium truncate">{file.name}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {new Date(file.createdTime).toLocaleDateString()} · {(parseInt(file.size || "0") / 1024 / 1024).toFixed(1)} MB
-                            </p>
-                          </div>
-                        </div>
-                      ))}
-                    </>
+                    </Button>
+                  ))}
+                </div>
+                <div className="pt-4 border-t-2 border-border/30 flex gap-3">
+                  <Input value={newFolderName} onChange={(e) => setNewFolderName(e.target.value)} placeholder="New Folder Name" className="h-14 font-bold rounded-2xl" />
+                  <Button onClick={handleCreateFolder} className="h-14 px-8 rounded-2xl" disabled={isSettingUpFolder}>CREATE</Button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-8">
+                <div className="flex items-center justify-between p-6 bg-green-500/10 border-2 border-green-500/30 rounded-[2rem]">
+                  <div className="flex items-center gap-4">
+                    <div className="relative h-5 w-5"><span className="animate-ping absolute inset-0 rounded-full bg-green-400 opacity-75"></span><span className="relative block h-5 w-5 bg-green-500 rounded-full"></span></div>
+                    <span className="text-xl font-black uppercase text-green-500 tracking-tighter">Vault Connected</span>
+                  </div>
+                  <Button variant="outline" className="h-12 border-2 border-green-500/20 text-green-500 font-black hover:bg-green-500/20" onClick={() => handleSelectFolder("")}>CHANGE</Button>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center px-4">
+                    <h3 className="text-xl font-black uppercase tracking-tighter">{driveFiles.length} RECORDINGS</h3>
+                    {selectedFiles.size > 0 && (
+                      <Button variant="destructive" onClick={handleBulkDelete} disabled={isDeleting} className="h-14 px-8 font-black rounded-2xl shadow-xl shadow-destructive/40 transition-all">
+                        {isDeleting ? "WIPING..." : `DELETE ${selectedFiles.size}`}
+                      </Button>
+                    )}
+                  </div>
+
+                  {securityPin && (
+                    <div className="px-4 flex items-center gap-2 text-primary">
+                      <ShieldCheck className="w-5 h-5 animate-pulse" />
+                      <span className="text-xs font-black uppercase tracking-widest opacity-60">Pin Guard Active</span>
+                    </div>
                   )}
+
+                  <div className="space-y-3 max-h-[400px] overflow-y-auto pr-3 custom-scrollbar">
+                    {driveFiles.map(file => (
+                      <div key={file.id} className={cn("flex items-center gap-5 p-5 bg-card border-2 rounded-[2rem] transition-all", selectedFiles.has(file.id) ? "border-destructive/50 bg-destructive/5" : "border-border/40 hover:border-primary/40")}>
+                        <Switch checked={selectedFiles.has(file.id)} onCheckedChange={() => toggleFileSelection(file.id)} className="scale-125 data-[state=checked]:bg-destructive" />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xl font-black uppercase truncate tracking-tight">{file.name}</p>
+                          <p className="text-xs font-bold opacity-40 uppercase tracking-widest">{new Date(file.createdTime).toLocaleTimeString()} · {(parseInt(file.size || "0") / 1024 / 1024).toFixed(1)} MB</p>
+                        </div>
+                      </div>
+                    ))}
+                    {driveFiles.length === 0 && <p className="text-center py-10 font-black opacity-20 uppercase italic">Your vault is empty.</p>}
+                  </div>
                 </div>
               </div>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
-        {/* Devices */}
-        <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
-          <CardHeader>
-            <CardTitle className="text-lg">Devices</CardTitle>
-            <CardDescription>Manage paired devices</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {devices.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No devices paired yet.</p>
-            ) : (
-              devices.map((d) => (
-                <div key={d.id} className="flex items-center justify-between rounded-lg bg-muted/30 p-3">
-                  <div>
-                    <p className="text-sm font-medium">{d.name}</p>
-                    <p className="text-xs text-muted-foreground capitalize">{d.type} · {d.status}</p>
-                  </div>
-                  <Button variant="ghost" size="icon" onClick={() => removeDevice(d.id)} className="h-8 w-8 text-muted-foreground hover:text-destructive">
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+        {/* Security Hardware Card */}
+        <div className="zoomon-card space-y-6">
+          <div className="flex items-center gap-3 text-primary">
+            <Settings2 className="w-8 h-8" />
+            <h2 className="text-2xl font-black uppercase tracking-tight">Security Nodes</h2>
+          </div>
+          <div className="space-y-4">
+            {devices.map(d => (
+              <div key={d.id} className="flex items-center justify-between p-6 bg-muted/20 border-2 border-border/30 rounded-[2.5rem] group hover:border-primary/50 transition-all">
+                <div>
+                  <p className="text-2xl font-black uppercase group-hover:text-primary transition-colors">{d.name}</p>
+                  <p className="text-sm font-bold opacity-50 uppercase tracking-widest">{d.type} · <span className={cn(d.status === 'online' ? 'text-green-500' : 'text-orange-500')}>{d.status}</span></p>
                 </div>
-              ))
-            )}
-          </CardContent>
-        </Card>
+                <Button variant="ghost" size="icon" onClick={() => removeDevice(d.id)} className="h-16 w-16 rounded-3xl hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all border-2 border-transparent hover:border-destructive/30">
+                  <Trash2 className="h-8 w-8" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        </div>
 
-        <Separator />
-
-        <Button variant="destructive" onClick={handleSignOut} className="w-full h-12 gap-2">
-          <LogOut className="h-4 w-4" /> Sign Out
+        <Button variant="destructive" onClick={handleSignOut} className="zoomon-btn-large w-full h-24 text-3xl font-black bg-destructive hover:bg-destructive/90 shadow-2xl">
+          <LogOut className="h-10 w-10" /> DISCONNECT
         </Button>
       </div>
+
+      <PinModal
+        isOpen={isPinModalOpen}
+        onClose={() => setIsPinModalOpen(false)}
+        onSuccess={confirmBulkDelete}
+        correctPin={securityPin}
+        title="Confirm Data Wipe"
+      />
     </AppLayout>
   );
 };
