@@ -79,6 +79,11 @@ const Alerts = () => {
             <p className="text-sm text-muted-foreground">Recent motion & sound activity</p>
           </div>
           <div className="flex gap-2">
+            {alerts.some((a) => !a.viewed) && (
+              <Button variant="ghost" size="sm" onClick={markAllRead} className="gap-2 h-9">
+                <Check className="h-4 w-4" /> Mark all read
+              </Button>
+            )}
             {alerts.length > 0 && (
               <Button variant="outline" size="sm" onClick={deleteAllAlerts} className="text-destructive hover:bg-destructive/10 border-destructive/20 gap-2 h-9">
                 <Trash2 className="h-4 w-4" /> Clear All
