@@ -12,6 +12,7 @@ export const useCamera = ({ onMotionDetected, motionSensitivity = 50 }: UseCamer
   const streamRef = useRef<MediaStream | null>(null);
   const motionIntervalRef = useRef<number | null>(null);
   const [isActive, setIsActive] = useState(false);
+  const [activeStream, setActiveStream] = useState<MediaStream | null>(null);
   const [isMuted, setIsMuted] = useState(false);
   const [flashOn, setFlashOn] = useState(false);
   const [error, setError] = useState<string | null>(null);
