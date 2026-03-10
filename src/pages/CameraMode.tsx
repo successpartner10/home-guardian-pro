@@ -84,8 +84,22 @@ const CameraMode = () => {
     [user, resolvedDeviceId]
   );
 
+  const handleSound = useCallback(async () => {
+    if (!user || !resolvedDeviceId) return;
+    await supabase.from("alerts").insert({
+      device_id: resolvedDeviceId,
+      user_id: user.id,
+      type: "sound",
+    });
+  }, [user, resolvedDeviceId]);
+
   const { videoRef, canvasRef, isActive, isMuted, flashOn, error, stream, soundLevel, startCamera, stopCamera, toggleMute, toggleFlash, takeSnapshot } =
-    useCamera({ onMotionDetected: handleMotion, motionSensitivity: 50 });
+    useCamera({
+      onMotionDetected: handleMotion,
+      onSoundDetected: handleSound,
+      motionSensitivity: 50,
+      soundSensitivity: 60
+    });
 
   const { connectionState, isConnected } = useWebRTC({
     deviceId: resolvedDeviceId || "",
@@ -166,26 +180,38 @@ const CameraMode = () => {
         <video ref={videoRef} className="h-full w-full object-cover" autoPlay playsInline muted />
         <canvas ref={canvasRef} className="hidden" />
 
-        {/* 360 Sound Radar Overlay */}
+        {/* 360 Sound Radar Overlay (Tactical Sonar) */}
         {!isMuted && soundLevel > 5 && (
-          <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+          <div className="absolute inset-0 pointer-events-none flex items-center justify-center overflow-hidden">
+            {/* Pulsing rings */}
             <div
-              className="absolute rounded-full border border-primary/40 bg-primary/10 transition-all duration-75 ease-out"
+              className="absolute rounded-full border border-primary/40 bg-primary/5 transition-all duration-75 ease-out shadow-[0_0_20px_rgba(var(--primary-rgb),0.3)]"
               style={{
-                width: `${100 + soundLevel * 3}px`,
-                height: `${100 + soundLevel * 3}px`,
-                opacity: soundLevel > 50 ? 0.6 : 0.3,
-                boxShadow: `0 0 ${soundLevel}px hsl(var(--primary) / 0.5)`
+                width: `${140 + soundLevel * 4}px`,
+                height: `${140 + soundLevel * 4}px`,
+                opacity: soundLevel > 50 ? 0.7 : 0.3,
               }}
             />
             <div
-              className="absolute rounded-full border border-primary/20 bg-primary/5 transition-all duration-150 ease-out delay-75"
+              className="absolute rounded-full border border-primary/20 bg-primary/2 transition-all duration-150 ease-out delay-75"
               style={{
-                width: `${150 + soundLevel * 4}px`,
-                height: `${150 + soundLevel * 4}px`,
-                opacity: soundLevel > 70 ? 0.4 : 0.1,
+                width: `${200 + soundLevel * 5}px`,
+                height: `${200 + soundLevel * 5}px`,
+                opacity: soundLevel > 70 ? 0.5 : 0.1,
               }}
             />
+
+            {/* Tactical 360° Scanning Line */}
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+              className="absolute h-[600px] w-1 bg-gradient-to-t from-primary/60 via-primary/10 to-transparent origin-bottom"
+              style={{ bottom: '50%' }}
+            />
+
+            {/* Inner tactical circle */}
+            <div className="absolute h-[300px] w-[300px] rounded-full border border-primary/10" />
+            <div className="absolute h-[500px] w-[500px] rounded-full border border-primary/5" />
           </div>
         )}
 

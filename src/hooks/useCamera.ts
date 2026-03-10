@@ -2,10 +2,17 @@ import { useRef, useState, useCallback, useEffect } from "react";
 
 interface UseCameraOptions {
   onMotionDetected?: (imageData: string) => void;
+  onSoundDetected?: () => void;
   motionSensitivity?: number;
+  soundSensitivity?: number;
 }
 
-export const useCamera = ({ onMotionDetected, motionSensitivity = 50 }: UseCameraOptions = {}) => {
+export const useCamera = ({
+  onMotionDetected,
+  onSoundDetected,
+  motionSensitivity = 50,
+  soundSensitivity = 50
+}: UseCameraOptions = {}) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const prevFrameRef = useRef<ImageData | null>(null);
@@ -16,6 +23,8 @@ export const useCamera = ({ onMotionDetected, motionSensitivity = 50 }: UseCamer
   const [isMuted, setIsMuted] = useState(false);
   const [flashOn, setFlashOn] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const lastSoundAlertRef = useRef<number>(0);
 
   const startCamera = useCallback(async () => {
     try {
@@ -122,12 +131,18 @@ export const useCamera = ({ onMotionDetected, motionSensitivity = 50 }: UseCamer
         }
 
         const avg = sum / bufferLength;
-        const normalizedVolume = Math.min(100, Math.round((avg / 255) * 100 * 2)); // Amplify slightly
+        const normalizedVolume = Math.min(100, Math.round((avg / 255) * 100 * 3)); // Amplify
 
         setSoundLevel(normalizedVolume);
 
-        // Trigger sound alert if volume > threshold (e.g. 60)
-        // (onSoundDetected callback would go here in the future)
+        const threshold = 100 - soundSensitivity;
+        if (normalizedVolume > threshold && onSoundDetected) {
+          const now = Date.now();
+          if (now - lastSoundAlertRef.current > 5000) {
+            lastSoundAlertRef.current = now;
+            onSoundDetected();
+          }
+        }
       }, 100);
 
     } catch (err) {
