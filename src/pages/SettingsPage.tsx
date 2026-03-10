@@ -68,6 +68,7 @@ const SettingsPage = () => {
     },
     onError: (error) => toast({ title: "Login Failed", description: "Could not connect to Google", variant: "destructive" }),
     scope: "https://www.googleapis.com/auth/drive.file",
+    prompt: "select_account"
   });
 
   const handleBulkDelete = async () => {
