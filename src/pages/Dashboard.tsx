@@ -154,56 +154,56 @@ const Dashboard = () => {
 
   return (
     <AppLayout>
-      <div className="p-4 space-y-8 max-w-7xl mx-auto">
+      <div className="p-3 space-y-4 max-w-7xl mx-auto">
 
         {/* ZoomOn-Style Mode Selector */}
         <div className="zoomon-card relative overflow-hidden group">
           <div className="absolute top-0 right-0 w-80 h-80 bg-primary/20 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2 pointer-events-none group-hover:bg-primary/30 transition-colors duration-700" />
 
-          <div className="flex flex-col xl:flex-row items-center justify-between gap-8 relative z-10">
-            <div className="text-center xl:text-left space-y-3">
-              <h2 className="text-3xl font-black tracking-tighter uppercase leading-none">Setup Mode</h2>
-              <p className="text-lg text-muted-foreground max-w-xl font-medium">
-                Choose how this device should operate in your secure network.
+          <div className="flex flex-col xl:flex-row items-center justify-between gap-4 relative z-10">
+            <div className="text-center xl:text-left space-y-1">
+              <h2 className="text-xl font-black tracking-tighter uppercase leading-none">Setup Mode</h2>
+              <p className="text-sm text-muted-foreground max-w-xl font-medium">
+                Choose how this device should operate.
               </p>
             </div>
 
             <div className="flex flex-col sm:flex-row w-full xl:w-auto gap-5">
               <Button
-                size="lg"
-                className="zoomon-btn-large flex-1 sm:min-w-[240px] bg-primary/20 hover:bg-primary/30 border-2 border-primary text-primary shadow-[0_0_30px_rgba(var(--primary-rgb),0.3)]"
+                size="sm"
+                className="zoomon-btn-large flex-1 sm:min-w-[200px] bg-primary/20 hover:bg-primary/30 border-2 border-primary text-primary shadow-lg"
                 onClick={handleUseAsViewer}
                 disabled={registering}
               >
-                <MonitorSmartphone className="h-7 w-7" />
-                <span className="text-xl">USE AS VIEWER</span>
+                <MonitorSmartphone className="h-5 w-5" />
+                <span className="text-base uppercase">Viewer Mode</span>
               </Button>
 
               <Button
-                size="lg"
+                size="sm"
                 variant="outline"
-                className="zoomon-btn-large flex-1 sm:min-w-[240px] bg-muted/30 border-2 border-border/50 hover:bg-muted/50"
+                className="zoomon-btn-large flex-1 sm:min-w-[200px] bg-muted/30 border-2 border-border/50 hover:bg-muted/50"
                 onClick={handleUseAsCamera}
                 disabled={registering}
               >
                 {registering ? (
-                  <div className="h-7 w-7 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
                 ) : (
-                  <Camera className="h-7 w-7 text-muted-foreground" />
+                  <Camera className="h-5 w-5 text-muted-foreground" />
                 )}
-                <span className="text-xl">USE AS CAMERA</span>
+                <span className="text-base uppercase">Camera Mode</span>
               </Button>
             </div>
           </div>
         </div>
 
-        <div className="space-y-6">
+        <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h1 className="text-3xl font-black tracking-tighter uppercase">My Cameras</h1>
+            <h1 className="text-xl font-black tracking-tighter uppercase">My Cameras</h1>
             {unreadAlerts > 0 && (
               <Link to="/alerts">
-                <Badge variant="destructive" className="h-10 px-5 text-sm font-black rounded-full shadow-lg shadow-destructive/30">
-                  {unreadAlerts} NEW EVENTS
+                <Badge variant="destructive" className="h-8 px-3 text-[10px] font-black rounded-full shadow-lg">
+                  {unreadAlerts} NEW
                 </Badge>
               </Link>
             )}
@@ -258,14 +258,14 @@ const Dashboard = () => {
                             </div>
                           </div>
 
-                          <CardContent className="p-6">
-                            <div className="flex items-center justify-between gap-4">
+                          <CardContent className="p-4">
+                            <div className="flex items-center justify-between gap-3">
                               <div className="min-w-0">
-                                <h3 className="text-2xl font-black tracking-tighter uppercase truncate group-hover:text-primary transition-colors">{device.name}</h3>
-                                <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest mt-1">High Quality Stream</p>
+                                <h3 className="text-lg font-black tracking-tighter uppercase truncate group-hover:text-primary transition-colors">{device.name}</h3>
+                                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Active Stream</p>
                               </div>
-                              <div className="h-14 w-14 rounded-2xl bg-muted/50 flex items-center justify-center border-2 border-border/20 group-hover:bg-primary group-hover:border-primary transition-all duration-300">
-                                <StatusIcon className={cn("h-7 w-7 transition-colors", device.status === 'online' ? "text-primary-foreground" : "text-muted-foreground group-hover:text-primary-foreground")} />
+                              <div className="h-10 w-10 rounded-xl bg-muted/50 flex items-center justify-center border-2 border-border/20 group-hover:bg-primary group-hover:border-primary transition-all duration-300">
+                                <StatusIcon className={cn("h-5 w-5 transition-colors", device.status === 'online' ? "text-primary-foreground" : "text-muted-foreground group-hover:text-primary-foreground")} />
                               </div>
                             </div>
                           </CardContent>

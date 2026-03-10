@@ -22,18 +22,18 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
   return (
     <div className="flex min-h-screen flex-col bg-background">
       {/* Top bar */}
-      <header className="glass-panel sticky top-0 z-50 flex h-20 items-center justify-between px-6">
-        <Link to="/dashboard" className="flex items-center gap-3">
-          <Shield className="h-8 w-8 text-primary" />
-          <span className="text-2xl font-black text-foreground tracking-tighter uppercase">SecureCam</span>
+      <header className="glass-panel sticky top-0 z-50 flex h-14 items-center justify-between px-4">
+        <Link to="/dashboard" className="flex items-center gap-2">
+          <Shield className="h-6 w-6 text-primary" />
+          <span className="text-lg font-black text-foreground tracking-tighter uppercase">SecureCam</span>
         </Link>
-        <button onClick={signOut} className="flex h-12 w-12 items-center justify-center rounded-xl bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
-          <LogOut className="h-6 w-6" />
+        <button onClick={signOut} className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
+          <LogOut className="h-5 w-5" />
         </button>
       </header>
 
       {/* Main content */}
-      <main className="flex-1 pb-32">{children}</main>
+      <main className="flex-1 pb-24">{children}</main>
 
       {/* Bottom navigation */}
       <nav className={cn(
