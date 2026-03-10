@@ -24,6 +24,7 @@ export const useCamera = ({ onMotionDetected, motionSensitivity = 50 }: UseCamer
         audio: true,
       });
       streamRef.current = stream;
+      setActiveStream(stream);
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         await videoRef.current.play();
