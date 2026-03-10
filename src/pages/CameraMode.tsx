@@ -79,19 +79,30 @@ const CameraMode = () => {
     return () => stopCamera();
   }, [startCamera, stopCamera]);
 
-  // Update device status
+  // Update device status when active changes
   useEffect(() => {
-    if (!user || !resolvedDeviceId) return;
-    const updateStatus = async (status: "online" | "offline") => {
+    if (!user || !resolvedDeviceId || !isActive) return;
+    const setOnline = async () => {
       await supabase
         .from("devices")
-        .update({ status, last_seen: new Date().toISOString() })
+        .update({ status: "online", last_seen: new Date().toISOString() })
         .eq("id", resolvedDeviceId);
     };
-
-    if (isActive) updateStatus("online");
-    return () => { updateStatus("offline"); };
+    setOnline();
   }, [isActive, user, resolvedDeviceId]);
+
+  // Set offline only when component unmounts
+  useEffect(() => {
+    if (!user || !resolvedDeviceId) return;
+    return () => {
+      // Use fire-and-forget for unmount cleanup
+      supabase
+        .from("devices")
+        .update({ status: "offline", last_seen: new Date().toISOString() })
+        .eq("id", resolvedDeviceId)
+        .then();
+    };
+  }, [user, resolvedDeviceId]);
 
   const handleSnapshot = async () => {
     const dataUrl = takeSnapshot();
