@@ -320,7 +320,14 @@ const Dashboard = () => {
                               <div className="flex items-center justify-between gap-3">
                                 <div className="min-w-0">
                                   <h3 className="text-lg font-black tracking-tighter uppercase truncate group-hover:text-primary transition-colors">{device.name}</h3>
-                                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Active Stream</p>
+                                  <div className="flex items-center gap-2">
+                                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Active Stream</p>
+                                    {device.last_seen && (
+                                      <span className="text-[9px] font-black text-primary/60 bg-primary/5 px-2 py-0.5 rounded-full">
+                                        Seen {new Date(device.last_seen).toLocaleTimeString([], { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
                                 <div className="h-10 w-10 rounded-xl bg-muted/50 flex items-center justify-center border-2 border-border/20 group-hover:bg-primary group-hover:border-primary transition-all duration-300">
                                   <StatusIcon className={cn("h-5 w-5 transition-colors", device.status === 'online' ? "text-primary-foreground" : "text-muted-foreground group-hover:text-primary-foreground")} />
