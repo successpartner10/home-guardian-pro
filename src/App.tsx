@@ -13,6 +13,7 @@ import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
 import CameraMode from "./pages/CameraMode";
 import LiveFeed from "./pages/LiveFeed";
+import MultiLiveFeed from "./pages/MultiLiveFeed";
 import Alerts from "./pages/Alerts";
 import SettingsPage from "./pages/SettingsPage";
 import PendingApproval from "./pages/PendingApproval";
@@ -47,6 +48,7 @@ const App = () => (
               <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
               <Route path="/camera" element={<ProtectedRoute><CameraMode /></ProtectedRoute>} />
               <Route path="/camera/:deviceId" element={<ProtectedRoute><CameraMode /></ProtectedRoute>} />
+              <Route path="/live/all" element={<ProtectedRoute><MultiLiveFeed /></ProtectedRoute>} />
               <Route path="/live/:deviceId" element={<ProtectedRoute><LiveFeed /></ProtectedRoute>} />
               <Route path="/alerts" element={<ProtectedRoute><Alerts /></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />

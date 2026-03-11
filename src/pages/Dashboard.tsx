@@ -6,7 +6,7 @@ import AppLayout from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Camera, Wifi, WifiOff, Video, MonitorSmartphone, Smartphone } from "lucide-react";
+import { Camera, Wifi, WifiOff, Video, MonitorSmartphone, LayoutGrid } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -196,13 +196,25 @@ const Dashboard = () => {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h1 className="text-xl font-black tracking-tighter uppercase">My Cameras</h1>
-            {unreadAlerts > 0 && (
-              <Link to="/alerts">
-                <Badge variant="destructive" className="h-8 px-3 text-[10px] font-black rounded-full shadow-lg">
-                  {unreadAlerts} NEW
-                </Badge>
-              </Link>
-            )}
+            <div className="flex items-center gap-3">
+              {devices.length > 1 && (
+                <Link to="/live/all">
+                  <Button variant="outline" size="sm" className="hidden sm:flex gap-2 h-8 rounded-full font-bold uppercase text-[10px] tracking-widest border-primary/50 text-primary hover:bg-primary/10 transition-colors">
+                    <LayoutGrid className="h-4 w-4" /> Watch All Live
+                  </Button>
+                  <Button variant="outline" size="icon" className="sm:hidden h-8 w-8 rounded-full border-primary/50 text-primary hover:bg-primary/10 transition-colors">
+                    <LayoutGrid className="h-4 w-4" />
+                  </Button>
+                </Link>
+              )}
+              {unreadAlerts > 0 && (
+                <Link to="/alerts">
+                  <Badge variant="destructive" className="h-8 px-3 text-[10px] font-black rounded-full shadow-lg">
+                    {unreadAlerts} NEW
+                  </Badge>
+                </Link>
+              )}
+            </div>
           </div>
 
           {loading ? (
