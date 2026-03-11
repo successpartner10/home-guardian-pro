@@ -30,7 +30,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const isAdmin = user?.email === ADMIN_EMAIL;
 
   const fetchProfile = async (userId: string, email?: string) => {
-    const isPrimaryAdmin = email === ADMIN_EMAIL;
+    const isPrimaryAdmin = email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+    console.log(`[AuthContext] Checking approval for ${email}. IsPrimaryAdmin: ${isPrimaryAdmin}`);
     try {
       const { data, error } = await supabase
         .from("profiles")

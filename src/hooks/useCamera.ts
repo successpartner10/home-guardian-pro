@@ -1,5 +1,6 @@
 import { useRef, useState, useCallback, useEffect } from "react";
 import type { DetectedObject } from "@tensorflow-models/coco-ssd";
+import { useToast } from "./use-toast";
 
 interface UseCameraOptions {
   onMotionDetected?: (imageData: string, objectLabel?: string) => void;
@@ -23,6 +24,7 @@ export const useCamera = ({
   autoZoom = false,
   detectionSchedule,
 }: UseCameraOptions = {}) => {
+  const { toast } = useToast();
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const prevFrameRef = useRef<ImageData | null>(null);
@@ -90,7 +92,32 @@ export const useCamera = ({
       setIsActive(true);
       setError(null);
     } catch (err: any) {
-      setError(err.message || "Camera access denied");
+      console.warn("Camera with audio failed, trying video only:", err);
+      try {
+        const videoOnlyStream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: "environment",
+            width: { min: 1280, ideal: 1920, max: 1920 },
+            height: { min: 720, ideal: 1080, max: 1080 }
+          },
+          audio: false,
+        });
+        streamRef.current = videoOnlyStream;
+        setActiveStream(videoOnlyStream);
+        if (videoRef.current) {
+          videoRef.current.srcObject = videoOnlyStream;
+          await videoRef.current.play();
+        }
+        setIsActive(true);
+        setError(null);
+        toast({
+          title: "Microphone Access Denied",
+          description: "Camera is active but audio is disabled.",
+          variant: "destructive"
+        });
+      } catch (videoOnlyErr: any) {
+        setError(videoOnlyErr.message || "Camera access denied");
+      }
     }
   }, []);
 
