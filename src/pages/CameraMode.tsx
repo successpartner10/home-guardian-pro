@@ -234,7 +234,7 @@ const CameraMode = () => {
 
       if (error) console.error("[CameraMode] Heartbeat failed:", error);
       else console.log("[CameraMode] Heartbeat sent.");
-    }, 45000); // Every 45 seconds
+    }, 15000); // More frequent heartbeat for mobile visibility
 
     return () => clearInterval(heartbeat);
   }, [resolvedDeviceId]);
