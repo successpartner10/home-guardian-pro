@@ -367,6 +367,23 @@ const Dashboard = () => {
               </AnimatePresence>
             </div>
           )}
+          {/* Danger Zone: Cache Clearing */}
+          <div className="mt-12 pt-8 border-t border-destructive/20">
+            <h2 className="text-sm font-bold text-destructive uppercase tracking-widest mb-4">Diagnostic Tools</h2>
+            <Button
+              variant="outline"
+              className="w-full border-destructive/30 text-destructive hover:bg-destructive/10 transition-colors uppercase font-black text-[10px] tracking-[0.2em] h-12 rounded-2xl"
+              onClick={() => {
+                if (confirm("This will reset your device's unique identity. Do this if cameras are not appearing. The app will reload. Continue?")) {
+                  localStorage.removeItem("hguard_device_persistent_id");
+                  localStorage.removeItem("pending_cam_alerts");
+                  window.location.reload();
+                }
+              }}
+            >
+              Reset Device Identity & Cache
+            </Button>
+          </div>
         </div>
       </div>
     </AppLayout>
