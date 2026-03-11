@@ -14,7 +14,7 @@ const Login = () => {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { signIn, signInWithGoogle } = useAuth();
+  const { signIn } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -35,34 +35,26 @@ const Login = () => {
     }
   };
 
-  const handleGoogleSignIn = async () => {
-    try {
-      setLoading(true);
-      await signInWithGoogle();
-    } catch (error: any) {
-      toast({
-        title: "Google Login failed",
-        description: error.message || "Could not connect to Google",
-        variant: "destructive",
-      });
-      setLoading(false);
-    }
-  };
-
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4 overflow-y-auto pt-12 pb-24">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4 overflow-y-auto pt-12 pb-24 relative">
+      <div className="fixed inset-0 pointer-events-none overflow-hidden opacity-[0.03] z-0 flex items-center justify-center">
+        <img src="/logo.png" alt="" className="w-[150%] max-w-none grayscale" />
+      </div>
+
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="w-full max-w-md"
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.8 }}
+        className="w-full max-w-md relative z-10"
       >
-        <div className="mb-8 flex flex-col items-center gap-3">
-          <div className="flex h-32 w-32 items-center justify-center rounded-2xl bg-primary/10 glow-primary overflow-hidden p-2">
+        <div className="mb-12 flex flex-col items-center gap-6">
+          <div className="flex h-48 w-48 items-center justify-center rounded-[3rem] bg-gradient-to-br from-primary/20 to-transparent glow-primary overflow-hidden p-4 border border-white/10 shadow-2xl">
             <img src="/logo.png" alt="hGuard Logo" className="h-full w-full object-contain" />
           </div>
-          <h1 className="text-4xl font-black text-foreground tracking-tighter uppercase">hGuard</h1>
-          <p className="text-xs text-muted-foreground font-black uppercase tracking-[0.3em] opacity-80">Elite Defense Protocol</p>
+          <div className="text-center group">
+            <h1 className="text-6xl font-black text-foreground tracking-tighter uppercase leading-none mb-2 group-hover:text-primary transition-colors">hGuard</h1>
+            <p className="text-[10px] text-muted-foreground font-black uppercase tracking-[0.5em] opacity-60">Elite Defense Protocol</p>
+          </div>
         </div>
 
         <Card className="border-border/50 bg-card/80 backdrop-blur-xl mb-12 shadow-2xl relative overflow-hidden group">
@@ -115,25 +107,6 @@ const Login = () => {
                 {loading ? "Decrypting..." : "Initialize Session"}
               </Button>
 
-              <div className="relative w-full flex items-center gap-4 py-2">
-                <div className="flex-1 h-[1px] bg-border/40" />
-                <span className="text-[10px] font-black uppercase tracking-widest opacity-40">Secure SSO</span>
-                <div className="flex-1 h-[1px] bg-border/40" />
-              </div>
-
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleGoogleSignIn}
-                className="h-14 w-full bg-white text-black hover:bg-white/90 border-2 border-border/20 rounded-xl font-black uppercase tracking-widest gap-3"
-                disabled={loading}
-              >
-                <svg className="w-5 h-5" viewBox="0 0 24 24">
-                  <path fill="#EA4335" d="M12 21c-4.97 0-9-4.03-9-9s4.03-9 9-9c2.42 0 4.62.93 6.27 2.45l-3.15 3.15c-.83-.78-1.92-1.25-3.12-1.25-2.61 0-4.73 2.12-4.73 4.73s2.12 4.73 4.73 4.73c1.7 0 3.19-.9 4.02-2.24h-4.02v-3.86h8.2v4.02c0 4.29-3.48 7.76-7.75 7.76z" />
-                </svg>
-                Continue with Google
-              </Button>
-
               <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest pt-2">
                 New Operative?{" "}
                 <Link to="/signup" className="text-primary font-black hover:opacity-80 transition-all">
@@ -168,7 +141,7 @@ const Login = () => {
           />
         </div>
       </motion.div>
-    </div>
+    </div >
   );
 };
 

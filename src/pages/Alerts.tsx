@@ -1,18 +1,237 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import AppLayout from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Bell, BellOff, Check, Trash2, AlertTriangle, X, Maximize2, Share2 } from "lucide-react";
+import { Bell, BellOff, Check, Trash2, AlertTriangle, X, Play, Share2, Download, Pause } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Tables } from "@/integrations/supabase/types";
+import { driveService } from "@/lib/driveService";
 
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
 type Alert = Tables<"alerts"> & { devices?: { name: string } | null };
+
+/** Build a playable blob URL from a Google Drive file URL */
+const useVideoBlob = (driveUrl: string | null | undefined) => {
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!driveUrl) return;
+
+    // If it's already a regular URL (not Drive API), use directly
+    if (!driveUrl.includes("googleapis.com/drive")) {
+      setBlobUrl(driveUrl);
+      return;
+    }
+
+    let cancelled = false;
+    const fetchBlob = async () => {
+      setLoading(true);
+      try {
+        const token = driveService.getAccessToken();
+        const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+        const res = await fetch(driveUrl, { headers });
+        if (!res.ok) throw new Error("Failed to fetch video");
+        const blob = await res.blob();
+        if (!cancelled) setBlobUrl(URL.createObjectURL(blob));
+      } catch (e) {
+        console.error("Video fetch error:", e);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    fetchBlob();
+    return () => { cancelled = true; };
+  }, [driveUrl]);
+
+  return { blobUrl, loading };
+};
+
+const VideoThumbnail = ({ url, onClick }: { url: string | null | undefined; onClick: () => void }) => {
+  const { blobUrl, loading } = useVideoBlob(url);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  if (!url) {
+    return (
+      <div className="h-full w-full flex items-center justify-center cursor-pointer" onClick={onClick}>
+        <AlertTriangle className="h-8 w-8 text-muted-foreground/20" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative h-full w-full cursor-pointer group/thumb" onClick={onClick}>
+      {loading ? (
+        <div className="h-full w-full flex items-center justify-center bg-black/80">
+          <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : blobUrl ? (
+        <video
+          ref={videoRef}
+          src={blobUrl}
+          className="h-full w-full object-cover"
+          muted
+          preload="metadata"
+          onLoadedMetadata={() => {
+            if (videoRef.current) videoRef.current.currentTime = 1;
+          }}
+        />
+      ) : (
+        <div className="h-full w-full flex items-center justify-center">
+          <AlertTriangle className="h-8 w-8 text-muted-foreground/20" />
+        </div>
+      )}
+      {/* Play Icon Overlay */}
+      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/thumb:opacity-100 transition-opacity flex items-center justify-center">
+        <div className="h-14 w-14 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30">
+          <Play className="text-white w-7 h-7 ml-1" fill="white" />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const VideoModal = ({ alert, onClose }: { alert: Alert; onClose: () => void }) => {
+  const { blobUrl, loading } = useVideoBlob(alert.thumbnail_url);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+
+  const togglePlay = () => {
+    if (!videoRef.current) return;
+    if (videoRef.current.paused) {
+      videoRef.current.play();
+      setIsPlaying(true);
+    } else {
+      videoRef.current.pause();
+      setIsPlaying(false);
+    }
+  };
+
+  const shareAlert = async () => {
+    const shareData: ShareData = {
+      title: `hGuard Security Alert`,
+      text: `Alert from ${alert.devices?.name || "Camera"}: ${alert.type.includes('motion') ? 'Motion' : 'Sound'} detected at ${new Date(alert.created_at).toLocaleString()}.`,
+      url: alert.thumbnail_url || window.location.origin
+    };
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+      } else {
+        await navigator.clipboard.writeText(shareData.url!);
+      }
+    } catch (err) {
+      console.error("Share failed", err);
+    }
+  };
+
+  const downloadVideo = () => {
+    if (!blobUrl) return;
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = `hguard-alert-${alert.id}.webm`;
+    link.click();
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-10 bg-black/95 backdrop-blur-xl"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ scale: 0.9, y: 20 }}
+        animate={{ scale: 1, y: 0 }}
+        exit={{ scale: 0.9, y: 20 }}
+        className="relative max-w-5xl w-full aspect-video bg-black rounded-[2.5rem] overflow-hidden shadow-2xl border-2 border-white/10"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {loading ? (
+          <div className="w-full h-full flex flex-col items-center justify-center gap-4 text-white/40">
+            <div className="h-12 w-12 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+            <p className="text-sm font-black uppercase tracking-widest">Loading Video...</p>
+          </div>
+        ) : blobUrl ? (
+          <div className="relative w-full h-full">
+            <video
+              ref={videoRef}
+              src={blobUrl}
+              className="w-full h-full object-contain"
+              onClick={togglePlay}
+              onPlay={() => setIsPlaying(true)}
+              onPause={() => setIsPlaying(false)}
+              onEnded={() => setIsPlaying(false)}
+              controls={false}
+            />
+            {/* Custom Play/Pause overlay */}
+            {!isPlaying && (
+              <div
+                className="absolute inset-0 flex items-center justify-center cursor-pointer"
+                onClick={togglePlay}
+              >
+                <div className="h-24 w-24 rounded-full bg-white/10 backdrop-blur-xl flex items-center justify-center border-2 border-white/20 hover:bg-white/20 transition-all">
+                  <Play className="text-white w-12 h-12 ml-2" fill="white" />
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="w-full h-full flex flex-col items-center justify-center gap-4 text-white/20">
+            <AlertTriangle className="w-20 h-20" />
+            <p className="text-xl font-black uppercase tracking-widest">Video unavailable</p>
+          </div>
+        )}
+
+        <div className="absolute top-6 right-6 flex gap-3">
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-12 w-12 rounded-2xl bg-black/40 border-2 border-white/20 hover:bg-white/10 hover:border-white/40 text-white backdrop-blur-md"
+            onClick={onClose}
+          >
+            <X className="h-6 w-6" />
+          </Button>
+        </div>
+
+        <div className="absolute bottom-0 left-0 right-0 p-8 pt-20 bg-gradient-to-t from-black via-black/60 to-transparent">
+          <div className="flex items-end justify-between gap-4">
+            <div className="space-y-1">
+              <p className="text-xs font-black uppercase tracking-[0.2em] text-primary mb-2">Security Event Log</p>
+              <h2 className="text-3xl font-black text-white uppercase tracking-tighter leading-none">
+                {alert.type.includes('motion') ? 'Motion' : 'Sound'} Detected
+              </h2>
+              <p className="text-lg font-bold text-white/60 tracking-tight">
+                {(alert as any).devices?.name || "Unknown Camera"} · {new Date(alert.created_at).toLocaleString()}
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                className="h-14 px-6 rounded-2xl font-black uppercase tracking-widest bg-white/5 border-2 border-white/10 hover:bg-white/10 text-white"
+                onClick={shareAlert}
+              >
+                <Share2 className="h-5 w-5" />
+              </Button>
+              <Button
+                className="h-14 px-8 rounded-2xl font-black uppercase tracking-widest bg-white text-black hover:bg-white/80"
+                onClick={downloadVideo}
+              >
+                <Download className="h-5 w-5 mr-2" />
+                Download
+              </Button>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+};
 
 const Alerts = () => {
   const { user } = useAuth();
@@ -146,26 +365,11 @@ const Alerts = () => {
                     )}
                   >
                     <CardContent className="p-0 flex flex-col sm:flex-row items-stretch">
-                      {/* Thumbnail Container */}
+                      {/* Video Thumbnail Container */}
                       <div
-                        className="relative w-full sm:w-40 aspect-video sm:aspect-auto bg-black shrink-0 overflow-hidden cursor-pointer group/thumb"
-                        onClick={() => setSelectedAlert(alert)}
+                        className="relative w-full sm:w-40 aspect-video sm:aspect-auto bg-black shrink-0 overflow-hidden"
                       >
-                        {alert.thumbnail_url ? (
-                          <img
-                            src={alert.thumbnail_url}
-                            alt="Motion Capture"
-                            className="h-full w-full object-cover transition-transform duration-700 group-hover/thumb:scale-110"
-                            loading="lazy"
-                          />
-                        ) : (
-                          <div className="h-full w-full flex items-center justify-center">
-                            <AlertTriangle className="h-8 w-8 text-muted-foreground/20" />
-                          </div>
-                        )}
-                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/thumb:opacity-100 transition-opacity flex items-center justify-center">
-                          <Maximize2 className="text-white w-8 h-8" />
-                        </div>
+                        <VideoThumbnail url={alert.thumbnail_url} onClick={() => setSelectedAlert(alert)} />
                       </div>
 
                       {/* Info Container */}
@@ -224,85 +428,9 @@ const Alerts = () => {
         )}
       </div>
 
-      {/* Alert Detail Modal */}
+      {/* Video Detail Modal */}
       <AnimatePresence>
-        {selectedAlert && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-10 bg-black/95 backdrop-blur-xl"
-            onClick={() => setSelectedAlert(null)}
-          >
-            <motion.div
-              initial={{ scale: 0.9, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.9, y: 20 }}
-              className="relative max-w-5xl w-full aspect-video bg-black rounded-[2.5rem] overflow-hidden shadow-2xl border-2 border-white/10"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {selectedAlert.thumbnail_url ? (
-                <img
-                  src={selectedAlert.thumbnail_url}
-                  alt="Full Alert"
-                  className="w-full h-full object-contain"
-                />
-              ) : (
-                <div className="w-full h-full flex flex-col items-center justify-center gap-4 text-white/20">
-                  <AlertTriangle className="w-20 h-20" />
-                  <p className="text-xl font-black uppercase tracking-widest">Image missing</p>
-                </div>
-              )}
-
-              <div className="absolute top-6 right-6 flex gap-3">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="h-12 w-12 rounded-2xl bg-black/40 border-2 border-white/20 hover:bg-white/10 hover:border-white/40 text-white backdrop-blur-md"
-                  onClick={() => setSelectedAlert(null)}
-                >
-                  <X className="h-6 w-6" />
-                </Button>
-              </div>
-
-              <div className="absolute bottom-0 left-0 right-0 p-8 pt-20 bg-gradient-to-t from-black via-black/60 to-transparent">
-                <div className="flex items-end justify-between gap-4">
-                  <div className="space-y-1">
-                    <p className="text-xs font-black uppercase tracking-[0.2em] text-primary mb-2">Security Event Log</p>
-                    <h2 className="text-3xl font-black text-white uppercase tracking-tighter leading-none">
-                      {selectedAlert.type.includes('motion') ? 'Motion' : 'Sound'} Detected
-                    </h2>
-                    <p className="text-lg font-bold text-white/60 tracking-tight">
-                      {(selectedAlert as any).devices?.name || "Unknown Camera"} · {new Date(selectedAlert.created_at).toLocaleString()}
-                    </p>
-                  </div>
-                  <div className="flex gap-3">
-                    <Button
-                      variant="outline"
-                      className="h-14 px-6 rounded-2xl font-black uppercase tracking-widest bg-white/5 border-2 border-white/10 hover:bg-white/10 text-white"
-                      onClick={() => shareAlert(selectedAlert)}
-                    >
-                      <Share2 className="h-5 w-5" />
-                    </Button>
-                    <Button
-                      className="h-14 px-8 rounded-2xl font-black uppercase tracking-widest bg-white text-black hover:bg-white/80"
-                      onClick={() => {
-                        if (selectedAlert.thumbnail_url) {
-                          const link = document.createElement('a');
-                          link.href = selectedAlert.thumbnail_url;
-                          link.download = `alert-${selectedAlert.id}.jpg`;
-                          link.click();
-                        }
-                      }}
-                    >
-                      Download
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
+        {selectedAlert && <VideoModal alert={selectedAlert} onClose={() => setSelectedAlert(null)} />}
       </AnimatePresence>
     </AppLayout>
   );

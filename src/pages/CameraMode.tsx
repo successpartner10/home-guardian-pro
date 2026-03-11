@@ -10,12 +10,63 @@ import { Button } from "@/components/ui/button";
 import {
   Moon, Sun, AlertTriangle, Mic, MicOff, Flashlight, FlashlightOff,
   Camera, ArrowLeft, Users, Zap, Battery as BatteryIcon, WifiOff,
-  RefreshCcw, Lock as Padlock, Maximize, ChevronRight, Settings, Plus, RotateCw
+  RefreshCcw, Lock as Padlock, Maximize, ChevronRight, Settings, Plus, RotateCw,
+  ScanSearch, Tag
 } from "lucide-react";
+import type { DetectedObject } from "@tensorflow-models/coco-ssd";
+
+// Detection category filters
+const DETECTION_CATEGORIES = [
+  { id: "all", label: "ALL", classes: null, color: "hsl(var(--primary))" },
+  { id: "person", label: "PERSON", classes: ["person"], color: "#3b82f6" },
+  { id: "pet", label: "PET", classes: ["cat", "dog", "bird", "horse", "sheep", "cow"], color: "#10b981" },
+  { id: "vehicle", label: "VEHICLE", classes: ["car", "truck", "bus", "motorcycle", "bicycle"], color: "#f59e0b" },
+  { id: "plant", label: "PLANT", classes: ["potted plant", "vase"], color: "#22c55e" },
+  { id: "other", label: "OTHER", classes: "__other__" as any, color: "#a855f7" },
+] as const;
+
+type CategoryId = typeof DETECTION_CATEGORIES[number]["id"];
+
+const getCategoryColor = (obj: DetectedObject, activeCategories: Set<CategoryId>): string => {
+  // Find the first matching category for this object
+  for (const cat of DETECTION_CATEGORIES) {
+    if (cat.id === "all" || cat.id === "other") continue;
+    if (Array.isArray(cat.classes) && cat.classes.includes(obj.class)) return cat.color;
+  }
+  return "#a855f7";
+};
+
+const filterObjects = (objects: DetectedObject[], activeCategories: Set<CategoryId>): DetectedObject[] => {
+  if (activeCategories.has("all")) return objects;
+  if (activeCategories.size === 0) return [];
+  const knownClasses = DETECTION_CATEGORIES.flatMap(c => (Array.isArray(c.classes) ? c.classes : []));
+  return objects.filter(obj => {
+    for (const catId of activeCategories) {
+      const cat = DETECTION_CATEGORIES.find(c => c.id === catId);
+      if (!cat) continue;
+      if (catId === "other" && !knownClasses.includes(obj.class)) return true;
+      if (Array.isArray(cat.classes) && cat.classes.includes(obj.class)) return true;
+    }
+    return false;
+  });
+};
+
+const countByCategory = (objects: DetectedObject[], catId: CategoryId): number => {
+  if (catId === "all") return objects.length;
+  const cat = DETECTION_CATEGORIES.find(c => c.id === catId);
+  if (!cat) return 0;
+  if (catId === "other") {
+    const knownClasses = DETECTION_CATEGORIES.flatMap(c => (Array.isArray(c.classes) ? c.classes : []));
+    return objects.filter(o => !knownClasses.includes(o.class)).length;
+  }
+  if (!Array.isArray(cat.classes)) return 0;
+  return objects.filter(o => cat.classes!.includes(o.class)).length;
+};
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { ZonePicker } from "@/components/ZonePicker";
+import { driveService } from "@/lib/driveService";
 
 interface PendingAlert {
   type: string;
@@ -74,71 +125,80 @@ const ActionBar = React.memo(({
   monitoringTime
 }: any) => {
   return (
-    <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-40 w-full max-w-lg px-4">
-      <div className="bg-black/40 backdrop-blur-2xl border-2 border-white/10 rounded-[3rem] p-2 flex items-center justify-between gap-1 shadow-2xl overflow-hidden">
+    <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-40 w-full max-w-xl px-4">
+      <div className="bg-black/40 backdrop-blur-2xl border-2 border-white/10 rounded-[3rem] p-3 flex items-center justify-between gap-1 shadow-2xl overflow-hidden">
         {/* Recording Status */}
-        <div className="flex h-12 w-12 items-center justify-center">
+        <div className="flex flex-col items-center gap-1 w-14">
           <motion.div
             animate={{ opacity: [1, 0, 1] }}
             transition={{ duration: 2, repeat: Infinity }}
             className="h-3 w-3 rounded-full bg-destructive shadow-[0_0_10px_red]"
           />
+          <span className="text-[7px] font-black text-destructive uppercase tracking-widest">REC</span>
         </div>
 
         {/* Primary Action (Large Circular Button) */}
-        <Button
-          onClick={handleSnapshot}
-          className="h-16 w-16 rounded-full bg-white text-black hover:bg-white/90 shadow-[0_0_30px_rgba(255,255,255,0.3)] transition-all active:scale-90 shrink-0"
-        >
-          <Camera className="h-8 w-8" />
-        </Button>
-
-        {/* Functional Icons (Circular & Glassmorphic) */}
-        <div className="flex items-center gap-1">
+        <div className="flex flex-col items-center gap-1.5 shrink-0">
           <Button
-            variant="ghost"
-            size="icon"
+            onClick={handleSnapshot}
+            className="h-[4.5rem] w-[4.5rem] rounded-full bg-white text-black hover:bg-white/90 shadow-[0_0_30px_rgba(255,255,255,0.3)] transition-all active:scale-90"
+          >
+            <Camera className="h-8 w-8" />
+          </Button>
+          <span className="text-[7px] font-black text-white/60 uppercase tracking-widest">Snap</span>
+        </div>
+
+        {/* Functional Buttons with Labels */}
+        <div className="flex items-start gap-0.5">
+          <button
             onClick={() => setIsZonePickerOpen(true)}
-            className="h-12 w-12 rounded-full text-white/70 hover:bg-white/10 hover:text-white"
+            className="flex flex-col items-center gap-1 p-1.5 rounded-2xl text-white/70 hover:bg-white/10 hover:text-white transition-all"
           >
-            <Maximize className="h-5 w-5" />
-          </Button>
+            <div className="h-14 w-14 flex items-center justify-center rounded-full hover:bg-white/5">
+              <Maximize className="h-6 w-6" />
+            </div>
+            <span className="text-[7px] font-black uppercase tracking-widest opacity-60">Zone</span>
+          </button>
 
-          <Button
-            variant="ghost"
-            size="icon"
+          <button
             onClick={toggleFlash}
-            className={cn("h-12 w-12 rounded-full transition-all", flashOn ? "text-yellow-400 bg-yellow-400/10" : "text-white/70 hover:bg-white/10")}
+            className={cn("flex flex-col items-center gap-1 p-1.5 rounded-2xl transition-all", flashOn ? "text-yellow-400" : "text-white/70 hover:bg-white/10")}
           >
-            {flashOn ? <Flashlight className="h-5 w-5" /> : <FlashlightOff className="h-5 w-5" />}
-          </Button>
+            <div className={cn("h-14 w-14 flex items-center justify-center rounded-full", flashOn && "bg-yellow-400/10")}>
+              {flashOn ? <Flashlight className="h-6 w-6" /> : <FlashlightOff className="h-6 w-6" />}
+            </div>
+            <span className="text-[7px] font-black uppercase tracking-widest opacity-60">{flashOn ? "On" : "Flash"}</span>
+          </button>
 
-          <Button
-            variant="ghost"
-            size="icon"
+          <button
             onClick={toggleMute}
-            className={cn("h-12 w-12 rounded-full transition-all", isMuted ? "text-white/40 bg-white/5" : "text-white/70 hover:bg-white/10")}
+            className={cn("flex flex-col items-center gap-1 p-1.5 rounded-2xl transition-all", isMuted ? "text-white/40" : "text-white/70 hover:bg-white/10")}
           >
-            {isMuted ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
-          </Button>
+            <div className={cn("h-14 w-14 flex items-center justify-center rounded-full", isMuted && "bg-white/5")}>
+              {isMuted ? <MicOff className="h-6 w-6" /> : <Mic className="h-6 w-6" />}
+            </div>
+            <span className="text-[7px] font-black uppercase tracking-widest opacity-60">{isMuted ? "Muted" : "Audio"}</span>
+          </button>
 
-          <Button
-            variant="ghost"
-            size="icon"
+          <button
             onClick={() => setIsSmartZoom(!isSmartZoom)}
-            className={cn("h-12 w-12 rounded-full transition-all", isSmartZoom ? "text-primary bg-primary/10" : "text-white/70 hover:bg-white/10")}
+            className={cn("flex flex-col items-center gap-1 p-1.5 rounded-2xl transition-all", isSmartZoom ? "text-primary" : "text-white/70 hover:bg-white/10")}
           >
-            <Zap className="h-5 w-5" />
-          </Button>
+            <div className={cn("h-14 w-14 flex items-center justify-center rounded-full", isSmartZoom && "bg-primary/10")}>
+              <Zap className="h-6 w-6" />
+            </div>
+            <span className="text-[7px] font-black uppercase tracking-widest opacity-60">AI Zoom</span>
+          </button>
 
-          <Button
-            variant="ghost"
-            size="icon"
+          <button
             onClick={toggleSiren}
-            className={cn("h-12 w-12 rounded-full transition-all", sirenActive ? "text-destructive bg-destructive/10 animate-pulse" : "text-white/70 hover:bg-white/10")}
+            className={cn("flex flex-col items-center gap-1 p-1.5 rounded-2xl transition-all", sirenActive ? "text-destructive" : "text-white/70 hover:bg-white/10")}
           >
-            <AlertTriangle className="h-5 w-5" />
-          </Button>
+            <div className={cn("h-14 w-14 flex items-center justify-center rounded-full", sirenActive && "bg-destructive/10 animate-pulse")}>
+              <AlertTriangle className="h-6 w-6" />
+            </div>
+            <span className="text-[7px] font-black uppercase tracking-widest opacity-60">{sirenActive ? "Stop" : "Siren"}</span>
+          </button>
         </div>
       </div>
 
@@ -177,6 +237,31 @@ const CameraMode = () => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [isZonePickerOpen, setIsZonePickerOpen] = useState(false);
   const [monitoringSeconds, setMonitoringSeconds] = useState(0);
+  const isRecordingRef = useRef(false);
+  const [activeCategories, setActiveCategories] = useState<Set<CategoryId>>(new Set(["all"]));
+
+  const toggleCategory = (catId: CategoryId) => {
+    setActiveCategories(prev => {
+      const next = new Set(prev);
+      if (catId === "all") {
+        // "ALL" clears everything and selects all
+        return new Set(["all"]);
+      }
+      // Deselect "all" when picking specific categories
+      next.delete("all");
+      if (next.has(catId)) {
+        next.delete(catId);
+        // If nothing selected, default back to "all"
+        if (next.size === 0) return new Set(["all"]);
+      } else {
+        next.add(catId);
+        // If all specific categories are selected, switch to "all"
+        const specificCats = DETECTION_CATEGORIES.filter(c => c.id !== "all");
+        if (specificCats.every(c => next.has(c.id))) return new Set(["all"]);
+      }
+      return next;
+    });
+  };
 
   // Monitoring Timer effect
   useEffect(() => {
@@ -233,19 +318,49 @@ const CameraMode = () => {
     resolve();
   }, [deviceId, user]);
 
-  const handleMotion = useCallback(async (imageData: string, objectLabel?: string) => {
+  const handleMotion = useCallback(async (_imageData: string, objectLabel?: string) => {
     if (!user || !resolvedDeviceId) return;
-    let thumbnail_url = null;
-    try {
-      const res = await fetch(imageData);
-      const blob = await res.blob();
-      const filename = `${user.id}/${Date.now()}.jpg`;
-      const { data } = await supabase.storage.from('snapshots').upload(filename, blob, { contentType: 'image/jpeg' });
-      if (data) thumbnail_url = supabase.storage.from('snapshots').getPublicUrl(filename).data.publicUrl;
-    } catch (e) {
-      console.error(e);
+    // Prevent overlapping recordings
+    if (isRecordingRef.current) return;
+
+    const driveFolderId = user.user_metadata?.drive_folder_id;
+    const driveReady = await driveService.isReady();
+    let videoUrl: string | null = null;
+
+    // Record a 10-second video clip and upload to Google Drive
+    if (driveReady && driveFolderId) {
+      const stream = videoRef.current?.srcObject as MediaStream | null;
+      if (stream) {
+        isRecordingRef.current = true;
+        try {
+          const videoBlob = await new Promise<Blob>((resolve, reject) => {
+            const chunks: Blob[] = [];
+            const recorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp8' });
+            recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+            recorder.onstop = () => resolve(new Blob(chunks, { type: 'video/webm' }));
+            recorder.onerror = (e) => reject(e);
+            recorder.start();
+            setTimeout(() => { if (recorder.state === 'recording') recorder.stop(); }, 10000);
+          });
+
+          const filename = `hguard_${Date.now()}.webm`;
+          const result = await driveService.uploadVideo(videoBlob, filename, driveFolderId);
+          videoUrl = result.url;
+        } catch (e) {
+          console.error("Video recording/upload failed:", e);
+        } finally {
+          isRecordingRef.current = false;
+        }
+      }
     }
-    const alertData = { device_id: resolvedDeviceId, user_id: user.id, type: objectLabel ? `motion:${objectLabel}` : "motion", thumbnail_url };
+
+    const alertData = {
+      device_id: resolvedDeviceId,
+      user_id: user.id,
+      type: objectLabel ? `motion:${objectLabel}` : "motion",
+      thumbnail_url: videoUrl
+    };
+
     if (!isOnline) {
       const newPending = [...pendingAlerts, { ...alertData, created_at: new Date().toISOString() }];
       setPendingAlerts(newPending);
@@ -269,6 +384,10 @@ const CameraMode = () => {
 
   const { videoRef, canvasRef, isActive, isMuted, flashOn, brightness, detectedObjects, zoomLevel, zoomCenter, detectionZone, setDetectionZone, startCamera, stopCamera, toggleMute, toggleFlash, takeSnapshot } =
     useCamera({ onMotionDetected: handleMotion, onSoundDetected: handleSound, aiFrequency, autoZoom: isSmartZoom });
+
+  // Filter detections based on active categories (multi-select)
+  const filteredObjects = filterObjects(detectedObjects, activeCategories);
+  const isSpotlightActive = !activeCategories.has("all") && filteredObjects.length > 0;
 
   useEffect(() => {
     if (autoNightVision) {
@@ -366,23 +485,135 @@ const CameraMode = () => {
 
       {/* Tactical Radar Overlay */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none scale-150 opacity-20">
-        <MemoRadar detectedObjects={detectedObjects} videoWidth={videoRef.current?.videoWidth || 640} videoHeight={videoRef.current?.videoHeight || 480} />
+        <MemoRadar detectedObjects={filteredObjects} videoWidth={videoRef.current?.videoWidth || 640} videoHeight={videoRef.current?.videoHeight || 480} />
       </div>
 
-      {/* AI Detection Overlay */}
+      {/* Spotlight Overlay — Dims everything when a filter is active */}
       <AnimatePresence>
-        {detectedObjects.length > 0 && (
-          <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="absolute top-24 right-8 z-30">
-            <div className="flex items-center gap-3 bg-primary text-white p-4 rounded-2xl shadow-2xl border-2 border-primary/50 backdrop-blur-md">
-              <Zap className="h-6 w-6 animate-pulse" />
-              <div>
-                <p className="text-[10px] font-black uppercase opacity-60">AI Alert</p>
-                <p className="text-xl font-black uppercase tracking-tighter">{detectedObjects[0].class} Identified</p>
-              </div>
-            </div>
+        {isSpotlightActive && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-[15] pointer-events-none"
+            style={{ background: 'rgba(0,0,0,0.55)' }}
+          >
+            {/* Cut-out holes for each detected object */}
+            <svg className="absolute inset-0 w-full h-full" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <mask id="spotlight-mask">
+                  <rect width="100%" height="100%" fill="white" />
+                  {filteredObjects.map((obj, i) => (
+                    <rect
+                      key={`mask-${i}`}
+                      x={`${(obj.bbox[0] / 320) * 100}%`}
+                      y={`${(obj.bbox[1] / 240) * 100}%`}
+                      width={`${(obj.bbox[2] / 320) * 100}%`}
+                      height={`${(obj.bbox[3] / 240) * 100}%`}
+                      rx="12"
+                      fill="black"
+                    />
+                  ))}
+                </mask>
+              </defs>
+              <rect width="100%" height="100%" fill="rgba(0,0,0,0.5)" mask="url(#spotlight-mask)" />
+            </svg>
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* AI Bounding Box Overlays — Photo Frame Style */}
+      <AnimatePresence>
+        {detectedObjects.map((obj, i) => {
+          const isFiltered = filteredObjects.some(f => f === obj);
+          const color = getCategoryColor(obj, activeCategories);
+
+          // Subtle appearance for non-filtered objects
+          const opacity = isFiltered ? 1 : 0.25;
+          const scale = isFiltered ? 1 : 0.95;
+
+          return (
+            <motion.div
+              key={`bbox-${i}-${obj.class}`}
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity, scale }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              className="absolute z-20 pointer-events-none"
+              style={{
+                left: `${(obj.bbox[0] / 320) * 100}%`,
+                top: `${(obj.bbox[1] / 240) * 100}%`,
+                width: `${(obj.bbox[2] / 320) * 100}%`,
+                height: `${(obj.bbox[3] / 240) * 100}%`,
+              }}
+            >
+              {/* Photo frame corners */}
+              <div className="absolute inset-0">
+                <div className="absolute top-0 left-0 w-4 h-4 border-t border-l rounded-tl-md" style={{ borderColor: color }} />
+                <div className="absolute top-0 right-0 w-4 h-4 border-t border-r rounded-tr-md" style={{ borderColor: color }} />
+                <div className="absolute bottom-0 left-0 w-4 h-4 border-b border-l rounded-bl-md" style={{ borderColor: color }} />
+                <div className="absolute bottom-0 right-0 w-4 h-4 border-b border-r rounded-br-md" style={{ borderColor: color }} />
+              </div>
+
+              {/* Glow effect for filtered items */}
+              {isFiltered && (
+                <div className="absolute inset-0 rounded-lg opacity-20" style={{ boxShadow: `0 0 15px ${color}, inset 0 0 10px ${color}` }} />
+              )}
+
+              {/* Label tag — Smaller and Transparent */}
+              {isFiltered && (
+                <div
+                  className="absolute -top-5 left-0 px-2 py-0.5 rounded-md text-[8px] font-bold uppercase tracking-tighter text-white/90 backdrop-blur-md border border-white/5 shadow-2xl flex items-center gap-1"
+                  style={{ backgroundColor: `${color}44` }}
+                >
+                  <Tag className="h-2 w-2 opacity-60" />
+                  {obj.class}
+                </div>
+              )}
+            </motion.div>
+          );
+        })}
+      </AnimatePresence>
+
+
+
+      {/* Multi-Identify Pill Bar */}
+      <div className="absolute top-[100px] left-0 right-0 z-30 flex justify-center px-4">
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex gap-1.5 p-1.5 rounded-full bg-black/50 backdrop-blur-xl border-2 border-white/10 shadow-2xl overflow-x-auto no-scrollbar max-w-full"
+        >
+          {DETECTION_CATEGORIES.map(cat => {
+            const isActive = activeCategories.has(cat.id);
+            const count = countByCategory(detectedObjects, cat.id);
+            return (
+              <button
+                key={cat.id}
+                onClick={() => toggleCategory(cat.id)}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-2 rounded-full text-[9px] font-black uppercase tracking-widest transition-all duration-200 whitespace-nowrap shrink-0",
+                  isActive
+                    ? "text-white shadow-lg"
+                    : "text-white/40 hover:text-white/70 hover:bg-white/5"
+                )}
+                style={isActive ? { backgroundColor: cat.color, boxShadow: `0 0 15px ${cat.color}40` } : {}}
+              >
+                {cat.label}
+                {count > 0 && (
+                  <span
+                    className={cn(
+                      "min-w-[18px] h-[18px] flex items-center justify-center rounded-full text-[8px] font-black",
+                      isActive ? "bg-white/25 text-white" : "bg-white/10 text-white/50"
+                    )}
+                  >
+                    {count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </motion.div>
+      </div>
 
       {/* Floating Bottom Dock */}
       <ActionBar

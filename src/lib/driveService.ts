@@ -181,6 +181,37 @@ export class DriveService {
         this.enforceStorageLimit(folderId).catch(console.error);
         return data;
     }
+
+    /**
+     * Get a direct download/stream URL for a file
+     */
+    getFileUrl(fileId: string): string {
+        return `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`;
+    }
+
+    /**
+     * Get the auth headers needed for authenticated video playback
+     */
+    getAuthHeaders(): Record<string, string> {
+        if (!this.accessToken) return {};
+        return { Authorization: `Bearer ${this.accessToken}` };
+    }
+
+    /**
+     * Get the current access token for use in video playback
+     */
+    getAccessToken(): string | null {
+        return this.accessToken;
+    }
+
+    /**
+     * Upload a video blob and return the file ID and playback URL
+     */
+    async uploadVideo(blob: Blob, filename: string, folderId: string): Promise<{ id: string; url: string }> {
+        const data = await this.uploadFile(blob, filename, folderId);
+        const url = this.getFileUrl(data.id);
+        return { id: data.id, url };
+    }
 }
 
 // Export singleton instance

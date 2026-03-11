@@ -9,7 +9,6 @@ interface AuthContextType {
   loading: boolean;
   signUp: (email: string, password: string, displayName?: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
-  signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
 }
@@ -56,21 +55,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (error) throw error;
   };
 
-  const signInWithGoogle = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: window.location.origin,
-        queryParams: {
-          access_type: 'offline',
-          prompt: 'consent',
-        },
-        scopes: 'https://www.googleapis.com/auth/drive.file'
-      }
-    });
-    if (error) throw error;
-  };
-
   const signOut = async () => {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
@@ -84,7 +68,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, signUp, signIn, signInWithGoogle, signOut, resetPassword }}>
+    <AuthContext.Provider value={{ user, session, loading, signUp, signIn, signOut, resetPassword }}>
       {children}
     </AuthContext.Provider>
   );

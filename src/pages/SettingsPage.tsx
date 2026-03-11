@@ -42,9 +42,6 @@ const SettingsPage = () => {
   const [sensitivity, setSensitivity] = useState(50);
   const [notificationPref, setNotificationPref] = useState<"mute" | "vibrate" | "ring">(user?.user_metadata?.notifications || "ring");
   const [displayName, setDisplayName] = useState("");
-  const [snapshotCount, setSnapshotCount] = useState<number | null>(null);
-  const [autoCleanup, setAutoCleanup] = useState<boolean>(user?.user_metadata?.auto_cleanup ?? true);
-  const [cleanupLimit, setCleanupLimit] = useState<number>(user?.user_metadata?.cleanup_limit ?? 1000);
   const [loading, setLoading] = useState(false);
   const [driveConnected, setDriveConnected] = useState(false);
   const [driveFiles, setDriveFiles] = useState<DriveFile[]>([]);
@@ -158,75 +155,7 @@ const SettingsPage = () => {
     }
   };
 
-  useEffect(() => {
-    if (!user) return;
-    const init = async () => {
-      try {
-        // ... (existing init logic)
-        fetchSnapshotCount();
-      } catch (e) {
-        console.error("Settings initialization error:", e);
-      }
-    };
-    init();
-  }, [user]);
 
-  const fetchSnapshotCount = async () => {
-    if (!user) return;
-    try {
-      const { data, error } = await supabase.storage.from("snapshots").list(user.id);
-      if (!error && data) {
-        setSnapshotCount(data.length);
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  const handleCleanup = async (manual: boolean = false) => {
-    if (!user || !snapshotCount) return;
-
-    // Only cleanup if manual OR if count exceeds limit
-    if (!manual && snapshotCount <= cleanupLimit) return;
-
-    setLoading(true);
-    try {
-      const { data: files, error } = await supabase.storage.from("snapshots").list(user.id, {
-        sortBy: { column: 'created_at', order: 'asc' }
-      });
-
-      if (error || !files) throw error;
-
-      // Keep the most recent ones
-      const toDeleteCount = manual ? files.length : files.length - cleanupLimit;
-      if (toDeleteCount <= 0) return;
-
-      const toDelete = files.slice(0, toDeleteCount).map(f => `${user.id}/${f.name}`);
-      const { error: deleteError } = await supabase.storage.from("snapshots").remove(toDelete);
-
-      if (!deleteError) {
-        toast({ title: "Cleanup Complete", description: `Removed ${toDeleteCount} old snapshots from Supabase.` });
-        fetchSnapshotCount();
-      }
-    } catch (e) {
-      console.error(e);
-      toast({ title: "Cleanup Failed", variant: "destructive" });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const saveStoragePrefs = async (prefs: { auto_cleanup?: boolean, cleanup_limit?: number }) => {
-    setAutoCleanup(prefs.auto_cleanup ?? autoCleanup);
-    setCleanupLimit(prefs.cleanup_limit ?? cleanupLimit);
-
-    await supabase.auth.updateUser({
-      data: {
-        auto_cleanup: prefs.auto_cleanup ?? autoCleanup,
-        cleanup_limit: prefs.cleanup_limit ?? cleanupLimit
-      }
-    });
-  };
 
   const loginGoogle = useGoogleLogin({
     onSuccess: (codeResponse) => {
@@ -527,73 +456,7 @@ const SettingsPage = () => {
           </div>
         </div>
 
-        {/* Storage Health & Rotation */}
-        <div className="zoomon-card space-y-6">
-          <div className="flex items-center gap-3 text-primary">
-            <DownloadCloud className="w-8 h-8" />
-            <h2 className="text-2xl font-black uppercase tracking-tight">Storage Health</h2>
-          </div>
 
-          <div className="p-6 bg-card/40 border-2 border-border/40 rounded-[2rem] space-y-6">
-            <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <p className="text-xs font-black uppercase opacity-40 tracking-widest leading-none mb-1">Active Snapshots</p>
-                <div className="flex items-baseline gap-2">
-                  <p className="text-4xl font-black tracking-tighter">
-                    {snapshotCount !== null ? snapshotCount.toLocaleString() : "..."}
-                  </p>
-                  <span className="text-sm font-bold opacity-30 uppercase tracking-tight">in Supabase</span>
-                </div>
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => handleCleanup(true)}
-                className="h-14 w-14 rounded-2xl bg-destructive/10 text-destructive border-2 border-transparent hover:border-destructive/30"
-              >
-                <Trash2 className="h-6 w-6" />
-              </Button>
-            </div>
-
-            <div className="space-y-4 pt-4 border-t-2 border-border/10">
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <p className="text-lg font-black uppercase leading-none">Auto-Rotation</p>
-                  <p className="text-[10px] font-bold opacity-40 uppercase tracking-widest">Keep snapshots under limit</p>
-                </div>
-                <Switch
-                  checked={autoCleanup}
-                  onCheckedChange={(c) => saveStoragePrefs({ auto_cleanup: c })}
-                  className="scale-125"
-                />
-              </div>
-
-              {autoCleanup && (
-                <div className="space-y-3 pt-2">
-                  <div className="flex justify-between text-[10px] font-black uppercase tracking-tighter">
-                    <span>Rotation Limit</span>
-                    <span className="text-primary">{cleanupLimit} Snapshots</span>
-                  </div>
-                  <Slider
-                    value={[cleanupLimit]}
-                    onValueChange={([v]) => setCleanupLimit(v)}
-                    onValueCommit={([v]) => saveStoragePrefs({ cleanup_limit: v })}
-                    min={100}
-                    max={2000}
-                    step={100}
-                    className="py-4"
-                  />
-                </div>
-              )}
-            </div>
-
-            <div className="p-4 bg-primary/5 rounded-2xl border border-primary/20">
-              <p className="text-[9px] font-bold text-primary uppercase tracking-[0.15em] leading-relaxed text-center">
-                Note: Supabase snapshots are for fast app loading. Permanent archival is kept in your Private Google Drive.
-              </p>
-            </div>
-          </div>
-        </div>
 
         {/* Cloud Storage Card */}
         <div className="zoomon-card space-y-6">
