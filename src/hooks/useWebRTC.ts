@@ -14,6 +14,7 @@ type SignalMessage = {
   type: "offer" | "answer" | "ice-candidate" | "ice-candidates" | "hangup";
   payload: any;
   from: string;
+  to?: string;
 };
 
 interface UseWebRTCOptions {
@@ -33,17 +34,18 @@ export const useWebRTC = ({
   onConnectionStateChange,
   onDataMessage,
 }: UseWebRTCOptions) => {
-  const pcRef = useRef<RTCPeerConnection | null>(null);
+  const pcsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
-  const dataChannelRef = useRef<RTCDataChannel | null>(null);
+  const dataChannelsRef = useRef<Map<string, RTCDataChannel>>(new Map());
   const [connectionState, setConnectionState] = useState<RTCPeerConnectionState>("new");
   const [isConnected, setIsConnected] = useState(false);
-  const pendingCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
+  const pendingCandidatesRef = useRef<Map<string, RTCIceCandidateInit[]>>(new Map());
 
-  const peerId = useRef(`${role}-${Math.random().toString(36).slice(2, 8)}`).current;
+  const myId = useRef(`${role}-${Math.random().toString(36).slice(2, 8)}`).current;
   const signalingChannel = `webrtc-signal-${deviceId}`;
 
-  const createPeerConnection = useCallback(() => {
+  const createPeerConnection = useCallback((remotePeerId: string) => {
+    console.log(`Creating peer connection for ${remotePeerId}`);
     const pc = new RTCPeerConnection(ICE_SERVERS);
 
     pc.onicecandidate = (event) => {
@@ -54,7 +56,8 @@ export const useWebRTC = ({
           payload: {
             type: "ice-candidate",
             payload: event.candidate.toJSON(),
-            from: peerId,
+            from: myId,
+            to: remotePeerId,
           } as SignalMessage,
         });
       }
@@ -64,27 +67,33 @@ export const useWebRTC = ({
       if (event.streams[0]) {
         onRemoteStream?.(event.streams[0]);
 
-        // If we are the camera and we receive an audio track, it's 2-way talk from the viewer!
         if (role === "camera" && event.track.kind === "audio") {
-          let audioEl = document.getElementById("incoming-viewer-audio") as HTMLAudioElement;
+          let audioEl = document.getElementById(`audio-${remotePeerId}`) as HTMLAudioElement;
           if (!audioEl) {
             audioEl = document.createElement("audio");
-            audioEl.id = "incoming-viewer-audio";
+            audioEl.id = `audio-${remotePeerId}`;
             audioEl.autoplay = true;
             (audioEl as any).playsInline = true;
             audioEl.style.display = "none";
             document.body.appendChild(audioEl);
           }
           audioEl.srcObject = event.streams[0];
-          audioEl.play().catch(e => console.warn("Auto-play blocked, interaction might be needed:", e));
+          audioEl.play().catch(e => console.warn("Auto-play blocked:", e));
         }
       }
     };
 
     pc.onconnectionstatechange = () => {
-      setConnectionState(pc.connectionState);
-      setIsConnected(pc.connectionState === "connected");
+      if (role === "viewer") {
+        setConnectionState(pc.connectionState);
+        setIsConnected(pc.connectionState === "connected");
+      }
       onConnectionStateChange?.(pc.connectionState);
+
+      if (pc.connectionState === "failed" || pc.connectionState === "closed") {
+        pcsRef.current.delete(remotePeerId);
+        dataChannelsRef.current.delete(remotePeerId);
+      }
     };
 
     if (role === "camera") {
@@ -97,7 +106,7 @@ export const useWebRTC = ({
           console.error("Error parsing datachannel message", e);
         }
       };
-      dataChannelRef.current = dc;
+      dataChannelsRef.current.set(remotePeerId, dc);
     } else {
       pc.ondatachannel = (event) => {
         const dc = event.channel;
@@ -109,51 +118,51 @@ export const useWebRTC = ({
             console.error("Error parsing datachannel message", e);
           }
         };
-        dataChannelRef.current = dc;
+        dataChannelsRef.current.set(remotePeerId, dc);
       };
     }
 
-    // Add local tracks if available
     if (localStream) {
       localStream.getTracks().forEach((track) => {
         pc.addTrack(track, localStream);
       });
     }
 
-    pcRef.current = pc;
+    pcsRef.current.set(remotePeerId, pc);
     return pc;
-  }, [localStream, onRemoteStream, onConnectionStateChange, peerId, role]);
+  }, [localStream, onRemoteStream, onConnectionStateChange, myId, role, onDataMessage]);
 
   const handleSignal = useCallback(
     async (message: SignalMessage) => {
-      if (message.from === peerId) return; // Ignore own messages
+      if (message.from === myId) return; // Ignore own messages
+      if (message.to && message.to !== myId) return; // Ignore signals not for us
 
-      let pc = pcRef.current;
+      let pc = pcsRef.current.get(message.from);
 
       switch (message.type) {
         case "offer": {
-          if (role !== "camera") return; // Only cameras answer offers
-          if (!pc) pc = createPeerConnection();
+          if (role !== "camera") return;
+          if (!pc) pc = createPeerConnection(message.from);
 
           await pc.setRemoteDescription(new RTCSessionDescription(message.payload));
 
-          // Apply pending candidates
-          for (const candidate of pendingCandidatesRef.current) {
+          const candidates = pendingCandidatesRef.current.get(message.from) || [];
+          for (const candidate of candidates) {
             await pc.addIceCandidate(new RTCIceCandidate(candidate));
           }
-          pendingCandidatesRef.current = [];
+          pendingCandidatesRef.current.delete(message.from);
 
           const answer = await pc.createAnswer();
           await pc.setLocalDescription(answer);
 
-          console.log("Sending answer to renegotiated offer");
           channelRef.current?.send({
             type: "broadcast",
             event: "signal",
             payload: {
               type: "answer",
               payload: answer,
-              from: peerId,
+              from: myId,
+              to: message.from,
             } as SignalMessage,
           });
           break;
@@ -163,18 +172,20 @@ export const useWebRTC = ({
           if (role !== "viewer" || !pc) return;
           await pc.setRemoteDescription(new RTCSessionDescription(message.payload));
 
-          // Apply pending candidates
-          for (const candidate of pendingCandidatesRef.current) {
+          const candidates = pendingCandidatesRef.current.get(message.from) || [];
+          for (const candidate of candidates) {
             await pc.addIceCandidate(new RTCIceCandidate(candidate));
           }
-          pendingCandidatesRef.current = [];
+          pendingCandidatesRef.current.delete(message.from);
           break;
         }
 
         case "ice-candidate": {
           try {
             if (!pc || !pc.remoteDescription) {
-              pendingCandidatesRef.current.push(message.payload);
+              const list = pendingCandidatesRef.current.get(message.from) || [];
+              list.push(message.payload);
+              pendingCandidatesRef.current.set(message.from, list);
             } else {
               await pc.addIceCandidate(new RTCIceCandidate(message.payload));
             }
@@ -184,32 +195,21 @@ export const useWebRTC = ({
           break;
         }
 
-        case "ice-candidates": {
-          const candidates = message.payload as RTCIceCandidateInit[];
-          for (const cand of candidates) {
-            try {
-              if (!pc || !pc.remoteDescription) {
-                pendingCandidatesRef.current.push(cand);
-              } else {
-                await pc.addIceCandidate(new RTCIceCandidate(cand));
-              }
-            } catch (e) {
-              console.warn("Failed to add bundled ICE candidate:", e);
+        case "hangup": {
+          if (pc) {
+            pc.close();
+            pcsRef.current.delete(message.from);
+            dataChannelsRef.current.delete(message.from);
+            if (role === "viewer") {
+              setConnectionState("closed");
+              setIsConnected(false);
             }
           }
           break;
         }
-
-        case "hangup": {
-          pc?.close();
-          pcRef.current = null;
-          setConnectionState("closed");
-          setIsConnected(false);
-          break;
-        }
       }
     },
-    [role, peerId, createPeerConnection]
+    [role, myId, createPeerConnection]
   );
 
   const [isChannelReady, setIsChannelReady] = useState(false);
@@ -249,8 +249,7 @@ export const useWebRTC = ({
     setConnectionState("connecting");
 
     try {
-      const pc = createPeerConnection();
-      // Add transceiver for receiving video/audio even without local stream
+      const pc = createPeerConnection("camera");
       pc.addTransceiver("video", { direction: "recvonly" });
       pc.addTransceiver("audio", { direction: "recvonly" });
 
@@ -263,7 +262,7 @@ export const useWebRTC = ({
         payload: {
           type: "offer",
           payload: offer,
-          from: peerId,
+          from: myId,
         } as SignalMessage,
       });
     } catch (e) {
@@ -271,7 +270,7 @@ export const useWebRTC = ({
       setConnectionState("failed");
       hasInitiatedConnection.current = false;
     }
-  }, [role, createPeerConnection, peerId]);
+  }, [role, createPeerConnection, myId]);
 
   const disconnect = useCallback(() => {
     channelRef.current?.send({
@@ -280,89 +279,23 @@ export const useWebRTC = ({
       payload: {
         type: "hangup",
         payload: null,
-        from: peerId,
+        from: myId,
       } as SignalMessage,
     });
-    pcRef.current?.close();
-    pcRef.current = null;
+    pcsRef.current.forEach(pc => pc.close());
+    pcsRef.current.clear();
+    dataChannelsRef.current.clear();
     setConnectionState("closed");
     setIsConnected(false);
     hasInitiatedConnection.current = false;
-  }, [peerId]);
-
-  // Two-way audio support for Viewer
-  useEffect(() => {
-    if (role !== "viewer") return;
-    let localAudioStream: MediaStream | null = null;
-    let audioSender: RTCRtpSender | null = null;
-
-    (window as any).startTwoWayAudio = async () => {
-      try {
-        localAudioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        const track = localAudioStream.getAudioTracks()[0];
-
-        if (pcRef.current) {
-          // Find the audio transceiver we added earlier
-          const transceivers = pcRef.current.getTransceivers();
-          const audioTransceiver = transceivers.find(t => t.receiver.track.kind === 'audio');
-
-          if (audioTransceiver) {
-            audioTransceiver.direction = "sendrecv";
-            await audioTransceiver.sender.replaceTrack(track);
-            audioSender = audioTransceiver.sender;
-          } else {
-            audioSender = pcRef.current.addTrack(track, localAudioStream);
-          }
-
-          // Renegotiate offer when adding track
-          const offer = await pcRef.current.createOffer();
-          await pcRef.current.setLocalDescription(offer);
-          channelRef.current?.send({
-            type: "broadcast",
-            event: "signal",
-            payload: {
-              type: "offer",
-              payload: offer,
-              from: peerId,
-            } as SignalMessage,
-          });
-        }
-      } catch (e) {
-        console.error("Failed to start two-way audio:", e);
-      }
-    };
-
-    (window as any).stopTwoWayAudio = () => {
-      if (localAudioStream) {
-        localAudioStream.getTracks().forEach(t => t.stop());
-        localAudioStream = null;
-      }
-
-      if (pcRef.current && audioSender) {
-        const transceivers = pcRef.current.getTransceivers();
-        const audioTransceiver = transceivers.find(t => t.sender === audioSender);
-        if (audioTransceiver) {
-          // Switch back to receive only
-          audioTransceiver.direction = "recvonly";
-          audioTransceiver.sender.replaceTrack(null);
-        }
-        audioSender = null;
-      }
-    };
-
-    return () => {
-      if ((window as any).stopTwoWayAudio) {
-        (window as any).stopTwoWayAudio();
-      }
-      delete (window as any).startTwoWayAudio;
-      delete (window as any).stopTwoWayAudio;
-    };
-  }, [role, peerId]);
+  }, [myId]);
 
   const sendData = useCallback((data: any) => {
-    if (dataChannelRef.current?.readyState === "open") {
-      dataChannelRef.current.send(JSON.stringify(data));
-    }
+    dataChannelsRef.current.forEach(dc => {
+      if (dc.readyState === "open") {
+        dc.send(JSON.stringify(data));
+      }
+    });
   }, []);
 
   return {
