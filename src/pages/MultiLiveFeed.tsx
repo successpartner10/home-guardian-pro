@@ -20,13 +20,18 @@ const MultiLiveFeed = () => {
         if (!user) return;
 
         const fetchCameras = async () => {
-            const { data } = await supabase
+            console.log("[MultiLiveFeed] Fetching cameras for user:", user.id);
+            const { data, error } = await supabase
                 .from("devices")
                 .select("*")
                 .eq("user_id", user.id)
                 .eq("type", "camera")
                 .order("created_at", { ascending: false });
 
+            if (error) {
+                console.error("[MultiLiveFeed] Fetch error:", error);
+            }
+            console.log(`[MultiLiveFeed] Found ${data?.length || 0} cameras raw.`, data);
             if (data) setCameras(data);
             setLoading(false);
         };

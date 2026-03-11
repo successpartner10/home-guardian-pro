@@ -44,16 +44,22 @@ const Dashboard = () => {
     if (!user) return;
 
     const fetchData = async () => {
+      console.log("[Dashboard] Fetching devices and alerts...");
       const [devicesRes, alertsRes] = await Promise.all([
         supabase.from("devices").select("*").order("created_at", { ascending: false }),
         supabase.from("alerts").select("id", { count: "exact" }).eq("viewed", false),
       ]);
 
-      // Auto-cleanup stale pairing codes from the DB query results since we no longer use them
-      // In a real app we would drop the column, but for now we just don't display/use them.
+      if (devicesRes.error) {
+        console.error("[Dashboard] Device fetch error:", devicesRes.error);
+        toast({ title: "Sync Error", description: "Failed to load devices.", variant: "destructive" });
+      }
+
+      console.log(`[Dashboard] Found ${devicesRes.data?.length || 0} total devices raw.`);
       if (devicesRes.data) {
-        // Only show cameras in the dashboard list, not viewers
-        setDevices(devicesRes.data.filter(d => d.type === 'camera'));
+        const cameras = devicesRes.data.filter(d => d.type === 'camera');
+        console.log(`[Dashboard] Filters to ${cameras.length} cameras.`, cameras);
+        setDevices(cameras);
       }
       if (alertsRes.count != null) setUnreadAlerts(alertsRes.count);
       setLoading(false);
@@ -227,6 +233,19 @@ const Dashboard = () => {
           <div className="flex items-center justify-between">
             <h1 className="text-xl font-black tracking-tighter uppercase">My Cameras</h1>
             <div className="flex items-center gap-3">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => {
+                  setLoading(true);
+                  // Trigger effect again or just call fetchData manually if it was closure-scoped
+                  // Actually easier to just refresh the page or recall logic.
+                  window.location.reload();
+                }}
+                className="h-8 w-8 rounded-full text-muted-foreground hover:text-primary transition-colors"
+              >
+                <RefreshCcw className="h-4 w-4" />
+              </Button>
               {devices.length > 1 && (
                 <Link to="/live/all">
                   <Button variant="outline" size="sm" className="hidden sm:flex gap-2 h-8 rounded-full font-bold uppercase text-[10px] tracking-widest border-primary/50 text-primary hover:bg-primary/10 transition-colors">

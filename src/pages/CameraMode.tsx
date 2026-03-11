@@ -179,9 +179,10 @@ const CameraMode = () => {
 
       const persistentId = getOrCreatePersistentId();
       const deviceName = `${navigator.platform} Camera (${persistentId.slice(0, 4)})`;
+      console.log(`[CameraMode] Resolving device: ${deviceName}`);
 
       // Check if this specific device is already registered
-      let { data } = await supabase
+      let { data, error } = await supabase
         .from("devices")
         .select("id")
         .eq("user_id", user.id)
@@ -189,22 +190,54 @@ const CameraMode = () => {
         .eq("type", "camera")
         .maybeSingle();
 
+      if (error) {
+        console.error("[CameraMode] Resolve error:", error);
+      }
+
       if (!data) {
-        // Create new registration for this unique device
-        const { data: newData } = await supabase.from("devices").insert({
+        console.log("[CameraMode] Registering new camera device...");
+        const { data: newData, error: insertError } = await supabase.from("devices").insert({
           user_id: user.id,
           name: deviceName,
           type: "camera",
           status: "online",
           pairing_code: Math.random().toString(36).substring(2, 8).toUpperCase()
         }).select().single();
+
+        if (insertError) {
+          console.error("[CameraMode] Registration failed:", insertError);
+        }
         data = newData;
+      } else {
+        console.log("[CameraMode] Found existing camera. Ensuring online status...");
+        await supabase.from("devices").update({ status: 'online', last_seen: new Date().toISOString() }).eq('id', data.id);
       }
 
-      if (data) setResolvedDeviceId(data.id);
+      if (data) {
+        console.log("[CameraMode] Device resolved successfully:", data.id);
+        setResolvedDeviceId(data.id);
+      }
     };
     resolve();
   }, [deviceId, user]);
+
+  // Status Heartbeat: Keep device 'online' while in Camera Mode
+  useEffect(() => {
+    if (!resolvedDeviceId) return;
+
+    console.log("[CameraMode] Starting heartbeat for:", resolvedDeviceId);
+    const heartbeat = setInterval(async () => {
+      const { error } = await supabase
+        .from("devices")
+        .update({ status: 'online', last_seen: new Date().toISOString() })
+        .eq('id', resolvedDeviceId);
+
+      if (error) console.error("[CameraMode] Heartbeat failed:", error);
+      else console.log("[CameraMode] Heartbeat sent.");
+    }, 45000); // Every 45 seconds
+
+    return () => clearInterval(heartbeat);
+  }, [resolvedDeviceId]);
 
   const handleMotion = useCallback(async (_imageData: string, objectLabel?: string) => {
     if (!user || !resolvedDeviceId) return;
@@ -352,14 +385,20 @@ const CameraMode = () => {
             >
               <ArrowLeft className="h-6 w-6" />
             </Button>
-            <h1 className="text-2xl font-black text-white uppercase tracking-tighter drop-shadow-lg">hGuard</h1>
+            <button
+              onClick={() => navigate("/dashboard")}
+              className="group flex flex-col items-start cursor-pointer active:scale-95 transition-transform"
+            >
+              <h1 className="text-xl font-black text-white uppercase tracking-tighter drop-shadow-lg group-hover:text-primary transition-colors">hGuard</h1>
+              <div className="h-0.5 w-0 group-hover:w-full bg-primary transition-all duration-300" />
+            </button>
           </div>
         </div>
 
         {/* Center HUD */}
         <div className="text-center space-y-1">
-          <div className="text-3xl font-black text-white tracking-widest leading-none drop-shadow-2xl">
-            {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
+          <div className="text-xl font-black text-white tracking-wider leading-none drop-shadow-2xl">
+            {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
           </div>
           <div className="flex items-center justify-center gap-1.5 py-1 px-4 rounded-full bg-black/40 backdrop-blur-md border border-white/5">
             <span className="text-[10px] font-black text-white/60 uppercase tracking-[0.2em]">{isMuted ? 'SILENT' : 'ACTIVE'}</span>
