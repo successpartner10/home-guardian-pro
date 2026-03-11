@@ -34,6 +34,7 @@ export const useCamera = ({
   const frameCountRef = useRef(0);
   const isModelLoaded = useRef(false);
   const blackFrameCountRef = useRef(0);
+  const cameraStartTimeRef = useRef(0);
 
   const [isActive, setIsActive] = useState(false);
   const [activeStream, setActiveStream] = useState<MediaStream | null>(null);
@@ -96,7 +97,7 @@ export const useCamera = ({
         });
       }
       console.log("[useCamera] Stream acquired successfully. Video tracks:", stream.getVideoTracks().length);
-      window.cameraStartTime = Date.now();
+      cameraStartTimeRef.current = Date.now();
       streamRef.current = stream;
       setActiveStream(stream);
       setIsActive(true);
@@ -290,7 +291,7 @@ export const useCamera = ({
       setBrightness(avgBrightness);
 
       // If purely black for several cycles, maybe the hardware stalled
-      const uptime = Date.now() - (window.cameraStartTime || 0);
+      const uptime = Date.now() - cameraStartTimeRef.current;
       if (avgBrightness < 5 && isActive && uptime > 10000) { // 10s grace period
         blackFrameCountRef.current++;
         if (blackFrameCountRef.current > 10) { // ~5 seconds of sustained black
