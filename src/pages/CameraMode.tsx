@@ -426,18 +426,25 @@ const CameraMode = () => {
         </div>
 
         {/* Right HUD */}
-        <div className="flex gap-2 p-2 rounded-2xl bg-black/40 border border-white/10 backdrop-blur-md">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={restartCamera}
-            className="h-10 w-10 rounded-xl text-white/40 hover:text-white hover:bg-white/10"
-            title="Troubleshoot Camera"
-          >
-            <RefreshCcw className="h-5 w-5" />
-          </Button>
-          <div className="w-px h-6 bg-white/10 my-2" />
-          <Users className={cn("h-5 w-5 mt-2", viewerConnected ? "text-primary animate-pulse" : "text-white/20")} />
+        <div className="flex flex-col gap-2">
+          <div className="flex gap-2 p-2 rounded-2xl bg-black/40 border border-white/10 backdrop-blur-md">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={restartCamera}
+              className="h-10 w-10 rounded-xl text-white/40 hover:text-white hover:bg-white/10"
+              title="Restart Camera"
+            >
+              <RefreshCcw className="h-5 w-5" />
+            </Button>
+            <div className="w-px h-6 bg-white/10 my-2" />
+            <Users className={cn("h-5 w-5 mt-2", viewerConnected ? "text-primary animate-pulse" : "text-white/20")} />
+          </div>
+
+          {/* Diagnostic Stats (Hidden by default, or just subtle) */}
+          <div className="text-[8px] font-mono text-white/20 text-right pr-2">
+            {isActive ? "CAM:RDY" : "CAM:OFF"} | {brightness}% BR
+          </div>
         </div>
       </div>
 

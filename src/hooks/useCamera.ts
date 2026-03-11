@@ -277,12 +277,28 @@ export const useCamera = ({
       ctx.drawImage(video, 0, 0, 320, 240);
       const currentFrame = ctx.getImageData(0, 0, 320, 240);
 
-      // Brightness detection
+      // Brightness detection & Black Frame Recovery
       let totalB = 0;
+      let pixelCount = 0;
       for (let i = 0; i < currentFrame.data.length; i += 16) {
         totalB += (currentFrame.data[i] + currentFrame.data[i + 1] + currentFrame.data[i + 2]) / 3;
+        pixelCount++;
       }
-      setBrightness(Math.round(totalB / (currentFrame.data.length / 16)));
+      const avgBrightness = Math.round(totalB / pixelCount);
+      setBrightness(avgBrightness);
+
+      // If purely black for several cycles, maybe the hardware stalled
+      if (avgBrightness < 5 && isActive) {
+        if (!window.blackFrameCount) window.blackFrameCount = 0;
+        window.blackFrameCount++;
+        if (window.blackFrameCount > 6) { // ~3 seconds of black
+          console.warn("[useCamera] Persistent black detected. Attempting auto-recovery...");
+          window.blackFrameCount = 0;
+          restartCamera();
+        }
+      } else {
+        window.blackFrameCount = 0;
+      }
 
       // AI Detection (every X frames) - Offload to Worker
       let currentObjects: DetectedObject[] = detectedObjects;
