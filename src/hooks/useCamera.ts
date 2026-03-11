@@ -33,6 +33,7 @@ export const useCamera = ({
   const workerRef = useRef<Worker | null>(null);
   const frameCountRef = useRef(0);
   const isModelLoaded = useRef(false);
+  const blackFrameCountRef = useRef(0);
 
   const [isActive, setIsActive] = useState(false);
   const [activeStream, setActiveStream] = useState<MediaStream | null>(null);
@@ -289,15 +290,14 @@ export const useCamera = ({
 
       // If purely black for several cycles, maybe the hardware stalled
       if (avgBrightness < 5 && isActive) {
-        if (!window.blackFrameCount) window.blackFrameCount = 0;
-        window.blackFrameCount++;
-        if (window.blackFrameCount > 6) { // ~3 seconds of black
+        blackFrameCountRef.current++;
+        if (blackFrameCountRef.current > 6) { // ~3 seconds of black
           console.warn("[useCamera] Persistent black detected. Attempting auto-recovery...");
-          window.blackFrameCount = 0;
+          blackFrameCountRef.current = 0;
           restartCamera();
         }
       } else {
-        window.blackFrameCount = 0;
+        blackFrameCountRef.current = 0;
       }
 
       // AI Detection (every X frames) - Offload to Worker
