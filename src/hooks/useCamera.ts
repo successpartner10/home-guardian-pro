@@ -47,6 +47,16 @@ export const useCamera = ({
   const lastSoundAlertRef = useRef<number>(0);
   const lastMotionAlertRef = useRef<number>(0);
 
+  // Sync stream to video element whenever activeStream changes
+  useEffect(() => {
+    if (videoRef.current && activeStream) {
+      if (videoRef.current.srcObject !== activeStream) {
+        videoRef.current.srcObject = activeStream;
+        videoRef.current.play().catch(e => console.warn("Video play failed:", e));
+      }
+    }
+  }, [activeStream]);
+
   const startCamera = useCallback(async () => {
     try {
       let stream;
