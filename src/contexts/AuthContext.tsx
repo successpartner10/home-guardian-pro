@@ -56,19 +56,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const currentUser = session?.user ?? null;
       setUser(currentUser);
       if (currentUser) {
-        fetchProfile(currentUser.id, currentUser.email);
+        fetchProfile(currentUser.id, currentUser.email).finally(() => setLoading(false));
       } else {
         setIsApproved(false);
+        setLoading(false);
       }
-      setLoading(false);
     });
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
       const currentUser = session?.user ?? null;
       setUser(currentUser);
       if (currentUser) {
-        fetchProfile(currentUser.id, currentUser.email);
+        await fetchProfile(currentUser.id, currentUser.email);
       } else {
         setIsApproved(false);
       }

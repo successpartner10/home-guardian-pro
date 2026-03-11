@@ -383,7 +383,7 @@ const CameraMode = () => {
       {/* Edge-to-Edge Video */}
       <video
         ref={videoRef}
-        className={cn("absolute inset-0 h-full w-full object-cover transition-all duration-1000", nightVision && "night-vision-filter")}
+        className={cn("absolute inset-0 h-full w-full object-cover transition-opacity duration-1000")}
         style={{ transformOrigin: `${zoomCenter.x}% ${zoomCenter.y}%`, transform: `scale(${zoomLevel})` }}
         autoPlay
         playsInline

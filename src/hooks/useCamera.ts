@@ -96,6 +96,7 @@ export const useCamera = ({
         });
       }
       console.log("[useCamera] Stream acquired successfully. Video tracks:", stream.getVideoTracks().length);
+      window.cameraStartTime = Date.now();
       streamRef.current = stream;
       setActiveStream(stream);
       setIsActive(true);
@@ -289,10 +290,11 @@ export const useCamera = ({
       setBrightness(avgBrightness);
 
       // If purely black for several cycles, maybe the hardware stalled
-      if (avgBrightness < 5 && isActive) {
+      const uptime = Date.now() - (window.cameraStartTime || 0);
+      if (avgBrightness < 5 && isActive && uptime > 10000) { // 10s grace period
         blackFrameCountRef.current++;
-        if (blackFrameCountRef.current > 6) { // ~3 seconds of black
-          console.warn("[useCamera] Persistent black detected. Attempting auto-recovery...");
+        if (blackFrameCountRef.current > 10) { // ~5 seconds of sustained black
+          console.warn("[useCamera] Persistent black detected after grace period. Attempting auto-recovery...");
           blackFrameCountRef.current = 0;
           restartCamera();
         }
