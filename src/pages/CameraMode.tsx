@@ -63,57 +63,38 @@ const ActionBar = React.memo(({
   isCharging,
 }: any) => {
   return (
-    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-40 w-full max-w-lg px-4 flex flex-col items-center gap-3">
-      <div className="bg-black/20 backdrop-blur-xl border border-white/10 rounded-full p-2 flex items-center justify-between gap-2 shadow-2xl overflow-hidden w-full">
+    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-40 w-full max-w-sm px-4 flex flex-col items-center gap-2">
+      <div className="bg-black/10 backdrop-blur-xl border border-white/5 rounded-full p-1.5 flex items-center justify-between gap-4 shadow-2xl w-full">
         {/* Left Side: Recording Status */}
-        <div className="flex flex-col items-center gap-0.5 w-12 shrink-0">
+        <div className="flex items-center gap-1.5 pl-3">
           <motion.div
             animate={{ opacity: [1, 0, 1] }}
             transition={{ duration: 2, repeat: Infinity }}
-            className="h-2.5 w-2.5 rounded-full bg-destructive shadow-[0_0_10px_red]"
+            className="h-2 w-2 rounded-full bg-destructive shadow-[0_0_8px_red]"
           />
-          <span className="text-[9px] font-black text-destructive uppercase tracking-widest">REC</span>
+          <span className="text-[12px] font-black text-white uppercase tracking-tighter">REC</span>
         </div>
 
         {/* Action Buttons Group */}
-        <div className="flex flex-1 items-center justify-center gap-6 px-1">
-          {/* Snap */}
-          <div className="flex flex-col items-center gap-1 shrink-0">
-            <Button
-              onClick={handleSnapshot}
-              className="h-12 w-12 rounded-full bg-white text-black hover:bg-white/90 shadow-[0_0_20px_rgba(255,255,255,0.2)] transition-all active:scale-90"
-            >
-              <Camera className="h-5 w-5" />
-            </Button>
-            <span className="text-[9px] font-black text-white/60 uppercase tracking-widest">Snap</span>
-          </div>
-
-          <div className="h-8 w-[1px] bg-white/10" />
-
-          <div className="flex flex-col items-start gap-1 justify-center">
-            <span className="text-xs font-black text-primary uppercase tracking-[0.2em] animate-pulse">Live</span>
-            <span className="text-[9px] font-medium text-white/40 uppercase tracking-widest">Recording</span>
+        <div className="flex items-center gap-6">
+          <Button
+            onClick={handleSnapshot}
+            className="h-10 w-10 rounded-full bg-white text-black hover:bg-white/90 shadow-xl transition-all active:scale-90 p-0"
+          >
+            <Camera className="h-5 w-5" />
+          </Button>
+          <div className="flex flex-col items-center">
+            <span className="text-[14px] font-black text-white tracking-widest font-mono">{monitoringTime}</span>
           </div>
         </div>
 
         {/* Right Side: Environment / Stats Block */}
-        <div className="flex flex-col gap-1.5 shrink-0 border-l border-white/5 pl-3 w-16">
-          <div className="flex items-center gap-2">
-            {isOnline ? <Wifi className="h-3.5 w-3.5 text-primary" /> : <WifiOff className="h-3.5 w-3.5 text-destructive animate-pulse" />}
-            <span className="text-[9px] font-black text-white/50 uppercase tracking-widest">LTE</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <BatteryIcon className={cn("h-3.5 w-3.5", isCharging ? "text-green-400" : "text-white/80")} />
-            <span className="text-[9px] font-black text-white/50 uppercase tracking-widest">{batteryLevel}%</span>
+        <div className="flex items-center gap-3 pr-4">
+          <div className="flex items-center gap-1">
+            <BatteryIcon className={cn("h-4 w-4", isCharging ? "text-green-400" : "text-white/80")} />
+            <span className="text-[12px] font-black text-white/80">{batteryLevel}%</span>
           </div>
         </div>
-      </div>
-
-      {/* Monitoring Timer */}
-      <div className="text-center">
-        <p className="text-[11px] font-black text-white/60 uppercase tracking-widest">
-          Time <span className="text-white font-mono">{monitoringTime}</span>
-        </p>
       </div>
     </div>
   );

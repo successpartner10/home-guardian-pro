@@ -84,10 +84,17 @@ export const useWebRTC = ({
     };
 
     pc.onconnectionstatechange = () => {
+      const connectedCount = Array.from(pcsRef.current.values()).filter(p => p.connectionState === "connected").length;
+
       if (role === "viewer") {
         setConnectionState(pc.connectionState);
         setIsConnected(pc.connectionState === "connected");
+      } else {
+        // For camera, we are "connected" if at least one viewer is connected
+        setIsConnected(connectedCount > 0);
+        setConnectionState(connectedCount > 0 ? "connected" : "new");
       }
+
       onConnectionStateChange?.(pc.connectionState);
 
       if (pc.connectionState === "failed" || pc.connectionState === "closed") {

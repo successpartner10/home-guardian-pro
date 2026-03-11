@@ -80,21 +80,30 @@ const Dashboard = () => {
     return () => { supabase.removeChannel(channel); };
   }, [user]);
 
+  const getOrCreateDeviceId = () => {
+    let id = localStorage.getItem("hguard_device_persistent_id");
+    if (!id) {
+      id = Math.random().toString(36).substring(2, 12);
+      localStorage.setItem("hguard_device_persistent_id", id);
+    }
+    return id;
+  };
+
   const handleUseAsViewer = async () => {
     if (!user) return;
     setRegistering(true);
 
-    const deviceName = `${navigator.platform} Viewer`;
+    const persistentId = getOrCreateDeviceId();
+    const deviceName = `${navigator.platform} Viewer (${persistentId.slice(0, 4)})`;
 
-    // Check for existing viewer
+    // Check for existing viewer by persistent metadata or specific name
     const { data: existingDevice } = await supabase
       .from('devices')
       .select('*')
       .eq('user_id', user.id)
       .eq('name', deviceName)
       .eq('type', 'viewer')
-      .limit(1)
-      .single();
+      .maybeSingle();
 
     if (existingDevice) {
       await supabase.from("devices").update({ status: 'online' }).eq('id', existingDevice.id);
@@ -123,8 +132,8 @@ const Dashboard = () => {
   const handleUseAsCamera = async () => {
     if (!user) return;
 
-    // Instant feedback: start a small ripple or logic check
-    const deviceName = `${navigator.platform} Camera`;
+    const persistentId = getOrCreateDeviceId();
+    const deviceName = `${navigator.platform} Camera (${persistentId.slice(0, 4)})`;
 
     const { data: existingDevice } = await supabase
       .from('devices')
@@ -132,17 +141,15 @@ const Dashboard = () => {
       .eq('user_id', user.id)
       .eq('name', deviceName)
       .eq('type', 'camera')
-      .limit(1)
-      .single();
+      .maybeSingle();
 
     if (existingDevice) {
-      // Don't await update if we want "instant"
       supabase.from("devices").update({ status: 'online' }).eq('id', existingDevice.id);
       navigate(`/camera/${existingDevice.id}`);
       return;
     }
 
-    setRegistering(true); // Only show for brand new registration
+    setRegistering(true);
     const { data, error } = await supabase.from("devices").insert({
       user_id: user.id,
       name: deviceName,
