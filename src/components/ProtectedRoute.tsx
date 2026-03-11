@@ -20,11 +20,15 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
   const isPendingPage = location.pathname === "/pending-approval";
 
-  if (!isApproved && !isPendingPage) {
+  const isPrimaryAdmin = user?.email?.toLowerCase() === "successpartner10@gmail.com";
+  const isActuallyApproved = isApproved || isPrimaryAdmin;
+
+  if (!isActuallyApproved && !isPendingPage) {
+    console.log("[ProtectedRoute] Not approved, redirecting...", { isApproved, isPrimaryAdmin });
     return <Navigate to="/pending-approval" replace />;
   }
 
-  if (isApproved && isPendingPage) {
+  if (isActuallyApproved && isPendingPage) {
     return <Navigate to="/dashboard" replace />;
   }
 

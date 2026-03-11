@@ -383,12 +383,42 @@ const CameraMode = () => {
       {/* Edge-to-Edge Video */}
       <video
         ref={videoRef}
-        className={cn("absolute inset-0 h-full w-full object-cover transition-opacity duration-1000")}
+        className={cn("absolute inset-0 h-full w-full object-cover transition-opacity duration-1000 z-0 opactiy-100")}
         style={{ transformOrigin: `${zoomCenter.x}% ${zoomCenter.y}%`, transform: `scale(${zoomLevel})` }}
         autoPlay
         playsInline
         muted
       />
+
+      {/* Black Screen Recovery Button - Appears if camera is active but feed is invisible */}
+      <AnimatePresence>
+        {isActive && brightness < 1 && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          >
+            <div className="flex flex-col items-center gap-6 p-10 bg-zinc-950 border border-white/20 rounded-[3rem] shadow-2xl text-center max-w-sm">
+              <div className="h-20 w-20 rounded-full bg-primary/20 flex items-center justify-center animate-pulse border-2 border-primary/50">
+                <RefreshCcw className="h-10 w-10 text-primary" />
+              </div>
+              <div className="space-y-2">
+                <h2 className="text-2xl font-black uppercase tracking-tighter">Camera Unresponsive</h2>
+                <p className="text-muted-foreground font-medium">Your browser blocked the video hardware. Tap below to force start.</p>
+              </div>
+              <Button
+                onClick={() => {
+                  videoRef.current?.play();
+                  restartCamera();
+                }}
+                className="w-full h-14 rounded-2xl bg-primary text-primary-foreground font-black uppercase tracking-widest text-lg shadow-[0_0_30px_rgba(var(--primary),0.4)]"
+              >
+                Force Start Camera
+              </Button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       <canvas ref={canvasRef} className="hidden" />
 
       {/* Premium HUD Top Bar */}
