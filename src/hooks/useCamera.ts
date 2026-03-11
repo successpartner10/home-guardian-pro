@@ -60,16 +60,15 @@ export const useCamera = ({
         video.srcObject = activeStream;
         video.setAttribute('playsinline', 'true');
         video.muted = true;
+        video.autoplay = true;
 
-        const playVideo = () => {
-          video.play()
-            .then(() => console.log("[useCamera] Video playback started successfully."))
-            .catch(e => {
-              console.warn("[useCamera] Video play initial attempt failed:", e);
-              setTimeout(() => {
-                video.play().catch(p => console.error("[useCamera] Video play retry failed:", p));
-              }, 1000);
-            });
+        const playVideo = async () => {
+          try {
+            await video.play();
+            console.log("[useCamera] Video playback started successfully.");
+          } catch (e) {
+            console.warn("[useCamera] Video play initial attempt failed:", e);
+          }
         };
 
         if (video.readyState >= 2) playVideo();
