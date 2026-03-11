@@ -64,35 +64,35 @@ const ActionBar = React.memo(({
 }: any) => {
   return (
     <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-40 w-full max-w-sm px-4 flex flex-col items-center gap-2">
-      <div className="bg-black/10 backdrop-blur-xl border border-white/5 rounded-full p-1.5 flex items-center justify-between gap-4 shadow-2xl w-full">
+      <div className="bg-black/5 backdrop-blur-xl border border-white/10 rounded-full p-1.5 flex items-center justify-between gap-4 shadow-2xl w-full">
         {/* Left Side: Recording Status */}
-        <div className="flex items-center gap-1.5 pl-3">
+        <div className="flex items-center gap-2 pl-4">
           <motion.div
             animate={{ opacity: [1, 0, 1] }}
             transition={{ duration: 2, repeat: Infinity }}
-            className="h-2 w-2 rounded-full bg-destructive shadow-[0_0_8px_red]"
+            className="h-2.5 w-2.5 rounded-full bg-destructive shadow-[0_0_12px_red]"
           />
-          <span className="text-[12px] font-black text-white uppercase tracking-tighter">REC</span>
+          <span className="text-[14px] font-[900] text-white uppercase tracking-tighter drop-shadow-md">REC</span>
         </div>
 
         {/* Action Buttons Group */}
         <div className="flex items-center gap-6">
           <Button
             onClick={handleSnapshot}
-            className="h-10 w-10 rounded-full bg-white text-black hover:bg-white/90 shadow-xl transition-all active:scale-90 p-0"
+            className="h-10 w-10 rounded-full bg-white text-black hover:bg-white/90 shadow-2xl transition-all active:scale-90 p-0"
           >
             <Camera className="h-5 w-5" />
           </Button>
           <div className="flex flex-col items-center">
-            <span className="text-[14px] font-black text-white tracking-widest font-mono">{monitoringTime}</span>
+            <span className="text-[16px] font-[900] text-white tracking-widest font-mono drop-shadow-lg">{monitoringTime}</span>
           </div>
         </div>
 
         {/* Right Side: Environment / Stats Block */}
-        <div className="flex items-center gap-3 pr-4">
-          <div className="flex items-center gap-1">
-            <BatteryIcon className={cn("h-4 w-4", isCharging ? "text-green-400" : "text-white/80")} />
-            <span className="text-[12px] font-black text-white/80">{batteryLevel}%</span>
+        <div className="flex items-center gap-3 pr-5">
+          <div className="flex items-center gap-1.5">
+            <BatteryIcon className={cn("h-5 w-5", isCharging ? "text-green-400" : "text-white")} />
+            <span className="text-[14px] font-[900] text-white drop-shadow-md">{batteryLevel}%</span>
           </div>
         </div>
       </div>
