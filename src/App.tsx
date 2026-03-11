@@ -13,6 +13,8 @@ import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
 import CameraMode from "./pages/CameraMode";
 import LiveFeed from "./pages/LiveFeed";
+import PublicView from "./pages/PublicView";
+import TVPage from "./pages/TVPage";
 import MultiLiveFeed from "./pages/MultiLiveFeed";
 import Alerts from "./pages/Alerts";
 import SettingsPage from "./pages/SettingsPage";
@@ -50,6 +52,8 @@ const App = () => (
               <Route path="/camera/:deviceId" element={<ProtectedRoute><CameraMode /></ProtectedRoute>} />
               <Route path="/live/all" element={<ProtectedRoute><MultiLiveFeed /></ProtectedRoute>} />
               <Route path="/live/:deviceId" element={<ProtectedRoute><LiveFeed /></ProtectedRoute>} />
+              <Route path="/shared/:token" element={<PublicView />} />
+              <Route path="/tv" element={<TVPage />} />
               <Route path="/alerts" element={<ProtectedRoute><Alerts /></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
               <Route path="/pending-approval" element={<ProtectedRoute><PendingApproval /></ProtectedRoute>} />

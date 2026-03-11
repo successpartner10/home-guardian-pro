@@ -141,17 +141,24 @@ export class LocalFileSystem {
             let totalSize = files.reduce((sum, file) => sum + file.size, 0);
 
             if (totalSize > LOCAL_STORAGE_LIMIT_BYTES) {
-                console.log("Local storage limit exceeded. Trimming oldest files...");
+                // Delete until we hit 9GB to provide a buffer
+                const targetSizeBytes = LOCAL_STORAGE_LIMIT_BYTES * 0.9;
+                console.log(`Local storage limit (${(totalSize / 1024 / 1024 / 1024).toFixed(2)} GB) exceeded. Trimming to 9 GB buffer...`);
+
                 const filesToDelete: string[] = [];
+                let sizeToClear = 0;
 
                 // Files are already sorted oldest first
                 for (const file of files) {
-                    if (totalSize <= LOCAL_STORAGE_LIMIT_BYTES) break;
+                    if (totalSize - sizeToClear <= targetSizeBytes) break;
                     filesToDelete.push(file.name);
-                    totalSize -= file.size;
+                    sizeToClear += file.size;
                 }
 
-                await this.deleteFiles(filesToDelete);
+                if (filesToDelete.length > 0) {
+                    await this.deleteFiles(filesToDelete);
+                    console.log(`Cleared ${filesToDelete.length} old recordings (${(sizeToClear / 1024 / 1024).toFixed(2)} MB).`);
+                }
             }
         } catch (e) {
             console.error("Error enforcing storage limit:", e);

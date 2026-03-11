@@ -5,11 +5,13 @@ const ICE_SERVERS: RTCConfiguration = {
   iceServers: [
     { urls: "stun:stun.l.google.com:19302" },
     { urls: "stun:stun1.l.google.com:19302" },
+    { urls: "stun:stun2.l.google.com:19302" },
   ],
+  iceCandidatePoolSize: 10,
 };
 
 type SignalMessage = {
-  type: "offer" | "answer" | "ice-candidate" | "hangup";
+  type: "offer" | "answer" | "ice-candidate" | "ice-candidates" | "hangup";
   payload: any;
   from: string;
 };
@@ -20,6 +22,7 @@ interface UseWebRTCOptions {
   localStream?: MediaStream | null;
   onRemoteStream?: (stream: MediaStream) => void;
   onConnectionStateChange?: (state: RTCPeerConnectionState) => void;
+  onDataMessage?: (data: any) => void;
 }
 
 export const useWebRTC = ({
@@ -28,9 +31,11 @@ export const useWebRTC = ({
   localStream,
   onRemoteStream,
   onConnectionStateChange,
+  onDataMessage,
 }: UseWebRTCOptions) => {
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const dataChannelRef = useRef<RTCDataChannel | null>(null);
   const [connectionState, setConnectionState] = useState<RTCPeerConnectionState>("new");
   const [isConnected, setIsConnected] = useState(false);
   const pendingCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
@@ -81,6 +86,32 @@ export const useWebRTC = ({
       setIsConnected(pc.connectionState === "connected");
       onConnectionStateChange?.(pc.connectionState);
     };
+
+    if (role === "camera") {
+      const dc = pc.createDataChannel("ai-telemetry");
+      dc.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          onDataMessage?.(data);
+        } catch (e) {
+          console.error("Error parsing datachannel message", e);
+        }
+      };
+      dataChannelRef.current = dc;
+    } else {
+      pc.ondatachannel = (event) => {
+        const dc = event.channel;
+        dc.onmessage = (e) => {
+          try {
+            const data = JSON.parse(e.data);
+            onDataMessage?.(data);
+          } catch (e) {
+            console.error("Error parsing datachannel message", e);
+          }
+        };
+        dataChannelRef.current = dc;
+      };
+    }
 
     // Add local tracks if available
     if (localStream) {
@@ -141,10 +172,30 @@ export const useWebRTC = ({
         }
 
         case "ice-candidate": {
-          if (!pc || !pc.remoteDescription) {
-            pendingCandidatesRef.current.push(message.payload);
-          } else {
-            await pc.addIceCandidate(new RTCIceCandidate(message.payload));
+          try {
+            if (!pc || !pc.remoteDescription) {
+              pendingCandidatesRef.current.push(message.payload);
+            } else {
+              await pc.addIceCandidate(new RTCIceCandidate(message.payload));
+            }
+          } catch (e) {
+            console.warn("Failed to add ICE candidate:", e);
+          }
+          break;
+        }
+
+        case "ice-candidates": {
+          const candidates = message.payload as RTCIceCandidateInit[];
+          for (const cand of candidates) {
+            try {
+              if (!pc || !pc.remoteDescription) {
+                pendingCandidatesRef.current.push(cand);
+              } else {
+                await pc.addIceCandidate(new RTCIceCandidate(cand));
+              }
+            } catch (e) {
+              console.warn("Failed to add bundled ICE candidate:", e);
+            }
           }
           break;
         }
@@ -308,11 +359,18 @@ export const useWebRTC = ({
     };
   }, [role, peerId]);
 
+  const sendData = useCallback((data: any) => {
+    if (dataChannelRef.current?.readyState === "open") {
+      dataChannelRef.current.send(JSON.stringify(data));
+    }
+  }, []);
+
   return {
     connectionState,
     isConnected,
     isChannelReady,
     connect,
     disconnect,
+    sendData,
   };
 };

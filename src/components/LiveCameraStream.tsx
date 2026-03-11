@@ -4,6 +4,7 @@ import { Wifi, WifiOff, Maximize, RefreshCw, Maximize2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { Tables } from "@/integrations/supabase/types";
 import { cn } from "@/lib/utils";
+import { RadarOverlay, BoundingBoxesOverlay, type CategoryId } from "@/components/AIOverlays";
 
 type Device = Tables<"devices">;
 
@@ -17,6 +18,13 @@ export const LiveCameraStream: React.FC<LiveCameraStreamProps> = ({ device, onFu
     const containerRef = useRef<HTMLDivElement>(null);
     const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
 
+    // AI Telemetry State
+    const [detectedObjects, setDetectedObjects] = useState<any[]>([]);
+    const [zoomLevel, setZoomLevel] = useState(1);
+    const [zoomCenter, setZoomCenter] = useState({ x: 50, y: 50 });
+    const [videoDimensions, setVideoDimensions] = useState({ width: 640, height: 480 });
+    const [activeCategories] = useState<Set<CategoryId>>(new Set(["all"]));
+
     const handleRemoteStream = useCallback((stream: MediaStream) => {
         setRemoteStream(stream);
         if (remoteVideoRef.current) {
@@ -24,10 +32,22 @@ export const LiveCameraStream: React.FC<LiveCameraStreamProps> = ({ device, onFu
         }
     }, []);
 
+    const handleDataMessage = useCallback((msg: any) => {
+        if (msg.type === 'TELEMETRY') {
+            setDetectedObjects(msg.detectedObjects || []);
+            setZoomLevel(msg.zoomLevel || 1);
+            setZoomCenter(msg.zoomCenter || { x: 50, y: 50 });
+            if (msg.videoWidth && msg.videoHeight) {
+                setVideoDimensions({ width: msg.videoWidth, height: msg.videoHeight });
+            }
+        }
+    }, []);
+
     const { connectionState, isConnected, isChannelReady, connect, disconnect } = useWebRTC({
         deviceId: device.id,
         role: "viewer",
         onRemoteStream: handleRemoteStream,
+        onDataMessage: handleDataMessage,
     });
 
     // Auto-connect when device is online
@@ -72,13 +92,33 @@ export const LiveCameraStream: React.FC<LiveCameraStreamProps> = ({ device, onFu
         <div ref={containerRef} className="relative w-full h-full bg-black rounded-[1.8rem] overflow-hidden border-2 border-border/10 group shadow-xl">
             {/* Video Area */}
             {isConnected && remoteStream ? (
-                <video
-                    ref={remoteVideoRef}
-                    className="h-full w-full object-cover"
-                    autoPlay
-                    playsInline
-                    muted // Default to true in grid to avoid audio feedback loops
-                />
+                <>
+                    <video
+                        ref={remoteVideoRef}
+                        className="absolute inset-0 h-full w-full object-cover transition-all duration-300"
+                        style={{ transformOrigin: `${zoomCenter.x}% ${zoomCenter.y}%`, transform: `scale(${zoomLevel})` }}
+                        autoPlay
+                        playsInline
+                        muted // Default to true in grid to avoid audio feedback loops
+                    />
+                    {/* Telemetry Overlays */}
+                    {detectedObjects.length > 0 && (
+                        <>
+                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none scale-150 opacity-20 hidden group-hover:block">
+                                <RadarOverlay
+                                    detectedObjects={detectedObjects}
+                                    videoWidth={videoDimensions.width}
+                                    videoHeight={videoDimensions.height}
+                                />
+                            </div>
+                            <BoundingBoxesOverlay
+                                detectedObjects={detectedObjects}
+                                filteredObjects={detectedObjects}
+                                activeCategories={activeCategories}
+                            />
+                        </>
+                    )}
+                </>
             ) : isOnline ? (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-card/10 z-10 backdrop-blur-sm">
                     {connectionState === "failed" ? (
@@ -102,7 +142,7 @@ export const LiveCameraStream: React.FC<LiveCameraStreamProps> = ({ device, onFu
                 </div>
             )}
 
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/30 pointer-events-none" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/30 pointer-events-none z-10" />
 
             {/* Top Bar Overlay */}
             <div className="absolute top-0 left-0 right-0 p-3 flex justify-between items-start z-20">

@@ -6,7 +6,18 @@ import AppLayout from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Camera, Wifi, WifiOff, Video, MonitorSmartphone, LayoutGrid } from "lucide-react";
+import { Camera, Wifi, WifiOff, Video, MonitorSmartphone, LayoutGrid, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -148,6 +159,18 @@ const Dashboard = () => {
     }
   };
 
+  const handleDeleteDevice = async (id: string, name: string) => {
+    try {
+      const { error } = await supabase.from("devices").delete().eq("id", id);
+      if (error) throw error;
+      toast({ title: "Device Removed", description: `${name} has been deleted.` });
+      setDevices(prev => prev.filter(d => d.id !== id));
+    } catch (error) {
+      console.error("Error deleting device:", error);
+      toast({ title: "Error", description: "Failed to delete device.", variant: "destructive" });
+    }
+  };
+
   return (
     <AppLayout>
       <div className="p-3 space-y-4 max-w-7xl mx-auto">
@@ -249,36 +272,69 @@ const Dashboard = () => {
                       transition={{ type: "spring", stiffness: 300, damping: 20 }}
                       layout
                     >
-                      <Link to={`/live/${device.id}`}>
-                        <Card className={`group relative zoomon-card cursor-pointer overflow-hidden border-2 transition-all duration-300 hover:border-primary px-0 py-0 ${status.className}`}>
-                          <div className="relative aspect-video bg-black overflow-hidden rounded-t-[1.8rem]">
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent z-10" />
+                      <div className="relative group/device">
+                        <Link to={`/live/${device.id}`}>
+                          <Card className={`group relative zoomon-card cursor-pointer overflow-hidden border-2 transition-all duration-300 hover:border-primary px-0 py-0 ${status.className}`}>
+                            <div className="relative aspect-video bg-black overflow-hidden rounded-t-[1.8rem]">
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent z-10" />
 
-                            <div className="absolute inset-0 flex items-center justify-center">
-                              <Camera className="h-16 w-16 text-white/5 group-hover:text-primary/20 transition-colors duration-500" />
-                            </div>
+                              <div className="absolute inset-0 flex items-center justify-center">
+                                <Camera className="h-16 w-16 text-white/5 group-hover:text-primary/20 transition-colors duration-500" />
+                              </div>
 
-                            <div className="absolute right-4 top-4 z-20">
-                              <div className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-black uppercase backdrop-blur-xl border-2 shadow-xl ${device.status === 'online' ? 'bg-green-500/80 border-green-400' : 'bg-black/60 border-white/20'}`}>
-                                <span className={`h-3 w-3 rounded-full ${status.color} ${device.status === "recording" ? "animate-pulse" : ""}`} />
-                                <span className="text-white">{status.label}</span>
+                              <div className="absolute right-4 top-4 z-20 flex gap-2">
+                                <div className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-black uppercase backdrop-blur-xl border-2 shadow-xl ${device.status === 'online' ? 'bg-green-500/80 border-green-400' : 'bg-black/60 border-white/20'}`}>
+                                  <span className={`h-3 w-3 rounded-full ${status.color} ${device.status === "recording" ? "animate-pulse" : ""}`} />
+                                  <span className="text-white">{status.label}</span>
+                                </div>
                               </div>
                             </div>
-                          </div>
 
-                          <CardContent className="p-4">
-                            <div className="flex items-center justify-between gap-3">
-                              <div className="min-w-0">
-                                <h3 className="text-lg font-black tracking-tighter uppercase truncate group-hover:text-primary transition-colors">{device.name}</h3>
-                                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Active Stream</p>
+                            <CardContent className="p-4">
+                              <div className="flex items-center justify-between gap-3">
+                                <div className="min-w-0">
+                                  <h3 className="text-lg font-black tracking-tighter uppercase truncate group-hover:text-primary transition-colors">{device.name}</h3>
+                                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Active Stream</p>
+                                </div>
+                                <div className="h-10 w-10 rounded-xl bg-muted/50 flex items-center justify-center border-2 border-border/20 group-hover:bg-primary group-hover:border-primary transition-all duration-300">
+                                  <StatusIcon className={cn("h-5 w-5 transition-colors", device.status === 'online' ? "text-primary-foreground" : "text-muted-foreground group-hover:text-primary-foreground")} />
+                                </div>
                               </div>
-                              <div className="h-10 w-10 rounded-xl bg-muted/50 flex items-center justify-center border-2 border-border/20 group-hover:bg-primary group-hover:border-primary transition-all duration-300">
-                                <StatusIcon className={cn("h-5 w-5 transition-colors", device.status === 'online' ? "text-primary-foreground" : "text-muted-foreground group-hover:text-primary-foreground")} />
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      </Link>
+                            </CardContent>
+                          </Card>
+                        </Link>
+
+                        <div className="absolute left-4 top-4 z-50 opacity-0 group-hover/device:opacity-100 transition-opacity">
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="destructive"
+                                size="icon"
+                                className="h-9 w-9 rounded-full shadow-2xl border-2 border-white/10 hover:scale-110 active:scale-95 transition-all"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent className="bg-zinc-950 border border-zinc-800 text-white rounded-3xl max-w-[340px]">
+                              <AlertDialogHeader>
+                                <AlertDialogTitle className="text-xl font-black uppercase tracking-tighter">Remove Camera?</AlertDialogTitle>
+                                <AlertDialogDescription className="text-zinc-400 font-medium">
+                                  This will permanently remove <b>{device.name}</b> from your dashboard.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter className="mt-4 gap-2">
+                                <AlertDialogCancel className="bg-zinc-900 border-zinc-800 text-white hover:bg-zinc-800 hover:text-white rounded-xl font-bold uppercase tracking-widest text-[10px]">Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => handleDeleteDevice(device.id, device.name)}
+                                  className="bg-destructive hover:bg-destructive/90 text-white rounded-xl font-bold uppercase tracking-widest text-[10px] shadow-[0_5px_15px_rgba(255,0,0,0.3)]"
+                                >
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+                      </div>
                     </motion.div>
                   );
                 })}
