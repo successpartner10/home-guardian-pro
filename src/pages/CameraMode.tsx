@@ -285,25 +285,29 @@ const CameraMode = () => {
     };
 
     if (!isOnline) {
-      const newPending = [...pendingAlerts, { ...alertData, created_at: new Date().toISOString() }];
-      setPendingAlerts(newPending);
-      localStorage.setItem("pending_cam_alerts", JSON.stringify(newPending));
+      setPendingAlerts(prev => {
+        const newPending = [...prev, { ...alertData, created_at: new Date().toISOString() }];
+        localStorage.setItem("pending_cam_alerts", JSON.stringify(newPending));
+        return newPending;
+      });
     } else {
       await supabase.from("alerts").insert(alertData);
     }
-  }, [user, resolvedDeviceId, isOnline, pendingAlerts]);
+  }, [user, resolvedDeviceId, isOnline]);
 
   const handleSound = useCallback(async () => {
     if (!user || !resolvedDeviceId) return;
     const alertData = { device_id: resolvedDeviceId, user_id: user.id, type: "sound" };
     if (!isOnline) {
-      const newPending = [...pendingAlerts, { ...alertData, created_at: new Date().toISOString() }];
-      setPendingAlerts(newPending);
-      localStorage.setItem("pending_cam_alerts", JSON.stringify(newPending));
+      setPendingAlerts(prev => {
+        const newPending = [...prev, { ...alertData, created_at: new Date().toISOString() }];
+        localStorage.setItem("pending_cam_alerts", JSON.stringify(newPending));
+        return newPending;
+      });
     } else {
       await supabase.from("alerts").insert(alertData);
     }
-  }, [user, resolvedDeviceId, isOnline, pendingAlerts]);
+  }, [user, resolvedDeviceId, isOnline]);
 
   const { videoRef, canvasRef, isActive, isMuted, flashOn, brightness, detectedObjects, zoomLevel, zoomCenter, detectionZone, setDetectionZone, startCamera, stopCamera, restartCamera, toggleMute, toggleFlash, takeSnapshot, stream, error: cameraError } =
     useCamera({ onMotionDetected: handleMotion, onSoundDetected: handleSound, aiFrequency, autoZoom: isSmartZoom });
@@ -330,8 +334,12 @@ const CameraMode = () => {
   }, [brightness, autoNightVision, nightVision]);
 
   useEffect(() => {
+    console.log("[CameraMode] Component mounted, initiating startCamera");
     startCamera();
-    return () => stopCamera();
+    return () => {
+      console.log("[CameraMode] Component unmounted or restarting, calling stopCamera");
+      stopCamera();
+    };
   }, [startCamera, stopCamera]);
 
   const handleRemoteCommand = useCallback((msg: any) => {

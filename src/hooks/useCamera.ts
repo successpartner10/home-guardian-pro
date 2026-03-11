@@ -125,7 +125,12 @@ export const useCamera = ({
 
   const stopCamera = useCallback(() => {
     console.log("[useCamera] stopCamera initiated");
-    streamRef.current?.getTracks().forEach((t) => t.stop());
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => {
+        console.log(`[useCamera] Stopping track: ${t.kind}`);
+        t.stop();
+      });
+    }
     streamRef.current = null;
     setActiveStream(null);
     if (videoRef.current) videoRef.current.srcObject = null;
