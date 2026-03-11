@@ -52,62 +52,63 @@ export const useCamera = ({
   // Sync stream to video element whenever activeStream changes
   useEffect(() => {
     if (videoRef.current && activeStream) {
-      if (videoRef.current.srcObject !== activeStream) {
-        videoRef.current.srcObject = activeStream;
-        videoRef.current.play().catch(e => console.warn("Video play failed:", e));
+      const video = videoRef.current;
+      if (video.srcObject !== activeStream) {
+        console.log("[useCamera] Syncing stream to video element. Tracks:", activeStream.getTracks().map(t => `${t.kind}:${t.readyState}`));
+        video.srcObject = activeStream;
+        video.setAttribute('playsinline', 'true');
+        video.muted = true;
+
+        const playVideo = () => {
+          video.play()
+            .then(() => console.log("[useCamera] Video playback started successfully."))
+            .catch(e => {
+              console.warn("[useCamera] Video play initial attempt failed:", e);
+              setTimeout(() => {
+                video.play().catch(p => console.error("[useCamera] Video play retry failed:", p));
+              }, 1000);
+            });
+        };
+
+        if (video.readyState >= 2) playVideo();
+        else video.onloadedmetadata = playVideo;
       }
     }
   }, [activeStream]);
 
   const startCamera = useCallback(async () => {
+    console.log("[useCamera] startCamera initiated");
     try {
       let stream;
       try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: "environment",
-            width: { min: 1280, ideal: 1920, max: 1920 },
-            height: { min: 720, ideal: 1080, max: 1080 },
-            frameRate: { ideal: 30, max: 60 }
-          },
+        const constraints = {
+          video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } },
           audio: true,
-        });
+        };
+        console.log("[useCamera] Requesting (Env+Audio) with:", constraints);
+        stream = await navigator.mediaDevices.getUserMedia(constraints);
       } catch (e) {
-        console.warn("Environment camera failed, falling back to user camera:", e);
+        console.warn("[useCamera] Env+Audio failed, trying Fallback:", e);
         stream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: "user",
-            width: { min: 1280, ideal: 1920, max: 1920 },
-            height: { min: 720, ideal: 1080, max: 1080 }
-          },
+          video: { facingMode: "user" },
           audio: true,
         });
       }
+      console.log("[useCamera] Stream acquired successfully. Video tracks:", stream.getVideoTracks().length);
       streamRef.current = stream;
       setActiveStream(stream);
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-      }
       setIsActive(true);
       setError(null);
     } catch (err: any) {
-      console.warn("Camera with audio failed, trying video only:", err);
+      console.warn("[useCamera] Audio+Video failed, trying Video-Only:", err);
       try {
         const videoOnlyStream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: "environment",
-            width: { min: 1280, ideal: 1920, max: 1920 },
-            height: { min: 720, ideal: 1080, max: 1080 }
-          },
+          video: { facingMode: "environment" },
           audio: false,
         });
+        console.log("[useCamera] Video-Only stream acquired");
         streamRef.current = videoOnlyStream;
         setActiveStream(videoOnlyStream);
-        if (videoRef.current) {
-          videoRef.current.srcObject = videoOnlyStream;
-          await videoRef.current.play();
-        }
         setIsActive(true);
         setError(null);
         toast({
@@ -116,10 +117,18 @@ export const useCamera = ({
           variant: "destructive"
         });
       } catch (videoOnlyErr: any) {
+        console.error("[useCamera] All capture attempts failed:", videoOnlyErr);
         setError(videoOnlyErr.message || "Camera access denied");
       }
     }
-  }, []);
+  }, [toast]);
+
+  const restartCamera = useCallback(async () => {
+    console.log("[useCamera] restartCamera triggered");
+    stopCamera();
+    await new Promise(r => setTimeout(r, 500));
+    await startCamera();
+  }, [stopCamera, startCamera]);
 
   const stopCamera = useCallback(() => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
@@ -367,6 +376,7 @@ export const useCamera = ({
     setDetectionZone,
     startCamera,
     stopCamera,
+    restartCamera,
     toggleMute,
     toggleFlash,
     takeSnapshot,

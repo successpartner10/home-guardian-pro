@@ -304,7 +304,7 @@ const CameraMode = () => {
     }
   }, [user, resolvedDeviceId, isOnline, pendingAlerts]);
 
-  const { videoRef, canvasRef, isActive, isMuted, flashOn, brightness, detectedObjects, zoomLevel, zoomCenter, detectionZone, setDetectionZone, startCamera, stopCamera, toggleMute, toggleFlash, takeSnapshot, stream, error: cameraError } =
+  const { videoRef, canvasRef, isActive, isMuted, flashOn, brightness, detectedObjects, zoomLevel, zoomCenter, detectionZone, setDetectionZone, startCamera, stopCamera, restartCamera, toggleMute, toggleFlash, takeSnapshot, stream, error: cameraError } =
     useCamera({ onMotionDetected: handleMotion, onSoundDetected: handleSound, aiFrequency, autoZoom: isSmartZoom });
 
   // Filter detections based on active categories (multi-select)
@@ -417,9 +417,18 @@ const CameraMode = () => {
         </div>
 
         {/* Right HUD */}
-        <div className="flex gap-2 p-3 rounded-2xl bg-black/40 border border-white/10 backdrop-blur-md">
-          <RotateCw className="h-5 w-5 text-white/40" />
-          <Users className={cn("h-5 w-5", viewerConnected ? "text-primary animate-pulse" : "text-white/20")} />
+        <div className="flex gap-2 p-2 rounded-2xl bg-black/40 border border-white/10 backdrop-blur-md">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={restartCamera}
+            className="h-10 w-10 rounded-xl text-white/40 hover:text-white hover:bg-white/10"
+            title="Troubleshoot Camera"
+          >
+            <RefreshCcw className="h-5 w-5" />
+          </Button>
+          <div className="w-px h-6 bg-white/10 my-2" />
+          <Users className={cn("h-5 w-5 mt-2", viewerConnected ? "text-primary animate-pulse" : "text-white/20")} />
         </div>
       </div>
 
