@@ -297,6 +297,22 @@ export const useWebRTC = ({
     hasInitiatedConnection.current = false;
   }, [myId]);
 
+  // Reactively update tracks for all peer connections when localStream changes
+  useEffect(() => {
+    if (!localStream) return;
+
+    pcsRef.current.forEach((pc) => {
+      // Get currently sent tracks to avoid duplicates
+      const senders = pc.getSenders();
+      localStream.getTracks().forEach((track) => {
+        const alreadySending = senders.some(s => s.track?.id === track.id);
+        if (!alreadySending) {
+          pc.addTrack(track, localStream);
+        }
+      });
+    });
+  }, [localStream]);
+
   const sendData = useCallback((data: any) => {
     dataChannelsRef.current.forEach(dc => {
       if (dc.readyState === "open") {

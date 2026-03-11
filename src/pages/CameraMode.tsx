@@ -304,12 +304,22 @@ const CameraMode = () => {
     }
   }, [user, resolvedDeviceId, isOnline, pendingAlerts]);
 
-  const { videoRef, canvasRef, isActive, isMuted, flashOn, brightness, detectedObjects, zoomLevel, zoomCenter, detectionZone, setDetectionZone, startCamera, stopCamera, toggleMute, toggleFlash, takeSnapshot } =
+  const { videoRef, canvasRef, isActive, isMuted, flashOn, brightness, detectedObjects, zoomLevel, zoomCenter, detectionZone, setDetectionZone, startCamera, stopCamera, toggleMute, toggleFlash, takeSnapshot, stream, error: cameraError } =
     useCamera({ onMotionDetected: handleMotion, onSoundDetected: handleSound, aiFrequency, autoZoom: isSmartZoom });
 
   // Filter detections based on active categories (multi-select)
   const filteredObjects = filterObjects(detectedObjects, activeCategories);
   const isSpotlightActive = !activeCategories.has("all") && filteredObjects.length > 0;
+
+  useEffect(() => {
+    if (cameraError) {
+      toast({
+        title: "Camera Error",
+        description: cameraError,
+        variant: "destructive"
+      });
+    }
+  }, [cameraError]);
 
   useEffect(() => {
     if (autoNightVision) {
@@ -333,7 +343,7 @@ const CameraMode = () => {
   const { isConnected: viewerConnected, sendData } = useWebRTC({
     deviceId: resolvedDeviceId || "",
     role: "camera",
-    localStream: videoRef.current?.srcObject as MediaStream,
+    localStream: stream,
     onDataMessage: handleRemoteCommand
   });
 
