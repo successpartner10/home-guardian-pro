@@ -458,11 +458,35 @@ const SettingsPage = () => {
 
 
 
-        {/* Cloud Storage Card */}
+        {/* Admin Gatekeeper Card */}
+        {isAdmin && (
+          <div className="zoomon-card space-y-6 relative overflow-hidden group">
+            <div className="absolute top-0 right-0 p-8 opacity-5">
+              <ShieldCheck className="w-32 h-32 rotate-12" />
+            </div>
+            <div className="flex items-center gap-3 text-primary">
+              <ShieldCheck className="w-8 h-8" />
+              <h2 className="text-2xl font-black uppercase tracking-tight">Gatekeeper</h2>
+            </div>
+            <div className="space-y-4">
+              <p className="text-sm font-bold opacity-60 uppercase tracking-tight max-w-md">
+                Manage secure network access. Review pending registrations and approve new viewers.
+              </p>
+              <Button
+                onClick={() => navigate("/users")}
+                className="zoomon-btn-large w-full bg-primary/10 border-2 border-primary/20 text-primary hover:bg-primary/20"
+              >
+                OPEN USER MANAGEMENT
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Google Drive Backup Card */}
         <div className="zoomon-card space-y-6">
           <div className="flex items-center gap-3 text-primary">
             <DownloadCloud className="w-8 h-8" />
-            <h2 className="text-2xl font-black uppercase tracking-tight">Cloud Storage</h2>
+            <h2 className="text-2xl font-black uppercase tracking-tight">Google Drive Backup</h2>
           </div>
 
           <div className="space-y-6">

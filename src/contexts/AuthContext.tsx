@@ -7,6 +7,8 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  isApproved: boolean;
+  isAdmin: boolean;
   signUp: (email: string, password: string, displayName?: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -17,21 +19,55 @@ const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 
 export const useAuth = () => useContext(AuthContext);
 
+const ADMIN_EMAIL = "successpartner10@gmail.com";
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
+  const [isApproved, setIsApproved] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  const isAdmin = user?.email === ADMIN_EMAIL;
+
+  const fetchProfile = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("is_approved")
+        .eq("user_id", userId)
+        .single();
+
+      if (!error && data) {
+        setIsApproved(data.is_approved || user?.email === ADMIN_EMAIL);
+      } else {
+        setIsApproved(user?.email === ADMIN_EMAIL);
+      }
+    } catch (e) {
+      console.error("Error fetching profile:", e);
+      setIsApproved(user?.email === ADMIN_EMAIL);
+    }
+  };
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
+      if (session?.user) {
+        fetchProfile(session.user.id);
+      } else {
+        setIsApproved(false);
+      }
       setLoading(false);
     });
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
+      if (session?.user) {
+        fetchProfile(session.user.id);
+      } else {
+        setIsApproved(false);
+      }
       setLoading(false);
     });
 
@@ -68,7 +104,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, signUp, signIn, signOut, resetPassword }}>
+    <AuthContext.Provider value={{ user, session, loading, isApproved, isAdmin, signUp, signIn, signOut, resetPassword }}>
       {children}
     </AuthContext.Provider>
   );

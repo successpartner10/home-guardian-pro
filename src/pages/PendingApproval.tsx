@@ -7,49 +7,48 @@ const PendingApproval = () => {
     const { signOut, user } = useAuth();
 
     return (
-        <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4 text-center">
+        <div className="flex min-h-screen flex-col items-center justify-center bg-background p-6 text-center tracking-tighter">
             <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="w-full max-w-sm space-y-8"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="w-full max-w-md space-y-10"
             >
-                <div className="relative mx-auto flex h-20 w-20 items-center justify-center rounded-3xl bg-primary/10">
-                    <Shield className="h-10 w-10 text-primary" />
+                <div className="relative mx-auto flex h-24 w-24 items-center justify-center rounded-[2rem] bg-primary/10 border-2 border-primary/20 shadow-2xl">
+                    <Shield className="h-12 w-12 text-primary" />
                     <motion.div
                         animate={{ rotate: 360 }}
-                        transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
-                        className="absolute -inset-2 rounded-full border border-dashed border-primary/30"
+                        transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
+                        className="absolute -inset-4 rounded-full border-2 border-dashed border-primary/20"
                     />
                 </div>
 
-                <div className="space-y-2">
-                    <h1 className="text-2xl font-bold tracking-tight">Access Restricted</h1>
-                    <p className="text-muted-foreground text-sm">
-                        Welcome, <span className="text-foreground font-semibold">{user?.email}</span>.
-                        Your account is currently pending approval from the system administrator.
+                <div className="space-y-3">
+                    <h1 className="text-4xl font-black uppercase leading-tight tracking-tighter">Access Reserved</h1>
+                    <p className="text-muted-foreground text-lg font-medium max-w-xs mx-auto">
+                        Node <span className="text-foreground font-black">{user?.email?.split('@')[0]}</span> is verified but awaiting administrative clearance.
                     </p>
                 </div>
 
-                <div className="glass-panel p-6 rounded-2xl flex items-center gap-4 bg-muted/30">
-                    <div className="h-10 w-10 shrink-0 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                        <Clock className="h-5 w-5 animate-pulse" />
+                <div className="zoomon-card p-8 flex items-center gap-6 bg-primary/5 border-2 border-primary/10">
+                    <div className="h-14 w-14 shrink-0 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
+                        <Clock className="h-7 w-7 animate-pulse" />
                     </div>
                     <div className="text-left">
-                        <p className="text-xs font-bold uppercase tracking-wider opacity-60">Status</p>
-                        <p className="text-sm font-semibold">Awaiting Verification</p>
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-40">Security Status</p>
+                        <p className="text-xl font-black uppercase tracking-tight text-primary">Awaiting Gatekeeper</p>
                     </div>
                 </div>
 
-                <div className="space-y-4 pt-4">
-                    <p className="text-xs text-muted-foreground italic">
-                        Please contact the owner if you believe this is an error.
+                <div className="space-y-6 pt-6">
+                    <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest opacity-60">
+                        Contact successpartner10@gmail.com for instant access.
                     </p>
                     <Button
                         variant="ghost"
                         onClick={() => signOut()}
-                        className="gap-2 text-muted-foreground hover:text-foreground"
+                        className="h-14 px-8 rounded-2xl font-black gap-2 text-muted-foreground hover:text-foreground hover:bg-muted/10 transition-all border-2 border-transparent hover:border-border/20"
                     >
-                        <LogOut className="h-4 w-4" /> Sign out
+                        <LogOut className="h-5 w-5" /> DISCONNECT SESSION
                     </Button>
                 </div>
             </motion.div>

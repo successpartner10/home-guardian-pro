@@ -1,10 +1,8 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate, useLocation } from "react-router-dom";
 
-const ADMIN_EMAIL = "successpartner10@gmail.com";
-
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user, loading } = useAuth();
+  const { user, loading, isApproved, isAdmin } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -20,8 +18,6 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
   if (!user) return <Navigate to="/login" replace />;
 
-  // Admin always has access; others check for the approved flag
-  const isApproved = user.email === ADMIN_EMAIL || user.user_metadata?.is_approved === true || user.user_metadata?.approved === true;
   const isPendingPage = location.pathname === "/pending-approval";
 
   if (!isApproved && !isPendingPage) {
