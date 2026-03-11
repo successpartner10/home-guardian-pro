@@ -166,18 +166,41 @@ const CameraMode = () => {
 
   useEffect(() => {
     if (deviceId || !user) return;
+
     const resolve = async () => {
-      let { data } = await supabase.from("devices").select("id").eq("user_id", user.id).eq("type", "camera").limit(1).single();
+      const getOrCreatePersistentId = () => {
+        let id = localStorage.getItem("hguard_device_persistent_id");
+        if (!id) {
+          id = Math.random().toString(36).substring(2, 12);
+          localStorage.setItem("hguard_device_persistent_id", id);
+        }
+        return id;
+      };
+
+      const persistentId = getOrCreatePersistentId();
+      const deviceName = `${navigator.platform} Camera (${persistentId.slice(0, 4)})`;
+
+      // Check if this specific device is already registered
+      let { data } = await supabase
+        .from("devices")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("name", deviceName)
+        .eq("type", "camera")
+        .maybeSingle();
+
       if (!data) {
+        // Create new registration for this unique device
         const { data: newData } = await supabase.from("devices").insert({
           user_id: user.id,
-          name: `${navigator.platform} Camera`,
+          name: deviceName,
           type: "camera",
           status: "online",
           pairing_code: Math.random().toString(36).substring(2, 8).toUpperCase()
         }).select().single();
         data = newData;
       }
+
       if (data) setResolvedDeviceId(data.id);
     };
     resolve();
