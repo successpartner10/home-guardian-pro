@@ -43,13 +43,18 @@ const PendingApproval = () => {
                     <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest opacity-60">
                         Contact successpartner10@gmail.com for instant access.
                     </p>
-                    <Button
-                        variant="ghost"
-                        onClick={() => signOut()}
-                        className="h-14 px-8 rounded-2xl font-black gap-2 text-muted-foreground hover:text-foreground hover:bg-muted/10 transition-all border-2 border-transparent hover:border-border/20"
-                    >
-                        <LogOut className="h-5 w-5" /> DISCONNECT SESSION
-                    </Button>
+                    <div className="flex flex-col gap-4">
+                        <Button
+                            variant="default"
+                            onClick={() => signOut()}
+                            className="h-14 w-full rounded-2xl font-black gap-2 shadow-xl shadow-primary/20 uppercase tracking-widest"
+                        >
+                            <LogOut className="h-5 w-5" /> LOGIN WITH DIFFERENT ACCOUNT
+                        </Button>
+                        <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest opacity-40">
+                            Logged in as {user?.email}
+                        </p>
+                    </div>
                 </div>
             </motion.div>
         </div>

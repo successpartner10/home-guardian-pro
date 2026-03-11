@@ -29,7 +29,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const isAdmin = user?.email === ADMIN_EMAIL;
 
-  const fetchProfile = async (userId: string) => {
+  const fetchProfile = async (userId: string, email?: string) => {
+    const isPrimaryAdmin = email === ADMIN_EMAIL;
     try {
       const { data, error } = await supabase
         .from("profiles")
@@ -38,22 +39,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .single();
 
       if (!error && data) {
-        setIsApproved(data.is_approved || user?.email === ADMIN_EMAIL);
+        setIsApproved((data as any).is_approved || isPrimaryAdmin);
       } else {
-        setIsApproved(user?.email === ADMIN_EMAIL);
+        setIsApproved(isPrimaryAdmin);
       }
     } catch (e) {
       console.error("Error fetching profile:", e);
-      setIsApproved(user?.email === ADMIN_EMAIL);
+      setIsApproved(isPrimaryAdmin);
     }
   };
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchProfile(session.user.id);
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
+      if (currentUser) {
+        fetchProfile(currentUser.id, currentUser.email);
       } else {
         setIsApproved(false);
       }
@@ -62,9 +64,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchProfile(session.user.id);
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
+      if (currentUser) {
+        fetchProfile(currentUser.id, currentUser.email);
       } else {
         setIsApproved(false);
       }
