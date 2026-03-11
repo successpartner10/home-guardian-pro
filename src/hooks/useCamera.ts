@@ -123,14 +123,8 @@ export const useCamera = ({
     }
   }, [toast]);
 
-  const restartCamera = useCallback(async () => {
-    console.log("[useCamera] restartCamera triggered");
-    stopCamera();
-    await new Promise(r => setTimeout(r, 500));
-    await startCamera();
-  }, [stopCamera, startCamera]);
-
   const stopCamera = useCallback(() => {
+    console.log("[useCamera] stopCamera initiated");
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
     setActiveStream(null);
@@ -141,6 +135,13 @@ export const useCamera = ({
       motionIntervalRef.current = null;
     }
   }, []);
+
+  const restartCamera = useCallback(async () => {
+    console.log("[useCamera] restartCamera triggered");
+    stopCamera();
+    await new Promise(r => setTimeout(r, 500));
+    await startCamera();
+  }, [stopCamera, startCamera]);
 
   const toggleMute = useCallback(() => {
     if (streamRef.current) {
