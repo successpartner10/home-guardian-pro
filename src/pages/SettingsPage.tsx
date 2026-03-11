@@ -9,11 +9,10 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { Trash2, Save, LogOut, DownloadCloud, AlertTriangle, ShieldCheck, Settings2, CloudOff, Lock, Unlock } from "lucide-react";
+import { Trash2, Save, LogOut, AlertTriangle, ShieldCheck, Settings2, CloudOff, Lock, Unlock, HardDrive, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
-import { useGoogleLogin } from "@react-oauth/google";
-import { driveService, DriveFile } from "@/lib/driveService";
+import { localFileSystem, LocalFile } from "@/lib/localFileSystem";
 import { useTheme, ThemeType } from "@/contexts/ThemeContext";
 import { cn } from "@/lib/utils";
 import PinModal from "@/components/PinModal";
@@ -44,12 +43,9 @@ const SettingsPage = () => {
   const [displayName, setDisplayName] = useState("");
   const [loading, setLoading] = useState(false);
   const [driveConnected, setDriveConnected] = useState(false);
-  const [driveFiles, setDriveFiles] = useState<DriveFile[]>([]);
+  const [driveFiles, setDriveFiles] = useState<LocalFile[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
   const [isDeleting, setIsDeleting] = useState(false);
-  const [userFolders, setUserFolders] = useState<DriveFile[]>([]);
-  const [isSettingUpFolder, setIsSettingUpFolder] = useState(false);
-  const [newFolderName, setNewFolderName] = useState("Home Guardian Pro");
 
   const [securityPin, setSecurityPin] = useState(user?.user_metadata?.security_pin || "");
   const [newPin, setNewPin] = useState("");
@@ -62,7 +58,6 @@ const SettingsPage = () => {
   });
 
   const isAdmin = user?.email === ADMIN_EMAIL;
-  const driveFolderId = user?.user_metadata?.drive_folder_id;
 
   useEffect(() => {
     if (user?.user_metadata?.security_pin) {
@@ -82,8 +77,8 @@ const SettingsPage = () => {
         const { data: profile } = await supabase.from("profiles").select("display_name").eq("user_id", user.id).single();
         if (profile?.display_name) setDisplayName(profile.display_name);
 
-        // 3. Check Drive status (SSO or manual)
-        const isReady = await driveService.isReady();
+        // 3. Check Local Storage status
+        const isReady = await localFileSystem.init();
         setDriveConnected(isReady);
       } catch (e) {
         console.error("Settings initialization error:", e);
@@ -94,82 +89,46 @@ const SettingsPage = () => {
 
   useEffect(() => {
     if (driveConnected) {
-      if (driveFolderId) {
-        loadDriveFiles(driveFolderId);
-      } else {
-        fetchUserFolders();
-      }
+      loadLocalFiles();
     }
-  }, [user, driveConnected, driveFolderId]);
+  }, [driveConnected]);
 
-  const fetchUserFolders = async () => {
-    try {
-      const folders = await driveService.listFolders();
-      setUserFolders(folders || []);
-    } catch (e) {
-      console.error("Fetch folders error:", e);
-      toast({ title: "Drive Error", description: "Failed to load folders.", variant: "destructive" });
-    }
-  };
-
-  const handleSelectFolder = async (folderId: string) => {
+  const handleSelectFolder = async () => {
     try {
       setLoading(true);
-      const { error } = await supabase.auth.updateUser({
-        data: { drive_folder_id: folderId }
-      });
-      if (!error) {
+      const success = await localFileSystem.selectDirectory();
+      if (success) {
+        setDriveConnected(true);
         toast({ title: "Storage folder set" });
-        if (folderId) loadDriveFiles(folderId);
       } else {
-        toast({ title: "Failed to update profile", variant: "destructive" });
+        toast({ title: "Failed to connect folder", variant: "destructive" });
       }
     } catch (e) {
       console.error(e);
+      toast({ title: "Permission error", variant: "destructive" });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCreateFolder = async () => {
-    if (!newFolderName.trim()) return;
-    setIsSettingUpFolder(true);
-    try {
-      const id = await driveService.createFolder(newFolderName);
-      await handleSelectFolder(id);
-    } catch (e) {
-      toast({ title: "Folder creation failed", variant: "destructive" });
-    } finally {
-      setIsSettingUpFolder(false);
-    }
+  const handleDisconnectFolder = async () => {
+    await localFileSystem.clearDirectory();
+    setDriveConnected(false);
+    setDriveFiles([]);
   };
 
-  const loadDriveFiles = async (id: string) => {
-    if (!id) return;
+  const loadLocalFiles = async () => {
     try {
-      const files = await driveService.listFiles(id);
+      const files = await localFileSystem.listFiles();
       setDriveFiles(files || []);
     } catch (e) {
       console.error(e);
-      toast({ title: "Failed to load Drive files", variant: "destructive" });
+      toast({ title: "Failed to load files", variant: "destructive" });
     }
   };
 
-
-
-  const loginGoogle = useGoogleLogin({
-    onSuccess: (codeResponse) => {
-      driveService.setToken(codeResponse.access_token);
-      setDriveConnected(true);
-      toast({ title: "Google Drive Connected" });
-    },
-    onError: (error) => toast({ title: "Login Failed", variant: "destructive" }),
-    scope: "https://www.googleapis.com/auth/drive.file",
-    prompt: "select_account"
-  });
-
   const handleBulkDelete = () => {
-    if (selectedFiles.size === 0 || !driveFolderId) return;
+    if (selectedFiles.size === 0) return;
     if (securityPin) {
       setIsPinModalOpen(true);
     } else {
@@ -181,10 +140,10 @@ const SettingsPage = () => {
     setIsPinModalOpen(false);
     setIsDeleting(true);
     try {
-      await driveService.deleteFiles(Array.from(selectedFiles));
+      await localFileSystem.deleteFiles(Array.from(selectedFiles));
       toast({ title: "Files deleted" });
       setSelectedFiles(new Set());
-      if (driveFolderId) await loadDriveFiles(driveFolderId);
+      await loadLocalFiles();
     } catch {
       toast({ title: "Delete Failed", variant: "destructive" });
     } finally {
@@ -482,41 +441,23 @@ const SettingsPage = () => {
           </div>
         )}
 
-        {/* Google Drive Backup Card */}
+        {/* Local Storage Backup Card */}
         <div className="zoomon-card space-y-6">
           <div className="flex items-center gap-3 text-primary">
-            <DownloadCloud className="w-8 h-8" />
-            <h2 className="text-2xl font-black uppercase tracking-tight">Google Drive Backup</h2>
+            <HardDrive className="w-8 h-8" />
+            <h2 className="text-2xl font-black uppercase tracking-tight">Local Storage Hub</h2>
           </div>
 
           <div className="space-y-6">
             {!driveConnected ? (
               <div className="space-y-4">
-                <Button onClick={() => loginGoogle()} className="zoomon-btn-large w-full bg-background border-2 border-primary text-primary hover:bg-primary/5">
-                  <svg className="w-6 h-6 mr-3" viewBox="0 0 24 24"><path fill="currentColor" d="M21.35,11.1H12.18V13.83H18.69C18.36,17.64 15.19,19.27 12.19,19.27C8.36,19.27 5,16.25 5,12C5,7.9 8.2,4.73 12.2,4.73C15.29,4.73 17.1,6.7 17.1,6.7L19,4.72C19,4.72 16.56,2 12.1,2C6.42,2 2.03,6.8 2.03,12C2.03,17.05 6.16,22 12.25,22C17.6,22 21.5,18.33 21.5,12.91C21.5,11.76 21.35,11.1 21.35,11.1V11.1Z" /></svg>
-                  SYNC ADDITIONAL GOOGLE ACCOUNT
+                <Button onClick={handleSelectFolder} className="zoomon-btn-large w-full bg-background border-2 border-primary text-primary hover:bg-primary/5">
+                  <Download className="w-6 h-6 mr-3" />
+                  SELECT STORAGE FOLDER
                 </Button>
                 <p className="text-[10px] font-bold text-center opacity-40 uppercase tracking-widest">
-                  Tip: Login with Google on the home screen for automatic sync.
+                  Tip: Choose a folder that syncs with your desktop Drive or Dropbox for cloud backup.
                 </p>
-              </div>
-            ) : !driveFolderId ? (
-              <div className="space-y-4">
-                <p className="text-lg font-bold uppercase">Select Storage Vault:</p>
-                <div className="space-y-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
-                  {userFolders.map(f => (
-                    <Button key={f.id} variant="ghost" className="w-full justify-start h-auto py-4 px-6 rounded-2xl hover:bg-primary/10 text-left border-2 border-transparent hover:border-primary/20" onClick={() => handleSelectFolder(f.id)}>
-                      <div className="min-w-0">
-                        <p className="text-lg font-black uppercase truncate">{f.name}</p>
-                        <p className="text-xs font-bold opacity-40 uppercase tracking-widest">Modified {new Date(f.createdTime).toLocaleDateString()}</p>
-                      </div>
-                    </Button>
-                  ))}
-                </div>
-                <div className="pt-4 border-t-2 border-border/30 flex gap-3">
-                  <Input value={newFolderName} onChange={(e) => setNewFolderName(e.target.value)} placeholder="New Folder Name" className="h-14 font-bold rounded-2xl" />
-                  <Button onClick={handleCreateFolder} className="h-14 px-8 rounded-2xl" disabled={isSettingUpFolder}>CREATE</Button>
-                </div>
               </div>
             ) : (
               <div className="space-y-8">
@@ -525,7 +466,7 @@ const SettingsPage = () => {
                     <div className="relative h-5 w-5"><span className="animate-ping absolute inset-0 rounded-full bg-green-400 opacity-75"></span><span className="relative block h-5 w-5 bg-green-500 rounded-full"></span></div>
                     <span className="text-xl font-black uppercase text-green-500 tracking-tighter">Vault Connected</span>
                   </div>
-                  <Button variant="outline" className="h-12 border-2 border-green-500/20 text-green-500 font-black hover:bg-green-500/20" onClick={() => handleSelectFolder("")}>CHANGE</Button>
+                  <Button variant="outline" className="h-12 border-2 border-green-500/20 text-green-500 font-black hover:bg-green-500/20" onClick={handleDisconnectFolder}>CHANGE / DISCONNECT</Button>
                 </div>
 
                 <div className="space-y-4">
@@ -551,7 +492,7 @@ const SettingsPage = () => {
                         <Switch checked={selectedFiles.has(file.id)} onCheckedChange={() => toggleFileSelection(file.id)} className="scale-125 data-[state=checked]:bg-destructive" />
                         <div className="min-w-0 flex-1">
                           <p className="text-xl font-black uppercase truncate tracking-tight">{file.name}</p>
-                          <p className="text-xs font-bold opacity-40 uppercase tracking-widest">{new Date(file.createdTime).toLocaleTimeString()} · {(parseInt(file.size || "0") / 1024 / 1024).toFixed(1)} MB</p>
+                          <p className="text-xs font-bold opacity-40 uppercase tracking-widest">{new Date(file.createdTime).toLocaleTimeString()} · {(file.size / 1024 / 1024).toFixed(1)} MB</p>
                         </div>
                       </div>
                     ))}

@@ -8,24 +8,24 @@ import { Bell, BellOff, Check, Trash2, AlertTriangle, X, Play, Share2, Download,
 import { formatDistanceToNow } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Tables } from "@/integrations/supabase/types";
-import { driveService } from "@/lib/driveService";
+import { localFileSystem } from "@/lib/localFileSystem";
 
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
 type Alert = Tables<"alerts"> & { devices?: { name: string } | null };
 
-/** Build a playable blob URL from a Google Drive file URL */
-const useVideoBlob = (driveUrl: string | null | undefined) => {
+/** Build a playable blob URL from a Local Storage file */
+const useVideoBlob = (filename: string | null | undefined) => {
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!driveUrl) return;
+    if (!filename) return;
 
-    // If it's already a regular URL (not Drive API), use directly
-    if (!driveUrl.includes("googleapis.com/drive")) {
-      setBlobUrl(driveUrl);
+    // If it's a legacy Drive URL or a full URL, just use it directly
+    if (filename.startsWith("http")) {
+      setBlobUrl(filename);
       return;
     }
 
@@ -33,21 +33,24 @@ const useVideoBlob = (driveUrl: string | null | undefined) => {
     const fetchBlob = async () => {
       setLoading(true);
       try {
-        const token = driveService.getAccessToken();
-        const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
-        const res = await fetch(driveUrl, { headers });
-        if (!res.ok) throw new Error("Failed to fetch video");
-        const blob = await res.blob();
-        if (!cancelled) setBlobUrl(URL.createObjectURL(blob));
+        const isReady = await localFileSystem.init();
+        if (!isReady) throw new Error("Local Storage Hub not connected");
+
+        const files = await localFileSystem.listFiles();
+        const file = files.find(f => f.name === filename);
+        if (!file) throw new Error(`File ${filename} not found in Local Storage`);
+
+        const handle = await file.handle.getFile();
+        if (!cancelled) setBlobUrl(URL.createObjectURL(handle));
       } catch (e) {
-        console.error("Video fetch error:", e);
+        console.error("Local video fetch error:", e);
       } finally {
         if (!cancelled) setLoading(false);
       }
     };
     fetchBlob();
     return () => { cancelled = true; };
-  }, [driveUrl]);
+  }, [filename]);
 
   return { blobUrl, loading };
 };
@@ -309,6 +312,16 @@ const Alerts = () => {
     }
   };
 
+  // Merge pending cam alerts with db alerts
+  const [pendingAlerts] = useState<any[]>(() => {
+    const saved = localStorage.getItem("pending_cam_alerts");
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const allAlerts = [...pendingAlerts, ...alerts].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
+
   return (
     <AppLayout>
       <div className="p-4 space-y-6 max-w-2xl mx-auto pb-24">
@@ -318,12 +331,12 @@ const Alerts = () => {
             <p className="text-sm text-muted-foreground font-medium uppercase tracking-widest opacity-60">Security Timeline</p>
           </div>
           <div className="flex gap-2">
-            {alerts.some((a) => !a.viewed) && (
+            {allAlerts.some((a) => !a.viewed) && (
               <Button variant="ghost" size="sm" onClick={markAllRead} className="gap-2 h-10 rounded-xl font-bold uppercase text-[10px] tracking-widest">
                 <Check className="h-4 w-4" /> All Read
               </Button>
             )}
-            {alerts.length > 0 && (
+            {allAlerts.length > 0 && (
               <Button variant="outline" size="sm" onClick={deleteAllAlerts} className="text-destructive hover:bg-destructive/10 border-destructive/20 gap-2 h-10 rounded-xl font-bold uppercase text-[10px] tracking-widest">
                 <Trash2 className="h-4 w-4" /> Clear
               </Button>
@@ -337,7 +350,7 @@ const Alerts = () => {
               <Card key={i} className="animate-pulse bg-card/40 border-border/50 rounded-3xl h-24" />
             ))}
           </div>
-        ) : alerts.length === 0 ? (
+        ) : allAlerts.length === 0 ? (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col items-center gap-4 py-24 text-center">
             <div className="flex h-24 w-24 items-center justify-center rounded-full bg-muted/50 border border-dashed border-border/50 shadow-inner">
               <BellOff className="h-10 w-10 text-muted-foreground opacity-30" />

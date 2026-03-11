@@ -66,7 +66,7 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { ZonePicker } from "@/components/ZonePicker";
-import { driveService } from "@/lib/driveService";
+import { localFileSystem } from "@/lib/localFileSystem";
 
 interface PendingAlert {
   type: string;
@@ -323,12 +323,11 @@ const CameraMode = () => {
     // Prevent overlapping recordings
     if (isRecordingRef.current) return;
 
-    const driveFolderId = user.user_metadata?.drive_folder_id;
-    const driveReady = await driveService.isReady();
+    const driveReady = localFileSystem.isReady();
     let videoUrl: string | null = null;
 
-    // Record a 10-second video clip and upload to Google Drive
-    if (driveReady && driveFolderId) {
+    // Record a 10-second video clip and save locally
+    if (driveReady) {
       const stream = videoRef.current?.srcObject as MediaStream | null;
       if (stream) {
         isRecordingRef.current = true;
@@ -344,10 +343,12 @@ const CameraMode = () => {
           });
 
           const filename = `hguard_${Date.now()}.webm`;
-          const result = await driveService.uploadVideo(videoBlob, filename, driveFolderId);
-          videoUrl = result.url;
+          const success = await localFileSystem.saveFile(filename, videoBlob);
+          // Local files don't have public URLs, so we leave it empty for DB,
+          // but we could set a local object URL for immediate in-app viewing if needed.
+          if (success) console.log(`Saved local recording: ${filename}`);
         } catch (e) {
-          console.error("Video recording/upload failed:", e);
+          console.error("Video recording/save failed:", e);
         } finally {
           isRecordingRef.current = false;
         }
