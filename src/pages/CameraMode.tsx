@@ -10,7 +10,8 @@ import { Button } from "@/components/ui/button";
 import {
   Moon, Sun, AlertTriangle, Mic, MicOff, Flashlight, FlashlightOff,
   Camera, ArrowLeft, Users, Zap, Battery as BatteryIcon, WifiOff, Wifi,
-  RefreshCcw, Lock as Padlock, Maximize, ChevronRight, RotateCw, Tag
+  RefreshCcw, Lock as Padlock, Maximize, ChevronRight, RotateCw, Tag,
+  Settings, Terminal
 } from "lucide-react";
 import {
   AlertDialog,

@@ -189,7 +189,24 @@ const LiveFeed = () => {
   // Attach stream to video element when ref is ready
   useEffect(() => {
     if (remoteVideoRef.current && remoteStream) {
-      remoteVideoRef.current.srcObject = remoteStream;
+      const video = remoteVideoRef.current;
+      if (video.srcObject !== remoteStream) {
+        console.log("[LiveFeed] Attaching remote stream. Tracks:", remoteStream.getTracks().map(t => `${t.kind}:${t.readyState}`));
+        video.srcObject = remoteStream;
+        video.setAttribute('playsinline', 'true');
+
+        const playVideo = () => {
+          video.play()
+            .then(() => console.log("[LiveFeed] Remote video playback started."))
+            .catch(e => {
+              console.warn("[LiveFeed] Remote play failed, retrying...", e);
+              setTimeout(() => video.play().catch(p => console.error("[LiveFeed] Final remote play failed:", p)), 1000);
+            });
+        };
+
+        if (video.readyState >= 2) playVideo();
+        else video.onloadedmetadata = playVideo;
+      }
     }
   }, [remoteStream, isConnected]);
 
