@@ -15,7 +15,7 @@ const Signup = () => {
   const [displayName, setDisplayName] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { signUp } = useAuth();
+  const { signUp, signInWithGoogle } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -80,6 +80,25 @@ const Signup = () => {
             <CardFooter className="flex-col gap-4">
               <Button type="submit" className="h-12 w-full text-base font-semibold" disabled={loading}>
                 {loading ? "Creating account..." : "Create Account"}
+              </Button>
+
+              <div className="relative w-full my-2">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t border-border/50" />
+                </div>
+                <div className="relative flex justify-center text-[10px] uppercase font-bold tracking-widest">
+                  <span className="bg-card px-2 text-muted-foreground">Or</span>
+                </div>
+              </div>
+
+              <Button
+                type="button"
+                variant="outline"
+                className="h-12 w-full text-base font-semibold transition-colors"
+                onClick={signInWithGoogle}
+                disabled={loading}
+              >
+                Continue with Google
               </Button>
               <p className="text-sm text-muted-foreground">
                 Already have an account? <Link to="/login" className="text-primary hover:underline">Sign in</Link>

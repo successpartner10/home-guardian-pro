@@ -14,7 +14,7 @@ const Login = () => {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { signIn } = useAuth();
+  const { signIn, signInWithGoogle } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -105,6 +105,25 @@ const Login = () => {
             <CardFooter className="flex-col gap-4">
               <Button type="submit" className="h-14 w-full text-base font-black uppercase tracking-widest shadow-xl shadow-primary/20 rounded-xl" disabled={loading}>
                 {loading ? "Decrypting..." : "Initialize Session"}
+              </Button>
+
+              <div className="relative w-full my-2">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t border-border/50" />
+                </div>
+                <div className="relative flex justify-center text-[10px] uppercase font-bold tracking-widest">
+                  <span className="bg-card px-2 text-muted-foreground">Or</span>
+                </div>
+              </div>
+
+              <Button
+                type="button"
+                variant="outline"
+                className="h-14 w-full text-base font-black uppercase tracking-widest rounded-xl hover:bg-primary/10 transition-colors"
+                onClick={signInWithGoogle}
+                disabled={loading}
+              >
+                Continue with Google
               </Button>
 
               <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest pt-2">

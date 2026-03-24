@@ -11,9 +11,10 @@ type Device = Tables<"devices">;
 interface LiveCameraStreamProps {
     device: Device;
     onFullscreen?: (deviceId: string) => void;
+    localStream?: MediaStream | null;
 }
 
-export const LiveCameraStream: React.FC<LiveCameraStreamProps> = ({ device, onFullscreen }) => {
+export const LiveCameraStream: React.FC<LiveCameraStreamProps> = ({ device, onFullscreen, localStream }) => {
     const remoteVideoRef = useRef<HTMLVideoElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
@@ -46,6 +47,7 @@ export const LiveCameraStream: React.FC<LiveCameraStreamProps> = ({ device, onFu
     const { connectionState, isConnected, isChannelReady, connect, disconnect } = useWebRTC({
         deviceId: device.id,
         role: "viewer",
+        localStream: localStream,
         onRemoteStream: handleRemoteStream,
         onDataMessage: handleDataMessage,
     });

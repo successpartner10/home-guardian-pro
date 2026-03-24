@@ -40,6 +40,7 @@ import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { ZonePicker } from "@/components/ZonePicker";
 import { localFileSystem } from "@/lib/localFileSystem";
+import { googleDrive } from "@/lib/googleDrive";
 
 interface PendingAlert {
   type: string;
@@ -103,7 +104,7 @@ const ActionBar = React.memo(({
 
 const CameraMode = () => {
   const { deviceId } = useParams<{ deviceId: string }>();
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -246,10 +247,11 @@ const CameraMode = () => {
     if (isRecordingRef.current) return;
 
     const driveReady = localFileSystem.isReady();
+    const providerToken = session?.provider_token as string | undefined;
     let videoUrl: string | null = null;
 
-    // Record a 10-second video clip and save locally
-    if (driveReady) {
+    // Record a 10-second video clip and save
+    if (driveReady || providerToken) {
       const stream = videoRef.current?.srcObject as MediaStream | null;
       if (stream) {
         isRecordingRef.current = true;
@@ -265,10 +267,13 @@ const CameraMode = () => {
           });
 
           const filename = `hguard_${Date.now()}.webm`;
-          const success = await localFileSystem.saveFile(filename, videoBlob);
-          // Local files don't have public URLs, so we leave it empty for DB,
-          // but we could set a local object URL for immediate in-app viewing if needed.
-          if (success) console.log(`Saved local recording: ${filename}`);
+          if (providerToken) {
+            const success = await googleDrive.saveFile(filename, videoBlob, providerToken);
+            if (success) console.log(`Saved to Google Drive: ${filename}`);
+          } else if (driveReady) {
+            const success = await localFileSystem.saveFile(filename, videoBlob);
+            if (success) console.log(`Saved local recording: ${filename}`);
+          }
         } catch (e) {
           console.error("Video recording/save failed:", e);
         } finally {
@@ -293,7 +298,7 @@ const CameraMode = () => {
     } else {
       await supabase.from("alerts").insert(alertData);
     }
-  }, [user, resolvedDeviceId, isOnline]);
+  }, [user, resolvedDeviceId, isOnline, session]);
 
   const handleSound = useCallback(async () => {
     if (!user || !resolvedDeviceId) return;

@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, LayoutGrid, Maximize } from "lucide-react";
+import { ArrowLeft, LayoutGrid, Maximize, Mic, MicOff } from "lucide-react";
 import { LiveCameraStream } from "@/components/LiveCameraStream";
 import type { Tables } from "@/integrations/supabase/types";
 
@@ -15,6 +15,8 @@ const MultiLiveFeed = () => {
     const [cameras, setCameras] = useState<Device[]>([]);
     const [loading, setLoading] = useState(true);
     const [fullscreenCameraId, setFullscreenCameraId] = useState<string | null>(null);
+    const [micStream, setMicStream] = useState<MediaStream | null>(null);
+    const [isBroadcasting, setIsBroadcasting] = useState(false);
 
     useEffect(() => {
         if (!user) return;
@@ -56,6 +58,32 @@ const MultiLiveFeed = () => {
 
         return () => { supabase.removeChannel(channel); };
     }, [user]);
+
+    const startIntercom = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            setMicStream(stream);
+            setIsBroadcasting(true);
+        } catch (e) {
+            console.error("Microphone access denied:", e);
+        }
+    };
+
+    const stopIntercom = () => {
+        if (micStream) {
+            micStream.getTracks().forEach(track => track.stop());
+            setMicStream(null);
+        }
+        setIsBroadcasting(false);
+    };
+
+    useEffect(() => {
+        return () => {
+            if (micStream) {
+                micStream.getTracks().forEach(track => track.stop());
+            }
+        };
+    }, [micStream]);
 
     if (loading) {
         return (
@@ -123,6 +151,7 @@ const MultiLiveFeed = () => {
                             <LiveCameraStream
                                 key={camera.id}
                                 device={camera}
+                                localStream={micStream}
                                 onFullscreen={(id) => setFullscreenCameraId(null)}
                             />
                         ))}
@@ -134,6 +163,7 @@ const MultiLiveFeed = () => {
                             <div key={camera.id} className="w-full h-full min-h-[250px]">
                                 <LiveCameraStream
                                     device={camera}
+                                    localStream={micStream}
                                     onFullscreen={(id) => setFullscreenCameraId(id)}
                                 />
                             </div>
@@ -142,6 +172,23 @@ const MultiLiveFeed = () => {
                 )}
             </div>
 
+            {/* Walkie Talkie floating UI */}
+            {cameras.length > 0 && (
+                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center justify-center pointer-events-auto select-none touch-none">
+                    <Button
+                        onPointerDown={startIntercom}
+                        onPointerUp={stopIntercom}
+                        onPointerLeave={stopIntercom}
+                        className={`h-20 w-20 rounded-full shadow-[0_0_30px_rgba(0,0,0,0.5)] border-4 transition-all duration-300 flex flex-col items-center justify-center -ml-0 ${isBroadcasting
+                                ? 'bg-primary border-primary/50 text-white scale-110 shadow-[0_0_50px_hsl(var(--primary))]'
+                                : 'bg-black/80 border-white/20 text-white backdrop-blur-md hover:bg-black hover:border-white/40'
+                            }`}
+                        title="Hold to broadcast to all cameras"
+                    >
+                        {isBroadcasting ? <Mic className="h-8 w-8 animate-pulse text-white fill-white" /> : <MicOff className="h-8 w-8 opacity-50" />}
+                    </Button>
+                </div>
+            )}
         </div>
     );
 };

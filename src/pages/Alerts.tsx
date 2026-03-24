@@ -9,6 +9,7 @@ import { formatDistanceToNow } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Tables } from "@/integrations/supabase/types";
 import { localFileSystem } from "@/lib/localFileSystem";
+import { googleDrive } from "@/lib/googleDrive";
 
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -16,7 +17,7 @@ import { cn } from "@/lib/utils";
 type Alert = Tables<"alerts"> & { devices?: { name: string } | null };
 
 /** Build a playable blob URL from a Local Storage file */
-const useVideoBlob = (filename: string | null | undefined) => {
+const useVideoBlob = (filename: string | null | undefined, providerToken?: string) => {
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -33,12 +34,23 @@ const useVideoBlob = (filename: string | null | undefined) => {
     const fetchBlob = async () => {
       setLoading(true);
       try {
+        if (providerToken) {
+          const fileId = await googleDrive.getFileIdByName(filename, providerToken);
+          if (fileId) {
+            const blob = await googleDrive.downloadFile(fileId, providerToken);
+            if (blob && !cancelled) {
+              setBlobUrl(URL.createObjectURL(blob));
+              return;
+            }
+          }
+        }
+
         const isReady = await localFileSystem.init();
         if (!isReady) throw new Error("Local Storage Hub not connected");
 
         const files = await localFileSystem.listFiles();
         const file = files.find(f => f.name === filename);
-        if (!file) throw new Error(`File ${filename} not found in Local Storage`);
+        if (!file) throw new Error(`File ${filename} not found in Local Storage or Google Drive`);
 
         const handle = await file.handle.getFile();
         if (!cancelled) setBlobUrl(URL.createObjectURL(handle));
@@ -55,8 +67,8 @@ const useVideoBlob = (filename: string | null | undefined) => {
   return { blobUrl, loading };
 };
 
-const VideoThumbnail = ({ url, onClick }: { url: string | null | undefined; onClick: () => void }) => {
-  const { blobUrl, loading } = useVideoBlob(url);
+const VideoThumbnail = ({ url, onClick, providerToken }: { url: string | null | undefined; onClick: () => void; providerToken?: string }) => {
+  const { blobUrl, loading } = useVideoBlob(url, providerToken);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   if (!url) {
@@ -99,8 +111,8 @@ const VideoThumbnail = ({ url, onClick }: { url: string | null | undefined; onCl
   );
 };
 
-const VideoModal = ({ alert, onClose }: { alert: Alert; onClose: () => void }) => {
-  const { blobUrl, loading } = useVideoBlob(alert.thumbnail_url);
+const VideoModal = ({ alert, onClose, providerToken }: { alert: Alert; onClose: () => void; providerToken?: string }) => {
+  const { blobUrl, loading } = useVideoBlob(alert.thumbnail_url, providerToken);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
 
@@ -237,7 +249,8 @@ const VideoModal = ({ alert, onClose }: { alert: Alert; onClose: () => void }) =
 };
 
 const Alerts = () => {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
+  const providerToken = session?.provider_token as string | undefined;
   const { toast } = useToast();
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [loading, setLoading] = useState(true);
@@ -382,7 +395,7 @@ const Alerts = () => {
                       <div
                         className="relative w-full sm:w-40 aspect-video sm:aspect-auto bg-black shrink-0 overflow-hidden"
                       >
-                        <VideoThumbnail url={alert.thumbnail_url} onClick={() => setSelectedAlert(alert)} />
+                        <VideoThumbnail url={alert.thumbnail_url} onClick={() => setSelectedAlert(alert)} providerToken={providerToken} />
                       </div>
 
                       {/* Info Container */}
@@ -443,7 +456,7 @@ const Alerts = () => {
 
       {/* Video Detail Modal */}
       <AnimatePresence>
-        {selectedAlert && <VideoModal alert={selectedAlert} onClose={() => setSelectedAlert(null)} />}
+        {selectedAlert && <VideoModal alert={selectedAlert} onClose={() => setSelectedAlert(null)} providerToken={providerToken} />}
       </AnimatePresence>
     </AppLayout>
   );
