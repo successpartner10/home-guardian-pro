@@ -102,7 +102,6 @@ const SettingsPage = () => {
   const [driveQuota, setDriveQuota] = useState<{ used: number, limit: number } | null>(null);
   const [activeBrain, setActiveBrain] = useState(aiOrchestrator.getProviderId());
   const [autoUpgrade, setAutoUpgrade] = useState(true);
-
   const [webhookUrl, setWebhookUrl] = useState("");
 
   const isAdmin = user?.email === ADMIN_EMAIL;

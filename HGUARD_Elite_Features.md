@@ -83,6 +83,10 @@
 - **Ghost Device Cleanup** — Admin auto-purges stale devices offline for >2 minutes on login
 - **Nuclear Mesh Reset** — One-click delete of all device records for a clean restart
 - **Device Naming** — Custom name per camera device stored in Firestore
+- **Deep Sleep HUD** — Pitch-black power-saving overlay with animated pulse
+- **Smart Wake Logic** — Instant return to live feed on motion/sound detection
+- **Remote Viewer Wake** — Auto-restores camera feed when a remote viewer connects
+- **Command Wake** — Wakes device instantly upon receiving any remote command
 
 ---
 
@@ -95,6 +99,7 @@
 - **Security PIN** — Set or update 4-digit deletion guard PIN
 - **Session Control** — Force logout all devices with one confirmation dialog
 - **System Purge** — Nuclear reset of entire camera mesh
+- **Deep Sleep Mode** — Low-power UI with motion-activated auto-wake
 - **Automation Webhook** — Save a custom webhook URL for external integrations
 
 ---

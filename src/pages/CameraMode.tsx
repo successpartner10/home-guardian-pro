@@ -71,6 +71,8 @@ const ActionBar = React.memo(({
   isOnline,
   batteryLevel,
   isCharging,
+  isPowerSaveMode,
+  togglePowerSave,
 }: any) => {
   return (
     <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-40 w-full max-w-sm px-4 flex flex-col items-center gap-4">
@@ -87,6 +89,18 @@ const ActionBar = React.memo(({
 
         {/* Action Buttons Group */}
         <div className="flex items-center gap-4">
+          <Button
+            onClick={togglePowerSave}
+            variant="ghost"
+            size="icon"
+            className={cn(
+              "h-10 w-10 rounded-full transition-all border border-transparent",
+              isPowerSaveMode ? "bg-primary text-black" : "bg-white/5 text-white/60 hover:bg-white/10"
+            )}
+          >
+             <Moon className="h-5 w-5" />
+          </Button>
+
           <Button
             onClick={toggleFlash}
             variant="ghost"
@@ -165,6 +179,7 @@ const CameraMode = () => {
   const [isZonePickerOpen, setIsZonePickerOpen] = useState(false);
   const [ignoreZones, setIgnoreZones] = useState<any[]>([]);
   const [monitoringSeconds, setMonitoringSeconds] = useState(0);
+  const [isPowerSaveMode, setIsPowerSaveMode] = useState(false);
   const isRecordingRef = useRef(false);
   // Shared ref so audio events can extend an active video recording
   const activeRecorderRef = useRef<{ extend: () => void } | null>(null);
@@ -361,7 +376,20 @@ const CameraMode = () => {
     }
   }, [devices]);
 
+  const wakeUp = useCallback(() => {
+    if (isPowerSaveModeRef.current) {
+      console.log("[CameraMode] Motion/Sound detected — Waking from Deep Sleep.");
+      setIsPowerSaveMode(false);
+      toast({
+        title: "Smart Wake Triggered",
+        description: "Activity detected. Feed restored.",
+        duration: 3000
+      });
+    }
+  }, []);
+
   const handleMotion = useCallback(async (_imageData: string) => {
+    wakeUp();
     if (!userRef.current || !resolvedDeviceIdRef.current) return;
     if (isRecordingRef.current) return;
 
@@ -510,6 +538,7 @@ const CameraMode = () => {
   }, [triggerWebhook, analysis, nightVision, takeSnapshot]);
 
   const handleSound = useCallback(async (soundClass: string) => {
+    wakeUp();
     if (!userRef.current || !resolvedDeviceIdRef.current) return;
 
     // If a video clip is already recording, extend it due to audio event
@@ -538,6 +567,7 @@ const CameraMode = () => {
   }, [triggerWebhook]);
 
   const handleFall = useCallback(async (snapshot: string) => {
+    wakeUp();
     if (!userRef.current || !resolvedDeviceIdRef.current) return;
     toast({ title: "FALL DETECTED", description: "Critical Health Alert Triggered!", variant: "destructive" });
     if (!sirenActive) toggleSiren();
@@ -571,6 +601,7 @@ const CameraMode = () => {
     useCamera({ onMotionDetected: handleMotion, onSoundDetected: handleSound, onFallDetected: handleFall, ignoreZones });
 
   const handleRemoteCommand = useCallback((msg: any) => {
+    wakeUp();
     if (msg.type === 'COMMAND') {
       if (msg.action === 'TOGGLE_FLASH') {
         toggleFlash();
@@ -597,6 +628,13 @@ const CameraMode = () => {
     localStream: stream,
     onDataMessage: handleRemoteCommand
   });
+
+  // Auto-Wake on Viewer Connect
+  useEffect(() => {
+    if (viewerConnected) {
+      wakeUp();
+    }
+  }, [viewerConnected, wakeUp]);
 
   // Ref to track last executed command and prevent infinite onSnapshot loops via local cache
   const lastExecutedCmdTimeRef = useRef<number>(0);
@@ -660,6 +698,11 @@ const CameraMode = () => {
 
   const showNarrativeRef = useRef(showNarrative);
   useEffect(() => { showNarrativeRef.current = showNarrative; }, [showNarrative]);
+
+  const isPowerSaveModeRef = useRef(isPowerSaveMode);
+  useEffect(() => { isPowerSaveModeRef.current = isPowerSaveMode; }, [isPowerSaveMode]);
+
+  // AI Polling Interval
 
 
 
@@ -814,6 +857,42 @@ const CameraMode = () => {
         playsInline
         muted
       />
+
+      {/* Deep Sleep Overlay */}
+      <AnimatePresence>
+        {isPowerSaveMode && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-[45] bg-black flex flex-col items-center justify-center gap-6"
+          >
+            <div className="relative">
+              <motion.div 
+                animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.6, 0.3] }}
+                transition={{ duration: 4, repeat: Infinity }}
+                className="absolute inset-0 bg-primary/20 blur-3xl rounded-full"
+              />
+              <Moon className="h-20 w-20 text-primary/40 relative z-10" />
+            </div>
+            
+            <div className="text-center space-y-2 relative z-10">
+              <h2 className="text-2xl font-black text-white/40 uppercase tracking-[0.3em]">Deep Sleep</h2>
+              <p className="text-[10px] font-bold text-primary/60 uppercase tracking-widest animate-pulse">
+                Motion Wake Active • Saving Power
+              </p>
+            </div>
+
+            <Button 
+              variant="outline"
+              onClick={() => setIsPowerSaveMode(false)}
+              className="mt-8 rounded-full border-white/10 bg-white/5 text-white/60 hover:bg-white/10 px-8 font-black uppercase tracking-widest text-[10px]"
+            >
+              WAKE SCREEN
+            </Button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <AIOverlays 
         isMonitoring={isMonitoring} 
@@ -1035,6 +1114,8 @@ const CameraMode = () => {
         isOnline={isOnline}
         batteryLevel={battery.level ?? 100}
         isCharging={battery.isCharging}
+        isPowerSaveMode={isPowerSaveMode}
+        togglePowerSave={() => setIsPowerSaveMode(!isPowerSaveMode)}
       />
 
       <AnimatePresence>
