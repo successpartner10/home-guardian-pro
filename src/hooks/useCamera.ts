@@ -1,28 +1,26 @@
 import { useRef, useState, useCallback, useEffect } from "react";
-import type { DetectedObject } from "@tensorflow-models/coco-ssd";
 import { useToast } from "./use-toast";
-
 interface UseCameraOptions {
-  onMotionDetected?: (imageData: string, objectLabel?: string) => void;
-  onSoundDetected?: () => void;
-  onObjectDetected?: (objects: DetectedObject[]) => void;
+  onMotionDetected?: (imageData: string, objectLabel?: string, detectedClasses?: string[]) => void;
+  onSoundDetected?: (soundClass: string) => void;
+  onFallDetected?: (snapshot: string) => void;
   motionSensitivity?: number;
   soundSensitivity?: number;
-  aiFrequency?: number;
-  autoZoom?: boolean;
   onZoneChange?: (zone: { x: number, y: number, width: number, height: number } | null) => void;
   detectionSchedule?: { enabled: boolean, start: string, end: string };
+  highPrecisionAudio?: boolean;
+  ignoreZones?: { x: number, y: number, width: number, height: number }[];
 }
 
 export const useCamera = ({
   onMotionDetected,
   onSoundDetected,
-  onObjectDetected,
+  onFallDetected,
   motionSensitivity = 50,
   soundSensitivity = 50,
-  aiFrequency = 10,
-  autoZoom = false,
   detectionSchedule,
+  highPrecisionAudio = true,
+  ignoreZones = [],
 }: UseCameraOptions = {}) => {
   const { toast } = useToast();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -30,9 +28,6 @@ export const useCamera = ({
   const prevFrameRef = useRef<ImageData | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const motionIntervalRef = useRef<number | null>(null);
-  const workerRef = useRef<Worker | null>(null);
-  const frameCountRef = useRef(0);
-  const isModelLoaded = useRef(false);
   const blackFrameCountRef = useRef(0);
   const cameraStartTimeRef = useRef(0);
 
@@ -42,7 +37,6 @@ export const useCamera = ({
   const [flashOn, setFlashOn] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [brightness, setBrightness] = useState(100);
-  const [detectedObjects, setDetectedObjects] = useState<DetectedObject[]>([]);
   const [zoomLevel, setZoomLevel] = useState(1);
   const [zoomCenter, setZoomCenter] = useState({ x: 50, y: 50 });
   const [soundLevel, setSoundLevel] = useState(0);
@@ -50,6 +44,8 @@ export const useCamera = ({
 
   const lastSoundAlertRef = useRef<number>(0);
   const lastMotionAlertRef = useRef<number>(0);
+  const lastFallAlertRef = useRef<number>(0);
+  const fallFramesCountRef = useRef(0);
 
   // Sync stream to video element whenever activeStream changes
   useEffect(() => {
@@ -59,6 +55,7 @@ export const useCamera = ({
         console.log("[useCamera] Syncing stream to video element. Tracks:", activeStream.getTracks().map(t => `${t.kind}:${t.readyState}`));
         video.srcObject = activeStream;
         video.setAttribute('playsinline', 'true');
+        video.setAttribute('webkit-playsinline', 'true');
         video.muted = true;
         video.autoplay = true;
 
@@ -80,37 +77,71 @@ export const useCamera = ({
   const startCamera = useCallback(async () => {
     console.log("[useCamera] startCamera initiated");
     try {
+      if (!navigator.mediaDevices) {
+        throw new Error("Camera API is unavailable. Are you using HTTP instead of HTTPS on a mobile device?");
+      }
       let stream;
       try {
         const constraints = {
           video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } },
-          audio: true,
+          audio: highPrecisionAudio ? {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+          } : true,
         };
-        console.log("[useCamera] Requesting (Env+Audio) with:", constraints);
+        console.log("[useCamera] Requesting HD Environmental Camera...");
         stream = await navigator.mediaDevices.getUserMedia(constraints);
       } catch (e) {
-        console.warn("[useCamera] Env+Audio failed, trying Fallback:", e);
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: "user" },
-          audio: true,
-        });
+        console.warn("[useCamera] HD requested failed, trying standard mobile Fallback:", e);
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: "environment" },
+            audio: true,
+          });
+        } catch (innerErr) {
+          console.warn("[useCamera] Environmental failed, trying any available camera:", innerErr);
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: true,
+          });
+        }
       }
       console.log("[useCamera] Stream acquired successfully. Video tracks:", stream.getVideoTracks().length);
       cameraStartTimeRef.current = Date.now();
       streamRef.current = stream;
       setActiveStream(stream);
+      // Direct attach as synchronous fallback in case useEffect fires before ref is ready
+      if (videoRef.current) {
+        const vid = videoRef.current;
+        vid.srcObject = stream;
+        vid.setAttribute('playsinline', 'true');
+        vid.muted = true;
+        vid.autoplay = true;
+        vid.play().catch(e => console.warn("[useCamera] Immediate play failed:", e));
+      }
       setIsActive(true);
       setError(null);
     } catch (err: any) {
       console.warn("[useCamera] Audio+Video failed, trying Video-Only:", err);
       try {
+        // Try any camera without audio
         const videoOnlyStream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: "environment" },
+          video: true,
           audio: false,
         });
         console.log("[useCamera] Video-Only stream acquired");
         streamRef.current = videoOnlyStream;
         setActiveStream(videoOnlyStream);
+        // Direct attach fallback
+        if (videoRef.current) {
+          const vid = videoRef.current;
+          vid.srcObject = videoOnlyStream;
+          vid.setAttribute('playsinline', 'true');
+          vid.muted = true;
+          vid.autoplay = true;
+          vid.play().catch(e => console.warn("[useCamera] Video-only immediate play failed:", e));
+        }
         setIsActive(true);
         setError(null);
         toast({
@@ -120,7 +151,7 @@ export const useCamera = ({
         });
       } catch (videoOnlyErr: any) {
         console.error("[useCamera] All capture attempts failed:", videoOnlyErr);
-        setError(videoOnlyErr.message || "Camera access denied");
+        setError(videoOnlyErr.message || "Camera access denied. Check permissions in browser settings.");
       }
     }
   }, [toast]);
@@ -161,14 +192,39 @@ export const useCamera = ({
   const toggleFlash = useCallback(async () => {
     if (streamRef.current) {
       const videoTrack = streamRef.current.getVideoTracks()[0];
+      const nextState = !flashOn;
+      
       try {
-        await (videoTrack as any).applyConstraints({ advanced: [{ torch: !flashOn }] });
-        setFlashOn((f) => !f);
-      } catch {
-        // torch not supported
+        // Some browsers require explicit check of capabilities
+        const capabilities = videoTrack.getCapabilities() as any;
+        if (capabilities && capabilities.torch) {
+          await videoTrack.applyConstraints({
+            advanced: [{ torch: nextState }]
+          });
+          setFlashOn(nextState);
+          console.log(`[useCamera] Torch toggled to: ${nextState}`);
+        } else {
+          console.warn("[useCamera] Torch capability not detected on this track.");
+          toast({
+            title: "Flash Not Supported",
+            description: "Your device camera does not support hardware flashlight control in this browser.",
+            variant: "default"
+          });
+        }
+      } catch (e) {
+        console.error("[useCamera] Flash toggle failed:", e);
+        // Fallback for browsers that might not support getCapabilities but might support applyConstraints
+        try {
+          await videoTrack.applyConstraints({
+            advanced: [{ torch: nextState }]
+          });
+          setFlashOn(nextState);
+        } catch (innerE) {
+          console.warn("[useCamera] Torch constraint totally unsupported.");
+        }
       }
     }
-  }, [flashOn]);
+  }, [flashOn, toast]);
 
   const takeSnapshot = useCallback((): string | null => {
     if (!videoRef.current || !canvasRef.current) return null;
@@ -182,67 +238,7 @@ export const useCamera = ({
     return canvas.toDataURL("image/jpeg", 0.8);
   }, []);
 
-  // AI Worker Initialization
-  useEffect(() => {
-    const initWorker = async () => {
-      try {
-        const DetectionWorker = (await import("@/workers/detection.worker?worker")).default;
-        const worker = new DetectionWorker();
-        workerRef.current = worker;
 
-        worker.onmessage = (e) => {
-          if (e.data.type === "MODEL_LOADED") {
-            isModelLoaded.current = true;
-            console.log("AI Worker: Model Loaded");
-          } else if (e.data.type === "DETECTIONS") {
-            const detections = e.data.predictions as DetectedObject[];
-            setDetectedObjects(detections);
-            if (onObjectDetected) onObjectDetected(detections);
-
-            // AI Smart Zoom Logic
-            if (autoZoom && detections.length > 0) {
-              const primary = detections.find(d => d.class === 'person') || detections[0];
-              const [x, y, width, height] = primary.bbox;
-
-              // Only zoom if object is small (too far)
-              const areaRatio = (width * height) / (320 * 240);
-              if (areaRatio < 0.25) {
-                // Calculate zoom level (max 4.0)
-                const targetZoom = Math.min(4.0, Math.max(1.0, 0.4 / areaRatio));
-                setZoomLevel(targetZoom);
-
-                // Calculate center percentage
-                const centerX = ((x + width / 2) / 320) * 100;
-                const centerY = ((y + height / 2) / 240) * 100;
-                setZoomCenter({ x: centerX, y: centerY });
-              } else {
-                setZoomLevel(1);
-              }
-            } else if (autoZoom) {
-              setZoomLevel(1);
-            }
-          }
-        };
-
-        worker.postMessage({ type: "LOAD_MODEL" });
-      } catch (e) {
-        console.error("Worker initialization failed", e);
-      }
-    };
-    initWorker();
-
-    return () => {
-      workerRef.current?.terminate();
-      workerRef.current = null;
-    };
-  }, []);
-
-  // Sync Zone to Worker
-  useEffect(() => {
-    if (workerRef.current) {
-      workerRef.current.postMessage({ type: "SET_ZONE", zone: detectionZone });
-    }
-  }, [detectionZone]);
 
   // Motion & AI Detection Loop
   useEffect(() => {
@@ -289,39 +285,39 @@ export const useCamera = ({
       const avgBrightness = Math.round(totalB / pixelCount);
       setBrightness(avgBrightness);
 
-      // If purely black for several cycles, maybe the hardware stalled
-      const uptime = Date.now() - cameraStartTimeRef.current;
-      if (avgBrightness < 5 && isActive && uptime > 10000) { // 10s grace period
-        blackFrameCountRef.current++;
-        if (blackFrameCountRef.current > 10) { // ~5 seconds of sustained black
-          console.warn("[useCamera] Persistent black detected after grace period. Attempting auto-recovery...");
-          blackFrameCountRef.current = 0;
+      // Brightness metrics & auto-restart for black screen stall
+      // Only trigger if brightness is EXACTLY 0 (complete sensor freeze, not just dark room)
+      if (avgBrightness === 0) {
+        blackFrameCountRef.current += 1;
+        if (blackFrameCountRef.current > 30) { // 15 seconds at 500ms internal
+          console.warn("[useCamera] Extended dead stream detected (0% Brightness). Executing hardware reset...");
           restartCamera();
+          blackFrameCountRef.current = 0;
         }
       } else {
         blackFrameCountRef.current = 0;
-      }
-
-      // AI Detection (every X frames) - Offload to Worker
-      let currentObjects: DetectedObject[] = detectedObjects;
-      frameCountRef.current++;
-
-      if (workerRef.current && isModelLoaded.current && frameCountRef.current % aiFrequency === 0) {
-        // Send a copy for processing to allow worker to use transferable
-        const processingData = new Uint8ClampedArray(currentFrame.data);
-        workerRef.current.postMessage({
-          type: "DETECT",
-          imageData: processingData.buffer,
-          width: 320,
-          height: 240
-        }, [processingData.buffer]);
       }
 
       // Motion Comparison
       if (prevFrameRef.current) {
         let diff = 0;
         const threshold = (100 - motionSensitivity) * 2 + 20;
+        
         for (let i = 0; i < currentFrame.data.length; i += 16) {
+          const pixelIdx = i / 4;
+          const px = pixelIdx % 320;
+          const py = Math.floor(pixelIdx / 320);
+
+          // Check if pixel is in an ignore zone
+          const isInIgnoreZone = ignoreZones.some(zone => 
+            px >= (zone.x * 320 / 100) && 
+            px <= ((zone.x + zone.width) * 320 / 100) &&
+            py >= (zone.y * 240 / 100) && 
+            py <= ((zone.y + zone.height) * 240 / 100)
+          );
+
+          if (isInIgnoreZone) continue;
+
           const rD = Math.abs(currentFrame.data[i] - prevFrameRef.current.data[i]);
           const gD = Math.abs(currentFrame.data[i + 1] - prevFrameRef.current.data[i + 1]);
           const bD = Math.abs(currentFrame.data[i + 2] - prevFrameRef.current.data[i + 2]);
@@ -333,8 +329,7 @@ export const useCamera = ({
           if (now - lastMotionAlertRef.current > 5000) {
             lastMotionAlertRef.current = now;
             const snapshot = canvas.toDataURL("image/jpeg", 0.5);
-            const topObj = currentObjects.length > 0 ? currentObjects[0].class : undefined;
-            onMotionDetected(snapshot, topObj);
+            onMotionDetected(snapshot, undefined, undefined);
           }
         }
       }
@@ -343,7 +338,7 @@ export const useCamera = ({
 
     const interval = window.setInterval(detect, 500);
     return () => clearInterval(interval);
-  }, [isActive, motionSensitivity, onMotionDetected, onObjectDetected, aiFrequency, detectionSchedule]);
+  }, [isActive, motionSensitivity, onMotionDetected, detectionSchedule]);
 
   // Sound detection
   useEffect(() => {
@@ -354,14 +349,24 @@ export const useCamera = ({
       const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
       const source = audioCtx.createMediaStreamSource(activeStream);
       const analyser = audioCtx.createAnalyser();
-      analyser.fftSize = 256;
+      analyser.fftSize = 512; // 256 frequency bins
       source.connect(analyser);
 
       const buffer = new Uint8Array(analyser.frequencyBinCount);
       soundInterval = window.setInterval(() => {
         analyser.getByteFrequencyData(buffer);
         let sum = 0;
-        for (let i = 0; i < buffer.length; i++) sum += buffer[i];
+        let lowSum = 0;  // Bins 0-20 (0-2kHz): Dog barks, thuds, bass
+        let midSum = 0;  // Bins 21-100 (2kHz-8kHz): Vocals, baby cries
+        let highSum = 0; // Bins 101-255 (8kHz+): Glass breaking, shattering
+
+        for (let i = 0; i < buffer.length; i++) {
+          sum += buffer[i];
+          if (i <= 20) lowSum += buffer[i];
+          else if (i <= 100) midSum += buffer[i];
+          else highSum += buffer[i];
+        }
+
         const vol = Math.min(100, Math.round((sum / buffer.length / 255) * 300));
         setSoundLevel(vol);
 
@@ -369,7 +374,34 @@ export const useCamera = ({
           const now = Date.now();
           if (now - lastSoundAlertRef.current > 5000) {
             lastSoundAlertRef.current = now;
-            onSoundDetected();
+
+            // Enhanced Audio AI Frequency Classification
+            const lowAvg = lowSum / 21;   // 0–2kHz: thuds, bass
+            const midAvg = midSum / 80;   // 2–8kHz: voice, baby cry, smoke alarm
+            const highAvg = highSum / 155; // 8kHz+: glass shatter
+
+            // Smoke alarm signature: sustained pulsing around 3kHz (mid-low range)
+            const smokeBandSum = Array.from(buffer).slice(30, 55).reduce((a, b) => a + b, 0);
+            const smokeBandAvg = smokeBandSum / 25;
+
+            let detectedClass = "sound_loud_noise";
+            let detectedLabel = "Loud Noise Detected";
+
+            if (highAvg > 60 && highAvg > lowAvg * 2 && highAvg > midAvg * 1.5) {
+              detectedClass = "sound_glass_break";
+              detectedLabel = "Glass Break / Shatter Detected";
+            } else if (smokeBandAvg > 80 && smokeBandAvg > lowAvg * 2) {
+              detectedClass = "sound_smoke_alarm";
+              detectedLabel = "Smoke Alarm / Fire Alert Detected";
+            } else if (midAvg > 50 && midAvg > lowAvg * 1.5 && midAvg > highAvg * 2) {
+              detectedClass = "sound_baby_cry";
+              detectedLabel = "Baby Crying / Voice Detected";
+            } else if (lowAvg > midAvg * 1.5 && lowAvg > highAvg) {
+              detectedClass = "sound_dog_bark";
+              detectedLabel = "Dog Bark / Heavy Thud Detected";
+            }
+
+            onSoundDetected(detectedLabel);
           }
         }
       }, 100);
@@ -393,7 +425,6 @@ export const useCamera = ({
     stream: activeStream,
     soundLevel,
     brightness,
-    detectedObjects,
     zoomLevel,
     zoomCenter,
     detectionZone,

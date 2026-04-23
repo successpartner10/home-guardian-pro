@@ -1,4 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,133 +7,50 @@
 
 @layer base {
   :root {
-    --radius: 0.75rem;
+    --radius: 1rem;
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 240 10% 4.9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 10% 4.9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 47.9 95.8% 53.1%;
+    --primary-foreground: 26 83.3% 1.1%;
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+    --accent: 240 3.7% 15.9%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 240 4.9% 83.9%;
+    --success: 142.1 70.6% 45.3%;
+    --white: 0 0% 100%;
   }
 
-  /* Default / Dark Blue */
-  .dark-blue,
-  :root:not(.light-pure):not(.light-cream):not(.pastel):not(.dark-ony):not(.dark-slate) {
-    --background: 220 20% 7%;
-    --foreground: 210 20% 92%;
-    --card: 220 18% 10%;
-    --card-foreground: 210 20% 92%;
-    --popover: 220 18% 12%;
-    --popover-foreground: 210 20% 92%;
-    --primary: 200 85% 45%;
-    /* Vibrant Blue */
-    --primary-foreground: 220 20% 98%;
-    --secondary: 220 16% 16%;
-    --secondary-foreground: 210 20% 80%;
-    --muted: 220 14% 14%;
-    --muted-foreground: 215 12% 55%;
-    --accent: 200 80% 50%;
-    --accent-foreground: 220 20% 7%;
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 210 20% 95%;
-    --border: 220 14% 18%;
-    --input: 220 14% 18%;
-    --ring: 200 85% 45%;
+  .dark, .dark-onyx {
+    --background: 240 10% 2%;
+    --card: 240 10% 4%;
+    --border: 240 5% 10%;
+    --muted-foreground: 240 5% 60%;
   }
 
-  /* Dark Onyx (Jet Black) */
-  .dark-onyx {
-    --background: 0 0% 2%;
-    --foreground: 0 0% 95%;
-    --card: 0 0% 5%;
-    --card-foreground: 0 0% 95%;
-    --popover: 0 0% 7%;
-    --popover-foreground: 0 0% 95%;
-    --primary: 0 0% 98%;
-    /* Silver/White stroke */
-    --primary-foreground: 0 0% 5%;
-    --secondary: 0 0% 12%;
-    --secondary-foreground: 0 0% 80%;
-    --muted: 0 0% 10%;
-    --muted-foreground: 0 0% 45%;
-    --accent: 0 0% 98%;
-    --border: 0 0% 15%;
-    --ring: 0 0% 90%;
-  }
-
-  /* Dark Slate (Pro Gray) */
-  .dark-slate {
-    --background: 220 10% 12%;
-    --foreground: 220 10% 90%;
-    --card: 220 10% 15%;
-    --card-foreground: 220 10% 90%;
-    --primary: 160 84% 39%;
-    /* Emerald */
-    --primary-foreground: 220 10% 10%;
-    --border: 220 10% 22%;
-    --muted-foreground: 220 5% 50%;
-  }
-
-  /* Pastel Lavender */
-  .pastel {
-    --background: 260 30% 98%;
-    --foreground: 260 20% 20%;
-    --card: 0 0% 100%;
-    --card-foreground: 260 20% 20%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 260 20% 20%;
-    --primary: 260 50% 60%;
-    /* Soft Purple */
-    --primary-foreground: 260 30% 98%;
-    --secondary: 260 30% 90%;
-    --secondary-foreground: 260 20% 30%;
-    --muted: 260 20% 94%;
-    --muted-foreground: 260 10% 50%;
-    --accent: 260 50% 60%;
-    --border: 260 20% 88%;
-    --input: 260 20% 88%;
-    --ring: 260 50% 60%;
-  }
-
-  /* Light Pure */
-  .light-pure {
-    --background: 0 0% 100%;
-    --foreground: 222 47% 11%;
-    --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
-    --primary: 222 47% 11%;
-    /* Contrast Black */
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 222 47% 11%;
-    --muted: 210 40% 96%;
-    --muted-foreground: 215 16% 47%;
-    --accent: 220 80% 50%;
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --ring: 222 47% 11%;
-  }
-
-  /* Light Cream */
-  .light-cream {
-    --background: 30 40% 96%;
-    --foreground: 30 10% 15%;
-    --card: 35 30% 98%;
-    --card-foreground: 30 10% 15%;
-    --primary: 25 70% 45%;
-    /* Teracotta */
-    --primary-foreground: 30 40% 98%;
-    --border: 30 20% 85%;
-    --muted-foreground: 30 10% 50%;
-    --ring: 25 70% 45%;
-  }
-}
-
-@layer base {
   * {
     @apply border-border;
   }
 
   body {
-    @apply bg-background text-foreground font-sans antialiased;
-    font-family: 'Inter', sans-serif;
-    font-size: 100%;
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 16px;
+    letter-spacing: -0.01em;
+  }
+
+  input, button, textarea, select {
+    font-family: inherit;
   }
 
   @media (max-width: 640px) {
@@ -162,33 +80,36 @@
 
 @layer utilities {
   .glass-panel {
-    background: hsl(var(--card) / 0.85);
-    backdrop-filter: blur(16px);
-    border: 1px solid hsl(var(--border) / 0.6);
+    background: hsl(var(--card) / 0.6);
+    backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid hsl(var(--white) / 0.1);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
   }
 
   .zoomon-card {
-    @apply glass-panel rounded-[1.5rem] p-4 shadow-2xl transition-all duration-300;
+    @apply glass-panel rounded-3xl p-6 transition-all duration-500 hover:bg-white/5;
   }
 
   .zoomon-btn-large {
-    @apply h-12 px-6 rounded-xl text-base font-bold transition-all active:scale-95 flex items-center justify-center gap-2;
+    @apply h-14 px-8 rounded-2xl text-base font-semibold transition-all active:scale-95 flex items-center justify-center gap-3 shadow-lg;
   }
 
   .status-online {
-    box-shadow: 0 0 12px hsl(var(--success) / 0.7);
+    @apply relative flex h-2 w-2 rounded-full bg-success;
+    box-shadow: 0 0 12px hsl(var(--success) / 0.5);
   }
 
   .status-recording {
-    box-shadow: 0 0 12px hsl(var(--destructive) / 0.7);
+    @apply relative flex h-2 w-2 rounded-full bg-destructive animate-pulse;
+    box-shadow: 0 0 12px hsl(var(--destructive) / 0.5);
   }
 
   .glow-primary {
-    box-shadow: 0 0 25px hsl(var(--primary) / 0.4);
+    box-shadow: 0 0 30px hsl(var(--primary) / 0.3);
   }
 
   .night-vision-filter {
-    filter: brightness(1.4) contrast(1.2) sepia(0.5) hue-rotate(80deg) saturate(1.5);
+    filter: brightness(1.2) contrast(1.1) grayscale(1) sepia(0.2) hue-rotate(90deg);
   }
 
   .safe-area-pb {
@@ -203,17 +124,40 @@
   .no-scrollbar::-webkit-scrollbar {
     display: none;
   }
+
+  .cam-ctrl-btn {
+    @apply w-full flex flex-col items-center justify-center gap-1.5 h-16 sm:h-20 rounded-2xl border backdrop-blur-xl transition-all duration-300 text-[9px] sm:text-[10px] font-bold tracking-[0.1em] uppercase disabled:opacity-30 disabled:pointer-events-none active:scale-95 select-none;
+  }
+
+  .cam-ctrl-btn-off {
+    @apply bg-white/5 border-white/5 text-white/40 hover:bg-white/10 hover:text-white/70;
+  }
+
+  /* 10ft UI for TV and Pro Large Displays */
+  .ten-ft-ui h1 { @apply text-7xl sm:text-8xl font-black tracking-tighter; }
+  .ten-ft-ui p { @apply text-2xl sm:text-3xl font-medium text-white/60; }
+  .ten-ft-ui .btn-large { @apply h-24 px-12 rounded-[2rem] text-2xl font-black; }
+  .ten-ft-ui .cam-card { @apply border-4 rounded-[3rem] shadow-2xl; }
 }
 
-/* Performance & Instant UI */
+/* Slick Animations */
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+  100% { transform: translateY(0px); }
+}
+
 .gpu-accelerated {
   will-change: transform, opacity;
   transform: translateZ(0);
-  backface-visibility: hidden;
 }
 
 * {
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1) !important;
+  transition-timing-function: cubic-bezier(0.23, 1, 0.32, 1) !important;
 }
 
 video {
@@ -222,5 +166,5 @@ video {
 }
 
 .instant-hover {
-  transition: transform 0.15s cubic-bezier(0.2, 0, 0, 1) !important;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
 }

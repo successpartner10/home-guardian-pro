@@ -1,6 +1,15 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { db } from "@/lib/firebase";
+import {
+    collection,
+    query,
+    where,
+    onSnapshot,
+    limit,
+    deleteDoc,
+    doc
+} from "firebase/firestore";
 import { Tv, Monitor, Smartphone, ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -13,22 +22,30 @@ const TVPage = () => {
         const code = Math.random().toString(36).substring(2, 8).toUpperCase();
         setPairingCode(code);
 
-        // Subscribe to pairing channel
-        const channel = supabase.channel(`pairing:${code}`)
-            .on("broadcast", { event: "pair" }, (payload) => {
-                if (payload.payload?.token) {
-                    navigate(`/shared/${payload.payload.token}`);
-                }
-            })
-            .subscribe();
+        // Listen for pairing attempts matching this code
+        const q = query(
+            collection(db, "pairing"),
+            where("code", "==", code),
+            limit(1)
+        );
 
-        return () => {
-            supabase.removeChannel(channel);
-        };
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            if (!snapshot.empty) {
+                const pairingDoc = snapshot.docs[0];
+                const { token } = pairingDoc.data();
+                if (token) {
+                    // Clean up pairing doc
+                    deleteDoc(doc(db, "pairing", pairingDoc.id));
+                    navigate(`/shared/${token}`);
+                }
+            }
+        });
+
+        return () => unsubscribe();
     }, [navigate]);
 
     return (
-        <div className="flex min-h-screen flex-col items-center justify-center bg-[#050505] text-white p-6 overflow-hidden">
+        <div className="flex min-h-screen flex-col items-center justify-center bg-[#050505] text-white p-6 overflow-hidden ten-ft-ui">
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/10 rounded-full blur-[120px] opacity-50" />
             </div>
@@ -38,12 +55,12 @@ const TVPage = () => {
                 animate={{ opacity: 1, y: 0 }}
                 className="relative z-10 flex flex-col items-center text-center max-w-2xl"
             >
-                <div className="h-24 w-24 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center mb-8 shadow-2xl backdrop-blur-md">
-                    <Tv className="h-12 w-12 text-primary" />
+                <div className="h-32 w-32 rounded-[2.5rem] bg-white/5 border border-white/10 flex items-center justify-center mb-10 shadow-2xl backdrop-blur-md">
+                    <Tv className="h-16 w-16 text-primary animate-pulse" />
                 </div>
 
                 <h1 className="text-5xl font-black uppercase tracking-tighter mb-4">TV Pairing</h1>
-                <p className="text-zinc-400 text-lg font-medium mb-12 max-w-sm">
+                <p className="text-zinc-200 text-lg font-medium mb-12 max-w-sm">
                     Enter this code on your phone to cast the camera stream instantly to this screen.
                 </p>
 
@@ -63,8 +80,8 @@ const TVPage = () => {
 
                 <div className="flex items-center gap-12 p-8 rounded-[2.5rem] bg-white/5 border border-white/10 backdrop-blur-md">
                     <div className="flex flex-col items-center gap-3">
-                        <Smartphone className="h-6 w-6 text-zinc-500" />
-                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Phone</span>
+                        <Smartphone className="h-6 w-6 text-zinc-300" />
+                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-300">Phone</span>
                     </div>
                     <ArrowRight className="h-6 w-6 text-primary animate-pulse" />
                     <div className="flex flex-col items-center gap-3">
@@ -73,7 +90,7 @@ const TVPage = () => {
                     </div>
                 </div>
 
-                <p className="mt-12 text-[10px] font-black uppercase tracking-[0.3em] text-white/20">
+                <p className="mt-12 text-[10px] font-black uppercase tracking-[0.3em] text-white/50">
                     Waiting for secure link...
                 </p>
             </motion.div>

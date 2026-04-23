@@ -1,11 +1,28 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate, useLocation } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { db } from "@/lib/firebase";
+import { collection, query, where, getDocs } from "firebase/firestore";
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading, isApproved, isAdmin } = useAuth();
   const location = useLocation();
+  const [deviceCheck, setDeviceCheck] = useState<"loading" | "has_devices" | "no_devices">("loading");
 
-  if (loading) {
+  useEffect(() => {
+    if (!user) return;
+    const check = async () => {
+      try {
+        const snap = await getDocs(query(collection(db, "devices"), where("user_id", "==", user.uid)));
+        setDeviceCheck(snap.empty ? "no_devices" : "has_devices");
+      } catch {
+        setDeviceCheck("has_devices"); // fail-open
+      }
+    };
+    check();
+  }, [user]);
+
+  if (loading || (user && deviceCheck === "loading")) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">
@@ -18,17 +35,14 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
   if (!user) return <Navigate to="/login" replace />;
 
-  const isPendingPage = location.pathname === "/pending-approval";
+  const isPendingPage = location.pathname === "/pending";
 
-  const isPrimaryAdmin = user?.email?.toLowerCase() === "successpartner10@gmail.com";
-  const isActuallyApproved = isApproved || isPrimaryAdmin;
-
-  if (!isActuallyApproved && !isPendingPage) {
-    console.log("[ProtectedRoute] Not approved, redirecting...", { isApproved, isPrimaryAdmin });
-    return <Navigate to="/pending-approval" replace />;
+  // Re-enable Admin Approval gate
+  if (!isApproved && !isAdmin && !isPendingPage) {
+    return <Navigate to="/pending" replace />;
   }
 
-  if (isActuallyApproved && isPendingPage) {
+  if (isApproved && isPendingPage) {
     return <Navigate to="/dashboard" replace />;
   }
 
@@ -36,3 +50,4 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 };
 
 export default ProtectedRoute;
+

@@ -1,12 +1,28 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { db } from "@/lib/firebase";
+import {
+  collection,
+  query,
+  where,
+  onSnapshot,
+  doc,
+  updateDoc,
+  deleteDoc,
+  addDoc,
+  getDocs,
+  orderBy,
+  limit,
+  serverTimestamp
+} from "firebase/firestore";
 import { useAuth } from "@/contexts/AuthContext";
 import AppLayout from "@/components/AppLayout";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Camera, Wifi, WifiOff, Video, MonitorSmartphone, LayoutGrid, Trash2 } from "lucide-react";
+import { Camera, Wifi, WifiOff, Video, MonitorSmartphone, LayoutGrid, Trash2, RefreshCcw } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,9 +37,21 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import type { Tables } from "@/integrations/supabase/types";
+import { Logo } from "@/components/Logo";
 
-type Device = Tables<"devices">;
+interface Device {
+  id: string;
+  user_id: string;
+  name: string;
+  type: 'camera' | 'viewer';
+  status: 'online' | 'offline' | 'recording';
+  last_seen?: any;
+  pairing_code?: string;
+  created_at?: any;
+  settings?: {
+    ai_mode?: 'security' | 'pet' | 'elder';
+  };
+}
 
 const statusConfig = {
   online: { icon: Wifi, color: "bg-green-500", label: "Online", className: "status-online" },
@@ -39,51 +67,73 @@ const Dashboard = () => {
   const [unreadAlerts, setUnreadAlerts] = useState(0);
   const [loading, setLoading] = useState(true);
   const [registering, setRegistering] = useState(false);
+  const [customName, setCustomName] = useState(
+    localStorage.getItem("hguard_preferred_name") || 
+    sessionStorage.getItem("hguard_preferred_name") || 
+    ""
+  );
 
   useEffect(() => {
     if (!user) return;
 
-    const fetchData = async () => {
-      console.log("[Dashboard] Fetching devices and alerts...");
-      const [devicesRes, alertsRes] = await Promise.all([
-        supabase.from("devices").select("*").order("created_at", { ascending: false }),
-        supabase.from("alerts").select("id", { count: "exact" }).eq("viewed", false),
-      ]);
+    const devicesQuery = query(
+      collection(db, "devices"),
+      where("user_id", "==", user.uid)
+    );
 
-      if (devicesRes.error) {
-        console.error("[Dashboard] Device fetch error:", devicesRes.error);
-        toast({ title: "Sync Error", description: "Failed to load devices.", variant: "destructive" });
-      }
+    const alertsQuery = query(
+      collection(db, "alerts"),
+      where("user_id", "==", user.uid)
+    );
 
-      console.log(`[Dashboard] Found ${devicesRes.data?.length || 0} total devices raw.`);
-      if (devicesRes.data) {
-        const cameras = devicesRes.data.filter(d => d.type === 'camera');
-        console.log(`[Dashboard] Filters to ${cameras.length} cameras.`, cameras);
-        setDevices(cameras);
-      }
-      if (alertsRes.count != null) setUnreadAlerts(alertsRes.count);
-      setLoading(false);
-    };
+    const unsubscribeDevices = onSnapshot(devicesQuery, async (snapshot) => {
+      const deviceList = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Device));
 
-    fetchData();
+      // Auto-deduplicate cameras: keep only the newest per unique name
+      const camerasByName = new Map<string, typeof deviceList>();
+      const viewers: typeof deviceList = [];
 
-    const channel = supabase
-      .channel("devices-status")
-      .on("postgres_changes", { event: "*", schema: "public", table: "devices", filter: `user_id=eq.${user.id}` }, (payload) => {
-        if (payload.eventType === "UPDATE") {
-          setDevices((prev) => prev.map((d) => (d.id === (payload.new as Device).id ? (payload.new as Device) : d)).filter(d => d.type === 'camera'));
-        } else if (payload.eventType === "INSERT") {
-          const newDevice = payload.new as Device;
-          if (newDevice.type === 'camera') {
-            setDevices((prev) => [newDevice, ...prev]);
-          }
-        } else if (payload.eventType === "DELETE") {
-          setDevices((prev) => prev.filter((d) => d.id !== (payload.old as any).id));
+      for (const device of deviceList) {
+        if (device.type === 'camera') {
+          const existing = camerasByName.get(device.name) || [];
+          existing.push(device);
+          camerasByName.set(device.name, existing);
+        } else {
+          viewers.push(device);
         }
-      })
-      .subscribe();
+      }
 
-    return () => { supabase.removeChannel(channel); };
+      // Delete duplicates (keep newest)
+      const uniqueCameras: Device[] = [];
+      for (const [name, cameras] of camerasByName) {
+        cameras.sort((a, b) => {
+          const timeA = a.created_at?.toDate ? a.created_at.toDate().getTime() : Date.now();
+          const timeB = b.created_at?.toDate ? b.created_at.toDate().getTime() : Date.now();
+          return timeB - timeA;
+        });
+        uniqueCameras.push(cameras[0]);
+        // Silently delete duplicates
+        for (let i = 1; i < cameras.length; i++) {
+          deleteDoc(doc(db, "devices", cameras[i].id)).catch(() => { });
+        }
+      }
+
+      setDevices(uniqueCameras);
+      setLoading(false);
+    }, (err) => {
+      console.error("Dashboard devices error:", err);
+      setLoading(false);
+    });
+
+    const unsubscribeAlerts = onSnapshot(alertsQuery, (snapshot) => {
+      const alertList = snapshot.docs.map(d => d.data());
+      setUnreadAlerts(alertList.filter(a => a.viewed === false).length);
+    });
+
+    return () => {
+      unsubscribeDevices();
+      unsubscribeAlerts();
+    };
   }, [user]);
 
   const getOrCreateDeviceId = () => {
@@ -100,37 +150,48 @@ const Dashboard = () => {
     setRegistering(true);
 
     const persistentId = getOrCreateDeviceId();
-    const deviceName = `${navigator.platform} Viewer (${persistentId.slice(0, 4)})`;
+    const storedName = localStorage.getItem("hguard_preferred_name") || sessionStorage.getItem("hguard_preferred_name");
+    const deviceName = storedName || customName || `${navigator.platform} Viewer (${persistentId.slice(0, 4)})`;
+    
+    if (customName) {
+      localStorage.setItem("hguard_preferred_name", customName);
+      sessionStorage.setItem("hguard_preferred_name", customName);
+    }
 
-    // Check for existing viewer by persistent metadata or specific name
-    const { data: existingDevice } = await supabase
-      .from('devices')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('name', deviceName)
-      .eq('type', 'viewer')
-      .maybeSingle();
+    // Single-field query to avoid composite index requirement
+    const q = query(
+      collection(db, "devices"),
+      where("user_id", "==", user.uid)
+    );
 
-    if (existingDevice) {
-      await supabase.from("devices").update({ status: 'online' }).eq('id', existingDevice.id);
+    const querySnapshot = await getDocs(q);
+    const matchingDocs = querySnapshot.docs.filter(d => {
+      const data = d.data();
+      return data.name === deviceName && data.type === "viewer";
+    });
+
+    if (matchingDocs.length > 0) {
+      const existingDoc = matchingDocs[0];
+      await updateDoc(doc(db, "devices", existingDoc.id), { status: 'online', updated_at: serverTimestamp() });
       toast({ title: "Viewer Active", description: "You are now monitoring cameras." });
       setRegistering(false);
       return;
     }
 
     // Register this device as a new viewer
-    const { error } = await supabase.from("devices").insert({
-      user_id: user.id,
-      name: deviceName,
-      type: "viewer" as const,
-      status: "online" as const,
-      pairing_code: Math.random().toString(36).substring(2, 8).toUpperCase()
-    });
-
-    if (error) {
-      toast({ title: "Error", description: "Failed to initialize viewer mode.", variant: "destructive" });
-    } else {
+    try {
+      await addDoc(collection(db, "devices"), {
+        user_id: user.uid,
+        name: deviceName,
+        type: "viewer",
+        status: "online",
+        pairing_code: Math.random().toString(36).substring(2, 8).toUpperCase(),
+        created_at: serverTimestamp(),
+        updated_at: serverTimestamp()
+      });
       toast({ title: "Viewer Active", description: "You are now monitoring cameras." });
+    } catch (e) {
+      toast({ title: "Error", description: "Failed to start viewer mode.", variant: "destructive" });
     }
     setRegistering(false);
   };
@@ -139,43 +200,84 @@ const Dashboard = () => {
     if (!user) return;
 
     const persistentId = getOrCreateDeviceId();
-    const deviceName = `${navigator.platform} Camera (${persistentId.slice(0, 4)})`;
+    const storedName = localStorage.getItem("hguard_preferred_name") || sessionStorage.getItem("hguard_preferred_name");
+    const deviceName = storedName || customName || `${navigator.platform} Camera (${persistentId.slice(0, 4)})`;
+    
+    if (customName) {
+      localStorage.setItem("hguard_preferred_name", customName);
+      sessionStorage.setItem("hguard_preferred_name", customName);
+    }
 
-    const { data: existingDevice } = await supabase
-      .from('devices')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('name', deviceName)
-      .eq('type', 'camera')
-      .maybeSingle();
+    // Single-field query to avoid composite index requirement
+    const q = query(
+      collection(db, "devices"),
+      where("user_id", "==", user.uid)
+    );
 
-    if (existingDevice) {
-      supabase.from("devices").update({ status: 'online' }).eq('id', existingDevice.id);
-      navigate(`/camera/${existingDevice.id}`);
+    const querySnapshot = await getDocs(q);
+    const matchingDocs = querySnapshot.docs.filter(d => {
+      const data = d.data();
+      return data.name === deviceName && data.type === "camera";
+    });
+
+    if (matchingDocs.length > 0) {
+      const existingDoc = matchingDocs[0];
+      await updateDoc(doc(db, "devices", existingDoc.id), { status: 'online', updated_at: serverTimestamp() });
+      navigate(`/camera/${existingDoc.id}`);
       return;
     }
 
     setRegistering(true);
-    const { data, error } = await supabase.from("devices").insert({
-      user_id: user.id,
-      name: deviceName,
-      type: "camera" as const,
-      status: "online" as const,
-      pairing_code: Math.random().toString(36).substring(2, 8).toUpperCase()
-    }).select().single();
-
-    if (error) {
-      toast({ title: "Error", description: "Failed to initialize camera mode.", variant: "destructive" });
+    try {
+      const docRef = await addDoc(collection(db, "devices"), {
+        user_id: user.uid,
+        name: deviceName,
+        type: "camera",
+        status: "online",
+        pairing_code: Math.random().toString(36).substring(2, 8).toUpperCase(),
+        created_at: serverTimestamp(),
+        updated_at: serverTimestamp()
+      });
+      navigate(`/camera/${docRef.id}`);
+    } catch (e) {
+      toast({ title: "Error", description: "Failed to start camera mode.", variant: "destructive" });
       setRegistering(false);
-    } else if (data) {
-      navigate(`/camera/${data.id}`);
+    }
+  };
+
+  const handleSmartCleanup = async () => {
+    if (!user) return;
+    setLoading(true);
+    try {
+      const q = query(collection(db, "alerts"), where("user_id", "==", user.uid));
+      const snap = await getDocs(q);
+      const toDelete = snap.docs.filter(d => {
+        const data = d.data();
+        // Delete if older than 24h AND not starred
+        const isOld = data.created_at?.toDate ? (Date.now() - data.created_at.toDate().getTime() > 24 * 60 * 60 * 1000) : false;
+        return isOld && !data.starred;
+      });
+
+      if (toDelete.length === 0) {
+        toast({ title: "Storage Optimized", description: "No old or unnecessary clips to remove." });
+      } else {
+        const batchSize = 10;
+        for (let i = 0; i < toDelete.length; i += batchSize) {
+          const batch = toDelete.slice(i, i + batchSize);
+          await Promise.all(batch.map(d => deleteDoc(d.ref)));
+        }
+        toast({ title: "Cleaned Up", description: `Removed ${toDelete.length} old clips to free up mesh storage.` });
+      }
+    } catch (e) {
+      toast({ title: "Cleanup Failed", variant: "destructive" });
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleDeleteDevice = async (id: string, name: string) => {
     try {
-      const { error } = await supabase.from("devices").delete().eq("id", id);
-      if (error) throw error;
+      await deleteDoc(doc(db, "devices", id));
       toast({ title: "Device Removed", description: `${name} has been deleted.` });
       setDevices(prev => prev.filter(d => d.id !== id));
     } catch (error) {
@@ -184,214 +286,117 @@ const Dashboard = () => {
     }
   };
 
+  const resetAllDevices = async () => {
+    if (!user) return;
+    if (!confirm("Delete ALL devices and cameras? You'll need to re-register them.")) return;
+    try {
+      const q = query(collection(db, "devices"), where("user_id", "==", user.uid));
+      const snapshot = await getDocs(q);
+      for (const d of snapshot.docs) {
+        await deleteDoc(d.ref);
+      }
+      toast({ title: "All Devices Cleared", description: "You can now re-register your cameras." });
+    } catch (e) {
+      toast({ title: "Error", description: "Failed to reset devices.", variant: "destructive" });
+    }
+  };
+
   return (
     <AppLayout>
-      <div className="p-3 space-y-4 max-w-7xl mx-auto">
-
-        {/* ZoomOn-Style Mode Selector */}
-        <div className="zoomon-card relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-80 h-80 bg-primary/20 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2 pointer-events-none group-hover:bg-primary/30 transition-colors duration-700" />
-
-          <div className="flex flex-col xl:flex-row items-center justify-between gap-4 relative z-10">
-            <div className="text-center xl:text-left space-y-1">
-              <h2 className="text-xl font-black tracking-tighter uppercase leading-none">Setup Mode</h2>
-              <p className="text-sm text-muted-foreground max-w-xl font-medium">
-                Choose how this device should operate.
-              </p>
-            </div>
-
-            <div className="flex flex-col sm:flex-row w-full xl:w-auto gap-5">
-              <Button
-                size="sm"
-                className="zoomon-btn-large flex-1 sm:min-w-[200px] bg-primary/20 hover:bg-primary/30 border-2 border-primary text-primary shadow-lg instant-hover"
-                onClick={handleUseAsViewer}
-                disabled={registering}
-              >
-                <MonitorSmartphone className="h-5 w-5" />
-                <span className="text-base uppercase">Viewer Mode</span>
-              </Button>
-
-              <Button
-                size="sm"
-                variant="outline"
-                className="zoomon-btn-large flex-1 sm:min-w-[200px] bg-muted/30 border-2 border-border/50 hover:bg-muted/50 instant-hover"
-                onClick={handleUseAsCamera}
-                disabled={registering}
-              >
-                {registering ? (
-                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                ) : (
-                  <Camera className="h-5 w-5 text-muted-foreground" />
-                )}
-                <span className="text-base uppercase">Camera Mode</span>
-              </Button>
-            </div>
+      <div className="p-6 h-full flex flex-col justify-center max-w-4xl mx-auto space-y-16">
+        <motion.div 
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, ease: "easeOut" }}
+          className="space-y-6 text-center"
+        >
+          <Logo size="lg" className="h-24 w-24 mx-auto drop-shadow-2xl animate-float" />
+          <div className="space-y-2">
+            <h1 className="text-6xl font-extrabold tracking-tight leading-none text-white selection:bg-primary selection:text-black">
+              HGUARD <span className="text-primary/90">ELITE</span>
+            </h1>
+            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-[0.5em]">
+              Elite Mesh Surveillance
+            </p>
           </div>
-        </div>
+        </motion.div>
 
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h1 className="text-xl font-black tracking-tighter uppercase">My Cameras</h1>
-            <div className="flex items-center gap-3">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => {
-                  setLoading(true);
-                  // Trigger effect again or just call fetchData manually if it was closure-scoped
-                  // Actually easier to just refresh the page or recall logic.
-                  window.location.reload();
-                }}
-                className="h-8 w-8 rounded-full text-muted-foreground hover:text-primary transition-colors"
-              >
-                <RefreshCcw className="h-4 w-4" />
-              </Button>
-              {devices.length > 1 && (
-                <Link to="/live/all">
-                  <Button variant="outline" size="sm" className="hidden sm:flex gap-2 h-8 rounded-full font-bold uppercase text-[10px] tracking-widest border-primary/50 text-primary hover:bg-primary/10 transition-colors">
-                    <LayoutGrid className="h-4 w-4" /> Watch All Live
-                  </Button>
-                  <Button variant="outline" size="icon" className="sm:hidden h-8 w-8 rounded-full border-primary/50 text-primary hover:bg-primary/10 transition-colors">
-                    <LayoutGrid className="h-4 w-4" />
-                  </Button>
-                </Link>
-              )}
-              {unreadAlerts > 0 && (
-                <Link to="/alerts">
-                  <Badge variant="destructive" className="h-8 px-3 text-[10px] font-black rounded-full shadow-lg">
-                    {unreadAlerts} NEW
-                  </Badge>
-                </Link>
-              )}
-            </div>
-          </div>
-
-          {loading ? (
-            <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="zoomon-card animate-pulse h-64 bg-muted/20" />
-              ))}
-            </div>
-          ) : devices.length === 0 ? (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center gap-6 py-24 px-4 text-center">
-              <div className="flex h-32 w-32 items-center justify-center rounded-full bg-primary/10 glow-primary border-2 border-primary/20">
-                <Camera className="h-14 w-14 text-primary" />
-              </div>
-              <h2 className="text-3xl font-black tracking-tighter uppercase">No Active Cameras</h2>
-              <p className="text-xl text-muted-foreground max-w-md font-medium leading-relaxed">
-                Connect your first device by selecting <span className="text-primary">"Use as Camera"</span> on another phone.
-              </p>
-            </motion.div>
-          ) : (
-            <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-              <AnimatePresence>
-                {devices.map((device) => {
-                  const status = statusConfig[device.status];
-                  const StatusIcon = status.icon;
-                  return (
-                    <motion.div
-                      key={device.id}
-                      initial={{ opacity: 0, scale: 0.9 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.9 }}
-                      whileHover={{ scale: 1.02 }}
-                      transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                      layout
-                    >
-                      <div className="relative group/device">
-                        <Link to={`/live/${device.id}`}>
-                          <Card className={`group relative zoomon-card cursor-pointer overflow-hidden border-2 transition-all duration-300 hover:border-primary px-0 py-0 ${status.className}`}>
-                            <div className="relative aspect-video bg-black overflow-hidden rounded-t-[1.8rem]">
-                              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent z-10" />
-
-                              <div className="absolute inset-0 flex items-center justify-center">
-                                <Camera className="h-16 w-16 text-white/5 group-hover:text-primary/20 transition-colors duration-500" />
-                              </div>
-
-                              <div className="absolute right-4 top-4 z-20 flex gap-2">
-                                <div className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-black uppercase backdrop-blur-xl border-2 shadow-xl ${device.status === 'online' ? 'bg-green-500/80 border-green-400' : 'bg-black/60 border-white/20'}`}>
-                                  <span className={`h-3 w-3 rounded-full ${status.color} ${device.status === "recording" ? "animate-pulse" : ""}`} />
-                                  <span className="text-white">{status.label}</span>
-                                </div>
-                              </div>
-                            </div>
-
-                            <CardContent className="p-4">
-                              <div className="flex items-center justify-between gap-3">
-                                <div className="min-w-0">
-                                  <h3 className="text-lg font-black tracking-tighter uppercase truncate group-hover:text-primary transition-colors">{device.name}</h3>
-                                  <div className="flex items-center gap-2">
-                                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Active Stream</p>
-                                    {device.last_seen && (
-                                      <span className="text-[9px] font-black text-primary/60 bg-primary/5 px-2 py-0.5 rounded-full">
-                                        Seen {new Date(device.last_seen).toLocaleTimeString([], { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                                <div className="h-10 w-10 rounded-xl bg-muted/50 flex items-center justify-center border-2 border-border/20 group-hover:bg-primary group-hover:border-primary transition-all duration-300">
-                                  <StatusIcon className={cn("h-5 w-5 transition-colors", device.status === 'online' ? "text-primary-foreground" : "text-muted-foreground group-hover:text-primary-foreground")} />
-                                </div>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        </Link>
-
-                        <div className="absolute left-4 top-4 z-50 opacity-0 group-hover/device:opacity-100 transition-opacity">
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button
-                                variant="destructive"
-                                size="icon"
-                                className="h-9 w-9 rounded-full shadow-2xl border-2 border-white/10 hover:scale-110 active:scale-95 transition-all"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent className="bg-zinc-950 border border-zinc-800 text-white rounded-3xl max-w-[340px]">
-                              <AlertDialogHeader>
-                                <AlertDialogTitle className="text-xl font-black uppercase tracking-tighter">Remove Camera?</AlertDialogTitle>
-                                <AlertDialogDescription className="text-zinc-400 font-medium">
-                                  This will permanently remove <b>{device.name}</b> from your dashboard.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter className="mt-4 gap-2">
-                                <AlertDialogCancel className="bg-zinc-900 border-zinc-800 text-white hover:bg-zinc-800 hover:text-white rounded-xl font-bold uppercase tracking-widest text-[10px]">Cancel</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => handleDeleteDevice(device.id, device.name)}
-                                  className="bg-destructive hover:bg-destructive/90 text-white rounded-xl font-bold uppercase tracking-widest text-[10px] shadow-[0_5px_15px_rgba(255,0,0,0.3)]"
-                                >
-                                  Delete
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </div>
-                      </div>
-                    </motion.div>
-                  );
-                })}
-              </AnimatePresence>
-            </div>
-          )}
-          {/* Danger Zone: Cache Clearing */}
-          <div className="mt-12 pt-8 border-t border-destructive/20">
-            <h2 className="text-sm font-bold text-destructive uppercase tracking-widest mb-4">Diagnostic Tools</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-3xl mx-auto w-full">
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.2 }}
+          >
             <Button
-              variant="outline"
-              className="w-full border-destructive/30 text-destructive hover:bg-destructive/10 transition-colors uppercase font-black text-[10px] tracking-[0.2em] h-12 rounded-2xl"
-              onClick={() => {
-                if (confirm("This will reset your device's unique identity. Do this if cameras are not appearing. The app will reload. Continue?")) {
-                  localStorage.removeItem("hguard_device_persistent_id");
-                  localStorage.removeItem("pending_cam_alerts");
-                  window.location.reload();
-                }
-              }}
+              size="lg"
+              onClick={handleUseAsCamera}
+              disabled={registering}
+              className="group relative h-48 w-full bg-white/[0.03] hover:bg-white/[0.08] border border-white/10 hover:border-primary/50 text-white rounded-[2rem] transition-all duration-500 flex flex-col gap-4 items-center justify-center overflow-hidden"
             >
-              Reset Device Identity & Cache
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="p-4 rounded-2xl bg-primary/10 text-primary group-hover:scale-110 transition-transform duration-500">
+                <Camera className="h-8 w-8" />
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold tracking-tight">Camera Mode</div>
+                <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mt-1">Broadcast this device</div>
+              </div>
             </Button>
-          </div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.3 }}
+          >
+            <Button
+              size="lg"
+              onClick={() => { handleUseAsViewer(); navigate('/live/all'); }}
+              disabled={registering}
+              className="group relative h-48 w-full bg-white/[0.03] hover:bg-white/[0.08] border border-white/10 hover:border-blue-500/50 text-white rounded-[2rem] transition-all duration-500 flex flex-col gap-4 items-center justify-center overflow-hidden"
+            >
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="p-4 rounded-2xl bg-blue-500/10 text-blue-400 group-hover:scale-110 transition-transform duration-500">
+                <MonitorSmartphone className="h-8 w-8" />
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold tracking-tight">Viewer Center</div>
+                <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mt-1">Monitor active feeds</div>
+              </div>
+            </Button>
+          </motion.div>
         </div>
+
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.5, duration: 1 }}
+          className="pt-12 border-t border-white/5 space-y-8"
+        >
+          <div className="flex flex-col items-center gap-4">
+            <span className="text-[10px] font-bold text-white/30 uppercase tracking-[0.3em]">Network Topology</span>
+            <div className="flex flex-wrap justify-center gap-8">
+               <div className="flex items-center gap-3 group translate-z-0">
+                 <div className="relative flex h-2 w-2">
+                    <div className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-40"></div>
+                    <div className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></div>
+                 </div>
+                 <span className="text-[10px] font-bold uppercase tracking-widest text-white/60 group-hover:text-white transition-colors">Mesh Cloud Active</span>
+               </div>
+               <div className="flex items-center gap-3 group">
+                 <div className="h-2 w-2 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" />
+                 <span className="text-[10px] font-bold uppercase tracking-widest text-white/60 group-hover:text-white transition-colors">Drive Sync Enabled</span>
+               </div>
+            </div>
+          </div>
+          
+          <div className="flex flex-col items-center gap-3">
+             <div className="px-5 py-2.5 rounded-full bg-white/[0.02] border border-white/5 backdrop-blur-md flex items-center gap-3 transition-colors hover:bg-white/[0.05]">
+                <span className="text-[9px] font-bold text-white/20 uppercase tracking-widest">Global Endpoint</span>
+                <a href="https://hguard-elite.web.app" target="_blank" className="text-[11px] font-medium text-primary/80 hover:text-primary transition-colors">hguard-elite.web.app</a>
+             </div>
+          </div>
+        </motion.div>
       </div>
     </AppLayout>
   );

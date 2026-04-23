@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { auth, db } from "@/lib/firebase";
+import { doc, getDoc, updateDoc, onSnapshot } from "firebase/firestore";
 
 export type ThemeType =
     | "dark-blue"
@@ -17,55 +18,17 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const [theme, setThemeState] = useState<ThemeType>(() => {
-        return (localStorage.getItem("app-theme") as ThemeType) || "dark-blue";
-    });
-
-    // Sync theme with Supabase metadata on mount
-    useEffect(() => {
-        async function syncTheme() {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (user?.user_metadata?.theme) {
-                const cloudTheme = user.user_metadata.theme as ThemeType;
-                if (cloudTheme !== theme) {
-                    setThemeState(cloudTheme);
-                    localStorage.setItem("app-theme", cloudTheme);
-                }
-            }
-        }
-        syncTheme();
-    }, []);
-
-    const setTheme = async (newTheme: ThemeType) => {
-        setThemeState(newTheme);
-        localStorage.setItem("app-theme", newTheme);
-
-        // Save to Supabase metadata if logged in
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-            await supabase.auth.updateUser({
-                data: { theme: newTheme }
-            });
-        }
-    };
+    const [theme] = useState<ThemeType>("dark-onyx");
 
     useEffect(() => {
         const root = window.document.documentElement;
-        // Remove all possible theme classes
-        root.classList.remove(
-            "dark-blue", "dark-onyx", "dark-slate",
-            "pastel", "light-pure", "light-cream"
-        );
-        // Add new theme class
-        root.classList.add(theme);
+        root.classList.remove(...root.classList); // Clear all classes
+        root.classList.add("dark", "dark-onyx");
+    }, []);
 
-        // Also toggle standard 'dark' class for shadcn/components compatibility
-        if (theme.startsWith("dark")) {
-            root.classList.add("dark");
-        } else {
-            root.classList.remove("dark");
-        }
-    }, [theme]);
+    const setTheme = async () => {
+        // No-op to disable theme switching
+    };
 
     return (
         <ThemeContext.Provider value={{ theme, setTheme }}>

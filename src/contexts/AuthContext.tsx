@@ -1,19 +1,49 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
-import { User, Session } from "@supabase/supabase-js";
-import { supabase } from "@/integrations/supabase/client";
+import React, { createContext, useContext, useEffect, useState, useRef } from "react";
+import {
+  User,
+  onAuthStateChanged,
+  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
+  signOut as firebaseSignOut,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  sendPasswordResetEmail,
+  GoogleAuthProvider,
+  setPersistence,
+  browserLocalPersistence
+} from "firebase/auth";
+import { auth, db, googleProvider } from "@/lib/firebase";
+import { 
+  doc, 
+  getDoc, 
+  setDoc, 
+  onSnapshot, 
+  collection, 
+  query, 
+  where, 
+  getDocs, 
+  deleteDoc,
+  Timestamp,
+  serverTimestamp,
+  updateDoc
+} from "firebase/firestore";
+import { aiOrchestrator } from "@/lib/ai/aiOrchestrator";
 import { useNavigate } from "react-router-dom";
 
 interface AuthContextType {
   user: User | null;
-  session: Session | null;
+  profileData: any | null;
   loading: boolean;
   isApproved: boolean;
   isAdmin: boolean;
-  signUp: (email: string, password: string, displayName?: string) => Promise<void>;
-  signIn: (email: string, password: string) => Promise<void>;
+  aiDegraded: boolean;
+  aiEventsThisMonth: number;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
-  resetPassword: (email: string) => Promise<void>;
+  signUp: (email: string, password: string) => Promise<void>;
+  signIn: (email: string, password: string) => Promise<void>;
+  forceLogoutAllDevices: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
@@ -24,103 +54,238 @@ const ADMIN_EMAIL = "successpartner10@gmail.com";
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
+  const [profileData, setProfileData] = useState<any | null>(null);
   const [isApproved, setIsApproved] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [aiEventsThisMonth, setAiEventsThisMonth] = useState(0);
 
   const isAdmin = user?.email === ADMIN_EMAIL;
+  const AI_EVENT_LIMIT = 1000;
+  const aiDegraded = aiEventsThisMonth >= AI_EVENT_LIMIT;
 
-  const fetchProfile = async (userId: string, email?: string) => {
-    const isPrimaryAdmin = email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
-    console.log(`[AuthContext] Checking approval for ${email}. IsPrimaryAdmin: ${isPrimaryAdmin}`);
-    try {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("is_approved")
-        .eq("user_id", userId)
-        .single();
+  // Record when this browser session started — used to detect force-reauth from other devices
+  const sessionStartTime = useRef<number>(
+    (() => {
+      const stored = sessionStorage.getItem("hguard_session_start");
+      if (stored) return parseInt(stored, 10);
+      const now = Date.now();
+      sessionStorage.setItem("hguard_session_start", String(now));
+      return now;
+    })()
+  ).current;
 
-      if (!error && data) {
-        setIsApproved((data as any).is_approved || isPrimaryAdmin);
-      } else {
-        setIsApproved(isPrimaryAdmin);
+  const handleCredential = (credential: any) => {
+    if (credential) {
+      const token = (credential as any).accessToken;
+      if (token) {
+        console.log("[Auth] Captured Google Drive Access Token");
+        localStorage.setItem("google_drive_token", token);
       }
-    } catch (e) {
-      console.error("Error fetching profile:", e);
-      setIsApproved(isPrimaryAdmin);
     }
   };
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      const currentUser = session?.user ?? null;
-      setUser(currentUser);
-      if (currentUser) {
-        fetchProfile(currentUser.id, currentUser.email).finally(() => setLoading(false));
-      } else {
-        setIsApproved(false);
-        setLoading(false);
-      }
-    });
+    const initAuth = async () => {
+      try {
+        // 1. Force persistence mode first
+        await setPersistence(auth, browserLocalPersistence);
+        console.log("[Auth] Persistence set to Local");
 
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setSession(session);
-      const currentUser = session?.user ?? null;
-      setUser(currentUser);
-      if (currentUser) {
-        await fetchProfile(currentUser.id, currentUser.email);
-      } else {
-        setIsApproved(false);
+        // 2. Handle redirect result BEFORE onAuthStateChanged fires too many updates
+        const result = await getRedirectResult(auth);
+        if (result) {
+          console.log("[Auth] Redirect result processed for:", result.user.email);
+          const credential = GoogleAuthProvider.credentialFromResult(result);
+          handleCredential(credential);
+        }
+      } catch (error: any) {
+        console.error("[Auth] Initialization error:", error.code, error.message);
       }
+      // Do NOT setLoading(false) here — let onAuthStateChanged be the sole authority
+    };
+
+    initAuth();
+    
+    let unsubscribeProfile: () => void;
+
+    const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
+      setUser(currentUser);
+      console.log("[Auth] onAuthStateChanged:", currentUser ? `${currentUser.email} (${currentUser.uid})` : "no user");
+ 
+      if (currentUser) {
+        try {
+          const isPrimaryAdmin = currentUser.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+          const docRef = doc(db, "profiles", currentUser.uid);
+ 
+          // Fast-track admin approval state for UI
+          if (isPrimaryAdmin) setIsApproved(true);
+
+          const docSnap = await getDoc(docRef).catch(err => {
+            console.error("[Auth] Profile getDoc failed:", err);
+            return null;
+          });
+ 
+          if (docSnap && !docSnap.exists()) {
+            console.log("[Auth] Profile missing. Creating...");
+            await setDoc(docRef, {
+              email: currentUser.email,
+              display_name: currentUser.displayName || "",
+              is_approved: isPrimaryAdmin,
+              auto_upgrade_ai: true,
+              ai_provider: 'gemma',
+              created_at: new Date().toISOString()
+            }).catch(e => console.error("[Auth] Profile creation failed:", e));
+          }
+ 
+          unsubscribeProfile = onSnapshot(docRef, async (snap) => {
+            const isPrimaryAdmin = currentUser.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+            if (isPrimaryAdmin) setIsApproved(true);
+            
+            if (snap.exists()) {
+              const data = snap.data();
+              console.log("[Auth] Profile snapshot update received.");
+
+              // ── Force Reauth Check ──────────────────────────────────────────
+              // If another device (or admin) triggered a global logout after this
+              // session started, sign out, clear all local caches, and reload.
+              const forceReauthAt: number | undefined = data.force_reauth_at?.toMillis
+                ? data.force_reauth_at.toMillis()
+                : typeof data.force_reauth_at === 'number'
+                  ? data.force_reauth_at
+                  : undefined;
+              if (forceReauthAt && forceReauthAt > sessionStartTime) {
+                console.warn("[Auth] Force reauth detected — clearing session and signing out.");
+                await firebaseSignOut(auth);
+                // Nuke all local storage & caches
+                localStorage.clear();
+                sessionStorage.clear();
+                if ('caches' in window) {
+                  const keys = await caches.keys();
+                  await Promise.all(keys.map(k => caches.delete(k)));
+                }
+                window.location.href = "/login";
+                return;
+              }
+              // ───────────────────────────────────────────────────────────────
+
+              setProfileData(data);
+              setIsApproved(data.is_approved || isPrimaryAdmin);
+              
+              if (data.ai_provider) {
+                aiOrchestrator.setProvider(data.ai_provider);
+              }
+
+              // Monthly reset logic...
+              const currentMonth = new Date().getMonth();
+              if (data.ai_reset_month !== currentMonth) {
+                const { updateDoc: updateDocFn } = await import('firebase/firestore');
+                await updateDocFn(docRef, { ai_events_this_month: 0, ai_reset_month: currentMonth }).catch(() => {});
+                setAiEventsThisMonth(0);
+              } else {
+                setAiEventsThisMonth(data.ai_events_this_month || 0);
+              }
+            }
+          }, (err) => console.error("[Auth] Profile snapshot error:", err));
+          // NUCLEAR CLEANUP: If Admin, purge any 'Ghost' devices older than 5 minutes
+          if (isPrimaryAdmin) {
+            const cleanupMesh = async () => {
+              console.log("[Auth] Starting Nuclear Mesh Cleanup...");
+              const now = Date.now();
+              const twoMinutesAgo = new Date(now - 2 * 60 * 1000);
+              
+              const devicesRef = collection(db, "devices");
+              const q = query(devicesRef, where("user_id", "==", currentUser.uid));
+              const snap = await getDocs(q);
+              
+              let purgeCount = 0;
+              for (const d of snap.docs) {
+                const data = d.data();
+                const updatedAt = data.updated_at?.toDate ? data.updated_at.toDate() : new Date(0);
+                
+                // Nuclear rule: If offline AND older than 2 mins
+                if (updatedAt < twoMinutesAgo) {
+                  console.log(`[Auth] Purging stale ghost device: ${d.id} (${data.name})`);
+                  await deleteDoc(doc(db, "devices", d.id)).catch(() => {});
+                  purgeCount++;
+                }
+              }
+              if (purgeCount > 0) console.log(`[Auth] Purged ${purgeCount} stale instances.`);
+            };
+            cleanupMesh();
+          }
+
+        } catch (error) {
+          console.error("[Auth] Initialization error:", error);
+        }
+      } else {
+        setProfileData(null);
+        setIsApproved(false);
+        if (unsubscribeProfile) unsubscribeProfile();
+        localStorage.removeItem("google_drive_token");
+      }
+ 
       setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      unsubscribeAuth();
+      if (unsubscribeProfile) unsubscribeProfile();
+    };
   }, []);
 
-  const signUp = async (email: string, password: string, displayName?: string) => {
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: window.location.origin,
-        data: { display_name: displayName },
-      },
-    });
-    if (error) throw error;
+  const signInWithGoogle = async () => {
+    try {
+      console.log("[Auth] signInWithGoogle invoked.");
+      googleProvider.setCustomParameters({ prompt: "select_account" });
+
+      // ALWAYS try popup first — signInWithRedirect is broken by Chrome's COOP policy
+      try {
+        const result = await signInWithPopup(auth, googleProvider);
+        const credential = GoogleAuthProvider.credentialFromResult(result);
+        handleCredential(credential);
+        console.log("[Auth] Popup sign-in succeeded.");
+      } catch (popupError: any) {
+        // Only fall back to redirect if popup was truly blocked by the browser
+        if (popupError.code === 'auth/popup-blocked') {
+          console.log("[Auth] Popup blocked — falling back to Redirect.");
+          await signInWithRedirect(auth, googleProvider);
+        } else if (popupError.code === 'auth/popup-closed-by-user') {
+          console.log("[Auth] User closed popup.");
+          // Don't throw — user intentionally cancelled
+        } else {
+          throw popupError;
+        }
+      }
+    } catch (error: any) {
+      console.error("[Auth] Google Sign-In failed:", error.code, error.message);
+      throw error;
+    }
+  };
+
+  const signUp = async (email: string, password: string) => {
+    await createUserWithEmailAndPassword(auth, email, password);
   };
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw error;
-  };
-
-  const signInWithGoogle = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        scopes: 'https://www.googleapis.com/auth/drive.file',
-        redirectTo: `${window.location.origin}/dashboard`
-      }
-    });
-    if (error) throw error;
+    await signInWithEmailAndPassword(auth, email, password);
   };
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
+    await firebaseSignOut(auth);
+    localStorage.removeItem("google_drive_token");
   };
 
-  const resetPassword = async (email: string) => {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
+  // Writes a force_reauth_at timestamp to Firestore.
+  // Every device listening via onSnapshot will detect this and sign itself out.
+  const forceLogoutAllDevices = async () => {
+    if (!user) return;
+    await updateDoc(doc(db, "profiles", user.uid), {
+      force_reauth_at: serverTimestamp()
     });
-    if (error) throw error;
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, isApproved, isAdmin, signUp, signIn, signInWithGoogle, signOut, resetPassword }}>
+    <AuthContext.Provider value={{ user, profileData, loading, isApproved, isAdmin, aiDegraded, aiEventsThisMonth, signInWithGoogle, signOut, signUp, signIn, forceLogoutAllDevices }}>
       {children}
     </AuthContext.Provider>
   );

@@ -1,10 +1,18 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { db } from "@/lib/firebase";
+import {
+    collection,
+    query,
+    orderBy,
+    getDocs,
+    doc,
+    updateDoc
+} from "firebase/firestore";
 import { useAuth } from "@/contexts/AuthContext";
 import AppLayout from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { UserCheck, UserX, Shield, Mail, Calendar } from "lucide-react";
+import { UserCheck, UserX, Shield, Mail, Calendar, Share2 } from "lucide-react";
 import { format } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
@@ -34,19 +42,19 @@ const UserManagement = () => {
     const fetchUsers = async () => {
         try {
             setLoading(true);
-            // We fetch from profiles which is linked to auth.users
-            const { data, error } = await supabase
-                .from("profiles")
-                .select("*")
-                .order("created_at", { ascending: false });
+            const q = query(collection(db, "profiles"), orderBy("created_at", "desc"));
+            const querySnapshot = await getDocs(q);
 
-            if (error) {
-                toast({ title: "Fetch Failed", description: error.message, variant: "destructive" });
-            } else if (data) {
-                setUsers(data as UserProfile[]);
-            }
-        } catch (err) {
+            const userData = querySnapshot.docs.map(doc => ({
+                id: doc.id,
+                user_id: doc.id, // In our setup doc.id is uid
+                ...doc.data()
+            })) as UserProfile[];
+
+            setUsers(userData);
+        } catch (err: any) {
             console.error(err);
+            toast({ title: "Fetch Failed", description: err.message, variant: "destructive" });
         } finally {
             setLoading(false);
         }
@@ -54,22 +62,16 @@ const UserManagement = () => {
 
     const handleToggleApproval = async (userId: string, currentStatus: boolean) => {
         try {
-            const { error } = await supabase
-                .from("profiles")
-                .update({ is_approved: !currentStatus } as any)
-                .eq("user_id", userId);
+            const docRef = doc(db, "profiles", userId);
+            await updateDoc(docRef, { is_approved: !currentStatus });
 
-            if (error) {
-                toast({ title: "Update Failed", description: "Database error or permission denied.", variant: "destructive" });
-            } else {
-                setUsers(prev => prev.map(u => u.user_id === userId ? { ...u, is_approved: !currentStatus } : u));
-                toast({
-                    title: !currentStatus ? "User Approved" : "Access Revoked",
-                    description: `Permissions updated for the network node.`
-                });
-            }
-        } catch (e) {
-            toast({ title: "System Error", variant: "destructive" });
+            setUsers(prev => prev.map(u => u.user_id === userId ? { ...u, is_approved: !currentStatus } : u));
+            toast({
+                title: !currentStatus ? "User Approved" : "Access Revoked",
+                description: `Permissions updated for the network node.`
+            });
+        } catch (e: any) {
+            toast({ title: "Update Failed", description: e.message, variant: "destructive" });
         }
     };
 
@@ -86,12 +88,25 @@ const UserManagement = () => {
     return (
         <AppLayout>
             <div className="p-6 space-y-10 max-w-4xl mx-auto pb-32 tracking-tighter">
-                <div className="space-y-2">
-                    <div className="flex items-center gap-3 text-primary">
-                        <Shield className="w-10 h-10" />
-                        <h1 className="text-4xl font-black uppercase leading-none">Gatekeeper</h1>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="space-y-2">
+                        <div className="flex items-center gap-3 text-primary">
+                            <Shield className="w-10 h-10" />
+                            <h1 className="text-4xl font-black uppercase leading-none">Gatekeeper</h1>
+                        </div>
+                        <p className="text-lg text-muted-foreground font-medium">Manage secure network access and approve new nodes.</p>
                     </div>
-                    <p className="text-lg text-muted-foreground font-medium">Manage secure network access and approve new nodes.</p>
+                    <Button 
+                        variant="outline" 
+                        onClick={() => {
+                            const link = `${window.location.origin}/login?ref=successpartner10`;
+                            navigator.clipboard.writeText(link);
+                            toast({ title: "Invite Link Copied", description: "Send this to your friend to join the network." });
+                        }}
+                        className="h-14 px-8 rounded-2xl border-2 border-primary/20 bg-primary/5 font-black uppercase tracking-widest text-xs hover:bg-primary/10 transition-all"
+                    >
+                        <Share2 className="w-5 h-5 mr-2" /> COPY INVITE LINK
+                    </Button>
                 </div>
 
                 <div className="grid gap-4">
@@ -110,8 +125,8 @@ const UserManagement = () => {
                                     exit={{ opacity: 0, scale: 0.95 }}
                                 >
                                     <div className={cn(
-                                        "relative overflow-hidden p-6 rounded-[2.5rem] border-2 transition-all flex items-center justify-between gap-6",
-                                        profile.is_approved ? "bg-primary/5 border-primary/20" : "bg-card/40 border-border/40 grayscale-[0.5]"
+                                        "relative overflow-hidden p-6 rounded-[2.5rem] border-2 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-6",
+                                        profile.is_approved ? "bg-primary/5 border-primary/20" : "bg-orange-500/10 border-orange-500/40 animate-pulse-subtle shadow-[0_0_20px_rgba(249,115,22,0.1)]"
                                     )}>
                                         <div className="flex items-center gap-6">
                                             <div className={cn(

@@ -4,31 +4,67 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>hGuard - Elite Home Security</title>
+  <title>HGUARD v2.5.1 - Elite Home Security</title>
   <meta name="description"
-    content="Turn any device into an elite security camera with hGuard. Private, encrypted, and free." />
-  <meta name="theme-color" content="#0e1116" />
+    content="Turn any device into an elite security camera with HGUARD. Private, encrypted, and free." />
+  <meta name="theme-color" content="#000000" />
   <meta property="og:title" content="hGuard - Private Security Cam" />
   <meta property="og:description"
     content="Elite AI security camera protocol. Secure, private, and powered by hGuard." />
   <meta property="og:type" content="website" />
-  <meta property="og:image" content="/logo.png" />
+  <meta property="og:image" content="/gsd_elite_final_handover_v1.png" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:image" content="/logo.png" />
-  <link rel="icon" href="/logo.png" />
+  <meta name="twitter:image" content="/gsd_elite_final_handover_v1.png" />
+  <link rel="icon" href="/gsd_elite_final_handover_v1.png" />
   <link rel="manifest" href="/manifest.json" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <script>
+    // Silent error logging — never block the UI with alert() in production
+    window.onerror = function (msg, url, lineNo, columnNo, error) {
+      console.error("[hGuard]", msg, url, lineNo);
+      return true;
+    };
+    window.onunhandledrejection = function (event) {
+      console.warn("[hGuard] Unhandled:", event.reason?.message || event.reason);
+      event.preventDefault();
+    };
+    // Always aggressively unregister any stale Service Workers on load
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.getRegistrations().then(function(registrations) {
+        for (let r of registrations) {
+          r.unregister();
+          console.log("[hGuard] Stale SW unregistered.");
+        }
+      });
+      caches.keys().then(function(names) {
+        for (let name of names) caches.delete(name);
+      });
+    }
+  </script>
 </head>
 
 <body>
   <div id="root"></div>
   <script type="module" src="/src/main.tsx"></script>
   <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/dev-sw.js?dev-sw', { type: 'module' })
-          .catch(error => console.log('SW registration failed:', error));
+    if (window.location.search.includes('reset=true')) {
+      // Nuclear reset: clear ALL caches and service workers
+      Promise.all([
+        // Unregister all service workers
+        navigator.serviceWorker ? navigator.serviceWorker.getRegistrations().then(function (regs) {
+          return Promise.all(regs.map(function (r) { return r.unregister(); }));
+        }) : Promise.resolve(),
+        // Clear all Cache Storage
+        caches ? caches.keys().then(function (names) {
+          return Promise.all(names.map(function (n) { return caches.delete(n); }));
+        }) : Promise.resolve()
+      ]).then(function () {
+        // Redirect without ?reset=true
+        window.location.href = window.location.origin + window.location.pathname;
       });
     }
   </script>

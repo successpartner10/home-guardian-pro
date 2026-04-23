@@ -1,9 +1,18 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { useParams, useNavigate, Link } from "react-router-dom";
+import { db } from "@/lib/firebase";
+import {
+  doc,
+  getDoc,
+  updateDoc,
+  onSnapshot,
+  collection,
+  addDoc,
+  serverTimestamp
+} from "firebase/firestore";
 import { useWebRTC } from "@/hooks/useWebRTC";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Wifi, WifiOff, Volume2, VolumeX, Camera, Maximize, RefreshCw, Box, Flashlight, AlertTriangle, Users, RotateCw, ChevronRight, Share2, Copy, Check } from "lucide-react";
+import { ArrowLeft, Wifi, WifiOff, Volume2, VolumeX, Camera, Maximize, RefreshCw, Box, Flashlight, FlashlightOff, AlertTriangle, Users, RotateCw, ChevronRight, Share2, Copy, Check, Maximize2, Moon, Sun, Mic, Brain } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -31,13 +40,19 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger
 } from "@/components/ui/alert-dialog";
-import { RadarOverlay, BoundingBoxesOverlay, filterObjects, type CategoryId, DETECTION_CATEGORIES } from "@/components/AIOverlays";
+
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
-import type { Tables } from "@/integrations/supabase/types";
+import { Logo } from "@/components/Logo";
+import { AIOverlays } from "@/components/AIOverlays";
 
-type Device = Tables<"devices">;
+interface Device {
+  id: string;
+  name: string;
+  status: string;
+  settings?: any;
+}
 
 const LiveFeed = () => {
   const { deviceId } = useParams<{ deviceId: string }>();
@@ -47,31 +62,18 @@ const LiveFeed = () => {
   const [muted, setMuted] = useState(true);
   const [loading, setLoading] = useState(true);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
+  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+  const [isTalking, setIsTalking] = useState(false);
+  const [playAttempted, setPlayAttempted] = useState(false);
 
-  const [detectedObjects, setDetectedObjects] = useState<any[]>([]);
   const [zoomLevel, setZoomLevel] = useState(1);
   const [zoomCenter, setZoomCenter] = useState({ x: 50, y: 50 });
-  const [activeCategories, setActiveCategories] = useState<Set<CategoryId>>(new Set(["all"]));
   const [isFlashOn, setIsFlashOn] = useState(false);
   const [isSirenOn, setIsSirenOn] = useState(false);
+  const [isNightVision, setIsNightVision] = useState(false);
+  const [isAiActive, setIsAiActive] = useState(false);
+  const [aiAnalysis, setAiAnalysis] = useState<any>(null);
   const { toast } = useToast();
-
-  const toggleCategory = (catId: CategoryId) => {
-    setActiveCategories(prev => {
-      const next = new Set(prev);
-      if (catId === "all") return new Set(["all"]);
-      next.delete("all");
-      if (next.has(catId)) {
-        next.delete(catId);
-        if (next.size === 0) return new Set(["all"]);
-      } else {
-        next.add(catId);
-        const specificCats = DETECTION_CATEGORIES.filter(c => c.id !== "all");
-        if (specificCats.every(c => next.has(c.id))) return new Set(["all"]);
-      }
-      return next;
-    });
-  };
 
   const handleRemoteStream = useCallback((stream: MediaStream) => {
     setRemoteStream(stream);
@@ -80,51 +82,102 @@ const LiveFeed = () => {
     }
   }, []);
 
-  const handleDataMessage = useCallback((data: any) => {
-    if (data.type === "TELEMETRY" && data.data) {
-      const telemetry = data.data;
-      if (telemetry.detectedObjects) setDetectedObjects(telemetry.detectedObjects);
-      if (telemetry.zoomLevel) setZoomLevel(telemetry.zoomLevel);
-      if (telemetry.zoomCenter) setZoomCenter(telemetry.zoomCenter);
-      if (telemetry.isFlashOn !== undefined) setIsFlashOn(telemetry.isFlashOn);
-      if (telemetry.isSirenOn !== undefined) setIsSirenOn(telemetry.isSirenOn);
+  const handleDataMessage = useCallback((msg: any) => {
+    if (msg.type === "TELEMETRY") {
+      const d = msg.data || msg;
+      if (d.zoomLevel) setZoomLevel(d.zoomLevel);
+      if (d.zoomCenter) setZoomCenter(d.zoomCenter);
+      
+      // TELEMETRY from camera overrides our optimistic state (truth from camera)
+      if (d.isFlashOn !== undefined) setIsFlashOn(d.isFlashOn);
+      if (d.isSirenOn !== undefined) setIsSirenOn(d.isSirenOn);
+      if (d.isNightVision !== undefined) setIsNightVision(d.isNightVision);
+      if (d.isAiActive !== undefined) setIsAiActive(d.isAiActive);
+    } else if (msg.type === "AI_ANALYSIS") {
+      setAiAnalysis(msg.data);
     }
   }, []);
 
   const { connectionState, isConnected, isChannelReady, connect, disconnect, sendData } = useWebRTC({
     deviceId: deviceId || "",
     role: "viewer",
+    localStream,
     onRemoteStream: handleRemoteStream,
     onDataMessage: handleDataMessage,
   });
+
+  const sendCommand = useCallback(async (action: string) => {
+    if (!isConnected && !deviceId) return;
+
+    // Optimistic UI updates
+    switch (action) {
+      case 'TOGGLE_FLASH': setIsFlashOn(prev => !prev); break;
+      case 'TOGGLE_NIGHT_VISION': setIsNightVision(prev => !prev); break;
+      case 'TOGGLE_SIREN': setIsSirenOn(prev => !prev); break;
+      case 'TOGGLE_AI': setIsAiActive(prev => !prev); break;
+    }
+
+    // 1. Try WebRTC Data Channel for lowest latency
+    sendData({ type: 'COMMAND', action });
+
+    // 2. Guaranteed Delivery Fallback via Firebase
+    try {
+      if (deviceId) {
+        await updateDoc(doc(db, "devices", deviceId), {
+          last_command: {
+            action,
+            timestamp: serverTimestamp()
+          }
+        });
+      }
+    } catch (e) {
+      console.error("[LiveFeed] Firebase command fallback failed:", e);
+    }
+  }, [isConnected, sendData, deviceId]);
+
+  const startTalking = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      setLocalStream(stream);
+      setIsTalking(true);
+    } catch (e) {
+      toast({ title: "Microphone Access Denied", description: "Cannot use two-way talk without microphone permission.", variant: "destructive" });
+    }
+  };
+
+  const stopTalking = () => {
+    if (localStream) {
+      localStream.getTracks().forEach(t => t.stop());
+      setLocalStream(null);
+    }
+    setIsTalking(false);
+  };
 
   const [shareLoading, setShareLoading] = useState(false);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
   const generateShareLink = async (durationMinutes: number) => {
+    if (!deviceId) return;
     setShareLoading(true);
-    const token = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-    const expiresAt = new Date(Date.now() + durationMinutes * 60000).toISOString();
+    try {
+      const token = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+      const expiresAt = new Date(Date.now() + durationMinutes * 60000).toISOString();
 
-    const currentSettings = (device?.settings as any) || {};
+      const currentSettings = (device?.settings) || {};
 
-    const { error } = await supabase
-      .from("devices")
-      .update({
+      await updateDoc(doc(db, "devices", deviceId), {
         settings: {
           ...currentSettings,
           share_token: token,
           share_expires_at: expiresAt
         }
-      })
-      .eq("id", deviceId);
+      });
 
-    if (error) {
-      toast({ title: "Error", description: "Failed to generate share link", variant: "destructive" });
-    } else {
       const url = `${window.location.origin}/shared/${token}`;
       setShareUrl(url);
+    } catch (e) {
+      toast({ title: "Error", description: "Failed to generate share link", variant: "destructive" });
     }
     setShareLoading(false);
   };
@@ -135,18 +188,16 @@ const LiveFeed = () => {
       return;
     }
     const token = shareUrl.split("/").pop();
-    const channel = supabase.channel(`pairing:${code.toUpperCase()}`);
-    await channel.subscribe(async (status) => {
-      if (status === 'SUBSCRIBED') {
-        await channel.send({
-          type: 'broadcast',
-          event: 'pair',
-          payload: { token }
-        });
-        toast({ title: "Pairing Sent!", description: "Check your TV screen." });
-        supabase.removeChannel(channel);
-      }
-    });
+    try {
+      await addDoc(collection(db, "pairing"), {
+        code: code.toUpperCase(),
+        token,
+        created_at: serverTimestamp()
+      });
+      toast({ title: "Pairing Sent!", description: "Check your TV screen." });
+    } catch (e) {
+      toast({ title: "Error", description: "Failed to send pairing code", variant: "destructive" });
+    }
   };
 
   const copyToClipboard = () => {
@@ -161,28 +212,36 @@ const LiveFeed = () => {
   useEffect(() => {
     if (!deviceId) return;
 
-    const fetchDevice = async () => {
-      const { data } = await supabase.from("devices").select("*").eq("id", deviceId).single();
-      if (data) setDevice(data);
+    const docRef = doc(db, "devices", deviceId);
+
+    // Initial fetch
+    getDoc(docRef).then(snap => {
+      if (snap.exists()) setDevice({ id: snap.id, ...snap.data() } as Device);
       setLoading(false);
-    };
-    fetchDevice();
+    }).catch((err) => {
+      console.error("LiveFeed fetch error:", err);
+      setLoading(false);
+    });
 
-    const channel = supabase
-      .channel(`device-${deviceId}`)
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "devices", filter: `id=eq.${deviceId}` }, (payload) => {
-        setDevice(payload.new as Device);
-      })
-      .subscribe();
+    // Real-time listener
+    const unsubscribe = onSnapshot(docRef, (snap) => {
+      if (snap.exists()) {
+        setDevice({ id: snap.id, ...snap.data() } as Device);
+      }
+    }, (err) => {
+      console.error("LiveFeed real-time listener error:", err);
+      setLoading(false);
+    });
 
-    return () => { supabase.removeChannel(channel); };
+    return () => unsubscribe();
   }, [deviceId]);
 
-  // Auto-connect when device is online
+  // Auto-connect: wait for both device online + signaling channel ready
   useEffect(() => {
     const isOnline = device?.status === "online" || device?.status === "recording";
-    if (isOnline && connectionState === "new" && isChannelReady) {
-      connect();
+    if (isOnline && isChannelReady && (connectionState === "new" || connectionState === "closed")) {
+      const timer = setTimeout(() => connect(), 300);
+      return () => clearTimeout(timer);
     }
   }, [device?.status, connectionState, connect, isChannelReady]);
 
@@ -226,6 +285,25 @@ const LiveFeed = () => {
   const handleZoomIn = () => setZoomLevel(prev => Math.min(prev + 0.5, 4));
   const handleZoomOut = () => setZoomLevel(prev => Math.max(prev - 0.5, 1));
 
+  const handlePlayRequest = () => {
+    if (remoteVideoRef.current) {
+      remoteVideoRef.current.play().catch(e => console.warn("[LiveFeed] Play request blocked:", e));
+      setPlayAttempted(true);
+    }
+  };
+
+  const togglePiP = async () => {
+    try {
+      if (document.pictureInPictureElement) {
+        await document.exitPictureInPicture();
+      } else if (remoteVideoRef.current && document.pictureInPictureEnabled) {
+        await remoteVideoRef.current.requestPictureInPicture();
+      }
+    } catch (error) {
+      toast({ title: "Picture-in-Picture failed", variant: "destructive" });
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-black">
@@ -246,40 +324,59 @@ const LiveFeed = () => {
   }[connectionState] || connectionState;
 
   return (
-    <div className="relative flex min-h-screen flex-col bg-black overflow-hidden">
+    <div className="relative flex min-h-screen flex-col bg-black overflow-hidden" onClick={handlePlayRequest}>
       {/* Video area */}
       <div className="relative flex-1 flex items-center justify-center overflow-hidden">
         {isConnected && remoteStream ? (
-          <div
-            className="relative w-full h-full flex items-center justify-center overflow-hidden transition-transform duration-700 ease-out"
-            style={{
-              transform: `scale(${zoomLevel})`,
-              transformOrigin: `${zoomCenter.x}% ${zoomCenter.y}%`
-            }}
-          >
-            <video
-              ref={remoteVideoRef}
-              className="h-full w-full object-contain"
-              autoPlay
-              playsInline
-              muted={muted}
-            />
-
-            {/* AI Overlays */}
-            <div className="absolute inset-0 pointer-events-none scale-[0.6] opacity-30">
-              <RadarOverlay
-                detectedObjects={detectedObjects}
-                videoWidth={remoteVideoRef.current?.videoWidth || 640}
-                videoHeight={remoteVideoRef.current?.videoHeight || 480}
+          <>
+            <div
+              className="relative w-full h-full flex items-center justify-center overflow-hidden transition-transform duration-700 ease-out"
+              style={{
+                transform: `scale(${zoomLevel})`,
+                transformOrigin: `${zoomCenter.x}% ${zoomCenter.y}%`
+              }}
+            >
+              <video
+                ref={remoteVideoRef}
+                className={cn(
+                  "h-full w-full object-contain transition-all duration-700 ease-out",
+                  isNightVision ? "contrast-[1.2] brightness-[1.8] sepia-[1] hue-rotate-[70deg] saturate-[2]" : ""
+                )}
+                autoPlay
+                playsInline
+                muted={muted}
               />
+              {/* Stream AI Analysis Full HUD */}
+              {aiAnalysis ? (
+                <AIOverlays isMonitoring={true} analysis={aiAnalysis} />
+              ) : isAiActive ? (
+                <div className="absolute top-24 inset-x-4 z-40 max-w-2xl mx-auto" style={{ transform: `scale(${1/zoomLevel})` }}>
+                  <div className="mx-auto w-fit bg-black/80 backdrop-blur-3xl border border-purple-500/30 px-6 py-3 rounded-full flex items-center gap-3 shadow-[0_0_30px_rgba(168,85,247,0.3)] animate-pulse">
+                    <div className="h-4 w-4 border-2 border-purple-400 border-t-transparent rounded-full animate-spin" />
+                    <span className="text-xs uppercase tracking-widest font-bold text-purple-300">AI Scanning Area...</span>
+                  </div>
+                </div>
+              ) : null}
             </div>
-
-            <BoundingBoxesOverlay
-              detectedObjects={detectedObjects}
-              filteredObjects={filterObjects(detectedObjects, activeCategories)}
-              activeCategories={activeCategories}
-            />
-          </div>
+            
+            <AnimatePresence>
+                {!playAttempted && (
+                    <motion.div
+                        key="tap-to-play"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/40 backdrop-blur-sm cursor-pointer"
+                        onClick={(e) => { e.stopPropagation(); handlePlayRequest(); }}
+                    >
+                        <div className="h-20 w-20 rounded-full bg-white/10 border border-white/20 flex items-center justify-center backdrop-blur-2xl shadow-2xl animate-pulse">
+                            <Maximize2 className="h-8 w-8 text-white" />
+                        </div>
+                        <span className="absolute bottom-32 text-[10px] font-bold text-white/50 uppercase tracking-[0.4em]">Tap To View Stream</span>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+          </>
         ) : isOnline ? (
           <div className="flex h-full items-center justify-center w-full absolute inset-0 text-center space-y-3 z-10">
             {connectionState === "failed" ? (
@@ -309,9 +406,14 @@ const LiveFeed = () => {
 
         {/* Top bar */}
         <div className="absolute left-0 right-0 top-0 flex items-center justify-between p-4 z-40 bg-gradient-to-b from-black/80 to-transparent pt-6 pb-12">
-          <button onClick={() => navigate("/dashboard")} className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 hover:bg-white/20 border border-white/10 backdrop-blur-md transition-colors shadow-lg">
-            <ArrowLeft className="h-5 w-5 text-white" />
-          </button>
+          <div className="flex items-center gap-4">
+            <button onClick={() => navigate("/dashboard")} className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 hover:bg-white/20 border border-white/10 backdrop-blur-md transition-colors shadow-lg">
+              <ArrowLeft className="h-5 w-5 text-white" />
+            </button>
+            <Link to="/dashboard">
+              <Logo size="sm" className="h-8 opacity-90 drop-shadow-2xl" />
+            </Link>
+          </div>
 
           <div className="flex items-center gap-3 rounded-full bg-black/40 border border-white/10 px-4 py-2 backdrop-blur-md shadow-2xl">
             {isConnected ? (
@@ -348,7 +450,7 @@ const LiveFeed = () => {
                 {!shareUrl ? (
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Access Duration</label>
+                        <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-300">Access Duration</label>
                       <Select onValueChange={(val) => generateShareLink(parseInt(val))}>
                         <SelectTrigger className="bg-zinc-900 border-zinc-800 rounded-xl text-white h-12">
                           <SelectValue placeholder="Select duration" />
@@ -420,7 +522,7 @@ const LiveFeed = () => {
 
                       <Button
                         variant="ghost"
-                        className="w-full text-zinc-600 text-[10px] font-black uppercase hover:bg-transparent hover:text-white"
+                        className="w-full text-zinc-300 text-[10px] font-black uppercase hover:bg-transparent hover:text-white"
                         onClick={() => setShareUrl(null)}
                       >
                         New Link
@@ -432,33 +534,6 @@ const LiveFeed = () => {
             </DialogContent>
           </Dialog>
 
-          {/* AI Category Pills */}
-          <div className="absolute top-[88px] left-0 right-0 px-4 flex justify-end pointer-events-none">
-            <AnimatePresence>
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="flex flex-wrap justify-end gap-1.5 p-1.5 rounded-[2rem] bg-black/40 backdrop-blur-xl border border-white/5 pointer-events-auto max-w-[280px] sm:max-w-none"
-              >
-                {DETECTION_CATEGORIES.map(cat => {
-                  const isActive = activeCategories.has(cat.id);
-                  return (
-                    <button
-                      key={cat.id}
-                      onClick={() => toggleCategory(cat.id)}
-                      className={cn(
-                        "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all duration-200",
-                        isActive ? "text-white" : "text-white/40 hover:text-white/70"
-                      )}
-                      style={isActive ? { backgroundColor: cat.color + '40', border: `1px solid ${cat.color}` } : {}}
-                    >
-                      {cat.label}
-                    </button>
-                  );
-                })}
-              </motion.div>
-            </AnimatePresence>
-          </div>
         </div>
 
         {/* Zoom Controls */}
@@ -473,89 +548,124 @@ const LiveFeed = () => {
                 <span className="text-xl leading-none">-</span>
               </Button>
             </div>
-            <Button variant="ghost" size="icon" onClick={toggleFullscreen} className="h-12 w-12 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white hover:bg-white/20 shadow-2xl mt-2">
+            <div className="flex flex-col items-center gap-1 bg-black/40 backdrop-blur-md border border-white/10 rounded-full p-1.5 shadow-2xl mt-2">
+              <Button variant="ghost" size="icon" onClick={togglePiP} className="h-10 w-10 rounded-full text-white hover:bg-white/20">
+                <Maximize2 className="h-4 w-4" />
+              </Button>
+            </div>
+            <Button
+            variant="ghost"
+            size="icon"
+            onPointerDown={startTalking}
+            onPointerUp={stopTalking}
+            onPointerLeave={stopTalking}
+            className={cn(
+              "h-16 w-16 rounded-full transition-all border-2",
+              isTalking ? "bg-primary text-black border-primary scale-110 shadow-[0_0_30px_rgba(var(--primary),0.6)]" : "bg-black/60 border-white/20 text-white hover:bg-white/10"
+            )}
+          >
+            <Mic className={cn("h-6 w-6", isTalking ? "animate-pulse" : "")} />
+          </Button>
+
+          <Button variant="ghost" size="icon" onClick={toggleFullscreen} className="h-12 w-12 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white hover:bg-white/20 shadow-2xl mt-2">
               <Maximize className="h-5 w-5" />
             </Button>
           </div>
         )}
       </div>
 
-      {/* Bottom Action Bar */}
+      {/* Bottom Action Bar: Responsive 3x2 Grid on Mobile, 6-col on Laptop */}
       <div className="relative z-40 flex items-end justify-center pb-8 pt-20 bg-gradient-to-t from-black via-black/80 to-transparent">
-        <div className="flex items-center justify-center gap-6 sm:gap-10 bg-black/40 border border-white/10 px-8 py-5 rounded-full backdrop-blur-2xl shadow-2xl">
-          <Button variant="ghost" size="icon" onClick={toggleMute} className="h-14 w-14 rounded-full text-white hover:bg-white/10 transition-all">
-            {muted ? <VolumeX className="h-6 w-6 opacity-60" /> : <Volume2 className="h-6 w-6 text-primary" />}
-          </Button>
+        <div className="bg-black/60 backdrop-blur-3xl border border-white/5 rounded-[2.5rem] p-3 shadow-2xl max-w-lg w-full mx-4">
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+            <ControlBtn
+              icon={<Brain className={cn("h-5 w-5", isAiActive && "animate-pulse")} />}
+              label="AI"
+              active={isAiActive}
+              activeClass="bg-purple-500/10 text-purple-400 border-purple-400/30 shadow-[0_0_20px_rgba(168,85,247,0.2)]"
+              onClick={() => sendCommand('TOGGLE_AI')}
+              disabled={!isConnected}
+            />
 
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => {
-              sendData({ type: 'COMMAND', action: 'TOGGLE_FLASH' });
-              toast({
-                title: isFlashOn ? "Flash OFF" : "Flash ON",
-                description: isFlashOn ? "Turning off camera flash..." : "Turning on camera flash..."
-              });
-            }}
-            className={cn(
-              "h-14 w-14 rounded-full transition-all border-2",
-              isFlashOn ? "bg-yellow-400 text-black border-yellow-200 shadow-[0_0_25px_rgba(250,204,21,0.5)]" : "bg-white/10 text-white border-transparent hover:bg-white/20"
-            )}
-          >
-            <Flashlight className="h-6 w-6" />
-          </Button>
+            <ControlBtn
+              icon={<Mic className={cn("h-5 w-5", isTalking && "animate-pulse")} />}
+              label="Talk"
+              active={isTalking}
+              activeClass="bg-red-500 text-white border-red-400 shadow-[0_0_20px_rgba(239,68,68,0.4)]"
+              onPointerDown={startTalking}
+              onPointerUp={stopTalking}
+              onPointerLeave={stopTalking}
+              disabled={!isConnected}
+              isTouch
+            />
 
-          {/* Siren with Confirmation */}
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className={cn(
-                  "h-14 w-14 rounded-full transition-all border-2",
-                  isSirenOn ? "bg-destructive text-white border-red-400 animate-pulse shadow-[0_0_25px_rgba(220,38,38,0.5)]" : "bg-white/10 text-white border-transparent hover:bg-destructive hover:text-white"
-                )}
-              >
-                <AlertTriangle className="h-6 w-6" />
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent className="bg-zinc-950 border border-zinc-800 text-white rounded-[2.5rem] max-w-[340px] w-[90vw]">
-              <AlertDialogHeader>
-                <AlertDialogTitle className="text-xl font-black uppercase tracking-tighter">
-                  {isSirenOn ? "Deactivate Siren?" : "Trigger Siren?"}
-                </AlertDialogTitle>
-                <AlertDialogDescription className="text-zinc-400 font-medium">
-                  {isSirenOn
-                    ? "Stop the loud alarm on the camera device."
-                    : "This will activate a loud alarm on the camera device to deter intruders."}
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter className="mt-8 flex flex-col gap-3">
-                <AlertDialogAction
-                  onClick={() => {
-                    sendData({ type: 'COMMAND', action: 'TOGGLE_SIREN' });
-                  }}
-                  className={cn(
-                    "w-full h-14 rounded-2xl font-black uppercase tracking-[0.2em] text-xs",
-                    isSirenOn ? "bg-white text-black hover:bg-zinc-200" : "bg-destructive hover:bg-destructive/90 text-white"
-                  )}
-                >
-                  {isSirenOn ? "Stop Alarm" : "Activate"}
-                </AlertDialogAction>
-                <AlertDialogCancel className="w-full bg-transparent border-none text-zinc-500 hover:text-white hover:bg-transparent font-black uppercase tracking-widest text-[10px]">
-                  Cancel
-                </AlertDialogCancel>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+            <ControlBtn
+              icon={isFlashOn ? <Flashlight className="h-5 w-5" /> : <FlashlightOff className="h-5 w-5" />}
+              label="Light"
+              active={isFlashOn}
+              activeClass="bg-yellow-400 text-black border-yellow-300 shadow-[0_0_20px_rgba(250,204,21,0.3)]"
+              onClick={() => sendCommand('TOGGLE_FLASH')}
+              disabled={!isConnected}
+            />
 
-          <Button variant="ghost" size="icon" className="h-14 w-14 rounded-full text-white hover:bg-white/10 transition-all">
-            <Camera className="h-6 w-6" />
-          </Button>
+            <ControlBtn
+              icon={isNightVision ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+              label="Night"
+              active={isNightVision}
+              activeClass="bg-green-500/10 text-green-400 border-green-400/30 shadow-[0_0_20px_rgba(34,197,94,0.2)]"
+              onClick={() => sendCommand('TOGGLE_NIGHT_VISION')}
+              disabled={!isConnected}
+            />
+
+            <ControlBtn
+              icon={<AlertTriangle className="h-5 w-5" />}
+              label="Alarm"
+              active={isSirenOn}
+              activeClass="bg-red-500 text-white border-red-400 animate-pulse shadow-[0_0_25px_rgba(220,38,38,0.5)]"
+              onClick={() => sendCommand('TOGGLE_SIREN')}
+              disabled={!isConnected}
+            />
+
+            <ControlBtn
+              icon={<Camera className="h-5 w-5" />}
+              label="Snap"
+              active={false}
+              onClick={() => sendData({ type: 'COMMAND', action: 'TAKE_SNAPSHOT' })}
+              disabled={!isConnected}
+            />
+          </div>
         </div>
       </div>
     </div>
   );
 };
+
+const ControlBtn = ({ 
+  icon, 
+  label, 
+  active, 
+  activeClass, 
+  onClick, 
+  onPointerDown, 
+  onPointerUp, 
+  onPointerLeave, 
+  disabled, 
+  isTouch = false 
+}: any) => (
+  <button
+      onClick={(e) => { e.stopPropagation(); !isTouch && onClick && onClick(); }}
+      onPointerDown={onPointerDown}
+      onPointerUp={onPointerUp}
+      onPointerLeave={onPointerLeave}
+      disabled={disabled}
+      className={cn(
+          "cam-ctrl-btn",
+          active ? activeClass : "cam-ctrl-btn-off"
+      )}
+  >
+      {icon}
+      <span className="text-[9px] font-bold text-inherit uppercase">{label}</span>
+  </button>
+);
 
 export default LiveFeed;

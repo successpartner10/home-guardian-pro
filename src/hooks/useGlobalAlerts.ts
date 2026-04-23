@@ -1,17 +1,27 @@
-import { useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useEffect, useRef } from "react";
+import { db } from "@/lib/firebase";
+import {
+    collection,
+    query,
+    where,
+    onSnapshot,
+    orderBy,
+    limit,
+    Timestamp
+} from "firebase/firestore";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 
 export const useGlobalAlerts = () => {
-    const { user } = useAuth();
+    const { user, profileData } = useAuth();
     const { toast } = useToast();
+    const initializedAt = useRef(Timestamp.now());
 
     useEffect(() => {
         if (!user) return;
 
         const playNotification = async () => {
-            const pref = user.user_metadata?.notifications || "ring";
+            const pref = profileData?.notifications || "ring";
 
             if (pref === "mute") return;
 
@@ -43,31 +53,29 @@ export const useGlobalAlerts = () => {
             }
         };
 
-        const channel = supabase
-            .channel("global-alerts")
-            .on(
-                "postgres_changes",
-                {
-                    event: "INSERT",
-                    schema: "public",
-                    table: "alerts",
-                    filter: `user_id=eq.${user.id}`,
-                },
-                (payload) => {
-                    // Trigger notification
-                    playNotification();
+        const q = query(
+            collection(db, "alerts"),
+            where("user_id", "==", user.uid),
+            orderBy("created_at", "desc"),
+            limit(1)
+        );
 
-                    // Show toast
-                    toast({
-                        title: "Security Alert",
-                        description: `New ${payload.new.type} detected.`,
-                    });
-                }
-            )
-            .subscribe();
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            if (snapshot.empty) return;
 
-        return () => {
-            supabase.removeChannel(channel);
-        };
-    }, [user, toast]);
+            const newAlert = snapshot.docs[0].data();
+            const createdAt = newAlert.created_at as Timestamp;
+
+            // Only notify for alerts created after we started listening
+            if (createdAt && createdAt.toMillis() > initializedAt.current.toMillis()) {
+                playNotification();
+                toast({
+                    title: "Security Alert",
+                    description: `New ${newAlert.type || 'activity'} detected.`,
+                });
+            }
+        });
+
+        return () => unsubscribe();
+    }, [user, profileData, toast]);
 };

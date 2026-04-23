@@ -1,10 +1,19 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { db } from "@/lib/firebase";
+import {
+    collection,
+    query,
+    where,
+    getDocs,
+    limit
+} from "firebase/firestore";
 import { useWebRTC } from "@/hooks/useWebRTC";
-import { RadarOverlay, BoundingBoxesOverlay, filterObjects, type CategoryId } from "@/components/AIOverlays";
 import { Wifi, WifiOff, Volume2, VolumeX, Maximize, AlertCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Mic, MicOff, ZoomIn, ZoomOut } from "lucide-react";
+import { Slider } from "@/components/ui/slider";
 
 const PublicView = () => {
     const { token } = useParams<{ token: string }>();
@@ -15,10 +24,10 @@ const PublicView = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
-    const [detectedObjects, setDetectedObjects] = useState<any[]>([]);
+    const [localMicStream, setLocalMicStream] = useState<MediaStream | null>(null);
+    const [isTalking, setIsTalking] = useState(false);
     const [zoomCenter, setZoomCenter] = useState({ x: 50, y: 50 });
     const [zoomLevel, setZoomLevel] = useState(1);
-    const activeCategories = new Set<CategoryId>(["all"]);
 
     const handleRemoteStream = useCallback((stream: MediaStream) => {
         setRemoteStream(stream);
@@ -29,18 +38,36 @@ const PublicView = () => {
 
     const handleDataMessage = useCallback((data: any) => {
         if (data.type === "TELEMETRY") {
-            if (data.detectedObjects) setDetectedObjects(data.detectedObjects);
             if (data.zoomLevel) setZoomLevel(data.zoomLevel);
             if (data.zoomCenter) setZoomCenter(data.zoomCenter);
         }
     }, []);
 
-    const { connectionState, isConnected, isChannelReady, connect } = useWebRTC({
+    const { connectionState, isConnected, isChannelReady, connect, disconnect } = useWebRTC({
         deviceId: device?.id || "",
         role: "viewer",
+        localStream: localMicStream,
         onRemoteStream: handleRemoteStream,
         onDataMessage: handleDataMessage,
     });
+
+    const startTalking = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            setLocalMicStream(stream);
+            setIsTalking(true);
+        } catch (e) {
+            console.error("Mic access failed:", e);
+        }
+    };
+
+    const stopTalking = () => {
+        if (localMicStream) {
+            localMicStream.getTracks().forEach(t => t.stop());
+            setLocalMicStream(null);
+        }
+        setIsTalking(false);
+    };
 
     useEffect(() => {
         const validateToken = async () => {
@@ -50,28 +77,38 @@ const PublicView = () => {
                 return;
             }
 
-            // Find device with this token in settings
-            const { data, error: fetchError } = await supabase
-                .from("devices")
-                .select("*")
-                .filter("settings->share_token", "eq", token)
-                .single();
+            try {
+                // Find device with this token in settings
+                const q = query(
+                    collection(db, "devices"),
+                    where("settings.share_token", "==", token),
+                    limit(1)
+                );
 
-            if (fetchError || !data) {
-                setError("This link has expired or is invalid.");
-                setLoading(false);
-                return;
+                const querySnapshot = await getDocs(q);
+
+                if (querySnapshot.empty) {
+                    setError("This link has expired or is invalid.");
+                    setLoading(false);
+                    return;
+                }
+
+                const docSnap = querySnapshot.docs[0];
+                const data = { id: docSnap.id, ...docSnap.data() } as any;
+
+                const settings = data.settings;
+                const expiresAt = settings?.share_expires_at;
+                if (expiresAt && new Date(expiresAt) < new Date()) {
+                    setError("This link has expired.");
+                    setLoading(false);
+                    return;
+                }
+
+                setDevice(data);
+            } catch (e) {
+                console.error("Token validation error:", e);
+                setError("An error occurred while validating the link.");
             }
-
-            const settings = data.settings as any;
-            const expiresAt = settings?.share_expires_at;
-            if (expiresAt && new Date(expiresAt) < new Date()) {
-                setError("This link has expired.");
-                setLoading(false);
-                return;
-            }
-
-            setDevice(data);
             setLoading(false);
         };
 
@@ -83,6 +120,23 @@ const PublicView = () => {
             connect();
         }
     }, [device, isChannelReady, connectionState, connect]);
+
+    const isConnectionBad =
+        connectionState === "failed" ||
+        connectionState === "disconnected" ||
+        connectionState === "closed";
+
+    const retry = async () => {
+        try {
+            disconnect();
+            setRemoteStream(null);
+            if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
+            await new Promise((r) => setTimeout(r, 500));
+            connect();
+        } catch (e) {
+            console.warn("[PublicView] Retry failed:", e);
+        }
+    };
 
     if (loading) {
         return (
@@ -128,23 +182,39 @@ const PublicView = () => {
                             playsInline
                             muted={muted}
                         />
-
-                        <RadarOverlay
-                            detectedObjects={detectedObjects}
-                            videoWidth={remoteVideoRef.current?.videoWidth || 640}
-                            videoHeight={remoteVideoRef.current?.videoHeight || 480}
-                        />
-
-                        <BoundingBoxesOverlay
-                            detectedObjects={detectedObjects}
-                            filteredObjects={filterObjects(detectedObjects, activeCategories)}
-                            activeCategories={activeCategories}
-                        />
                     </div>
                 ) : (
-                    <div className="flex flex-col items-center text-center space-y-4">
-                        <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-                        <p className="text-sm font-bold text-white/40 uppercase tracking-widest">Connecting to secured stream...</p>
+                    <div className="flex flex-col items-center text-center space-y-6 px-6">
+                        {isConnectionBad ? (
+                            <div className="h-16 w-16 rounded-full bg-destructive/10 flex items-center justify-center animate-pulse">
+                                <WifiOff className="h-8 w-8 text-destructive" />
+                            </div>
+                        ) : (
+                            <div className="h-16 w-16 animate-spin rounded-full border-4 border-primary border-t-transparent shadow-[0_0_20px_rgba(var(--primary),0.3)]" />
+                        )}
+
+                        <div className="space-y-2">
+                            <h2 className="text-sm font-black text-white uppercase tracking-[0.2em]">
+                                {isConnectionBad ? `Connection ${connectionState}` : 'Connecting to secured stream...'}
+                            </h2>
+                            <p className="text-xs text-white/40 max-w-[200px] leading-relaxed">
+                                {isConnectionBad
+                                    ? 'The connection attempt failed. Tap retry to reconnect.'
+                                    : 'Establishing a peer-to-peer encrypted tunnel to your camera.'}
+                            </p>
+                        </div>
+
+                        <Button
+                            onClick={retry}
+                            variant="outline"
+                            className="bg-white/5 border-white/10 text-white hover:bg-white/20 rounded-full px-8 py-6 font-black uppercase tracking-widest text-[10px] transition-all active:scale-95"
+                        >
+                            {isConnectionBad ? 'Retry Now' : 'Cancel & Re-connect'}
+                        </Button>
+
+                        {!isConnectionBad && connectionState === 'connecting' && (
+                           <p className="text-[9px] text-white/20 uppercase tracking-widest animate-pulse">Attempting NAT Traversal...</p>
+                        )}
                     </div>
                 )}
 
@@ -157,24 +227,59 @@ const PublicView = () => {
                         <p className="text-[10px] text-white/50 uppercase font-bold tracking-widest">{device?.name}</p>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                        <button
-                            onClick={() => setMuted(!muted)}
-                            className="h-10 w-10 flex items-center justify-center rounded-full bg-white/10 backdrop-blur-md border border-white/10 text-white"
-                        >
-                            {muted ? <VolumeX className="h-5 w-5 opacity-40" /> : <Volume2 className="h-5 w-5 text-primary" />}
-                        </button>
-                        <button
-                            onClick={() => remoteVideoRef.current?.requestFullscreen()}
-                            className="h-10 w-10 flex items-center justify-center rounded-full bg-white/10 backdrop-blur-md border border-white/10 text-white"
-                        >
-                            <Maximize className="h-5 w-5" />
-                        </button>
+                    <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
+                            <button
+                                onMouseDown={startTalking}
+                                onMouseUp={stopTalking}
+                                onTouchStart={startTalking}
+                                onTouchEnd={stopTalking}
+                                className={cn(
+                                    "h-14 px-6 flex items-center gap-3 rounded-2xl transition-all duration-300 font-black uppercase text-[10px] tracking-widest",
+                                    isTalking 
+                                        ? "bg-primary text-black scale-110 shadow-[0_0_30px_rgba(var(--primary),0.5)]" 
+                                        : "bg-white/10 backdrop-blur-md border border-white/10 text-white"
+                                )}
+                            >
+                                {isTalking ? <Mic className="h-4 w-4 animate-pulse" /> : <MicOff className="h-4 w-4 opacity-50" />}
+                                {isTalking ? "Speaking..." : "Hold to Talk"}
+                            </button>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => setMuted(!muted)}
+                                className="h-10 w-10 flex items-center justify-center rounded-full bg-white/10 backdrop-blur-md border border-white/10 text-white"
+                            >
+                                {muted ? <VolumeX className="h-5 w-5 opacity-40" /> : <Volume2 className="h-5 w-5 text-primary" />}
+                            </button>
+                            <button
+                                onClick={() => remoteVideoRef.current?.requestFullscreen()}
+                                className="h-10 w-10 flex items-center justify-center rounded-full bg-white/10 backdrop-blur-md border border-white/10 text-white"
+                            >
+                                <Maximize className="h-5 w-5" />
+                            </button>
+                        </div>
                     </div>
                 </div>
 
-                {/* Footer info */}
-                <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-40">
+                {/* Footer info & Zoom */}
+                <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-40 flex flex-col items-center gap-4 w-full max-w-xs">
+                    <div className="bg-black/60 backdrop-blur-xl border border-white/10 rounded-3xl p-4 w-full flex flex-col gap-3">
+                         <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-white/60">
+                            <span className="flex items-center gap-2"><ZoomOut className="h-3 w-3" /> 1X</span>
+                            <span>Digital Zoom</span>
+                            <span className="flex items-center gap-2 text-primary">4X <ZoomIn className="h-3 w-3" /></span>
+                         </div>
+                         <Slider 
+                            value={[zoomLevel]} 
+                            min={1} 
+                            max={4} 
+                            step={0.1} 
+                            onValueChange={(vals) => setZoomLevel(vals[0])}
+                            className="w-full"
+                         />
+                    </div>
                     <div className="px-6 py-2 rounded-full bg-black/60 border border-white/10 backdrop-blur-xl">
                         <p className="text-[9px] font-black text-white/40 uppercase tracking-[0.2em]">Secure End-to-End Encryption Active</p>
                     </div>

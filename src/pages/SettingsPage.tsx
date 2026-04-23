@@ -1,5 +1,17 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { db, auth } from "@/lib/firebase";
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  doc,
+  updateDoc,
+  deleteDoc,
+  orderBy,
+  onSnapshot
+} from "firebase/firestore";
+import { updateProfile } from "firebase/auth";
 import { useAuth } from "@/contexts/AuthContext";
 import AppLayout from "@/components/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,17 +21,49 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { Trash2, Save, LogOut, AlertTriangle, ShieldCheck, Settings2, CloudOff, Lock, Unlock, HardDrive, Download } from "lucide-react";
+import { 
+  Trash2, Save, LogOut, AlertTriangle, ShieldCheck, Settings2, Shield, Bell, Clock, 
+  UserCheck, HardDrive, Edit3, Share2, Activity, Moon, Zap, Palette, 
+  VolumeX, Smartphone, Music, Calendar, Lock as LockIcon, Unlock as UnlockIcon,
+  HardDrive as DiscIcon, Download, CloudOff
+} from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { localFileSystem, LocalFile } from "@/lib/localFileSystem";
 import { useTheme, ThemeType } from "@/contexts/ThemeContext";
 import { cn } from "@/lib/utils";
 import PinModal from "@/components/PinModal";
-import type { Tables } from "@/integrations/supabase/types";
-import { Palette, Bell, VolumeX, Smartphone, Music, Clock, Calendar } from "lucide-react";
 
-type Device = Tables<"devices">;
+import { googleDrive } from "@/lib/googleDrive";
+import { aiOrchestrator } from "@/lib/ai/aiOrchestrator";
+import { Cpu, Brain } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+
+interface Device {
+  id: string;
+  user_id: string;
+  name: string;
+  type: string;
+  status: string;
+  created_at: any;
+  settings?: {
+    night_vision?: boolean;
+    motion_detection?: boolean;
+    ai_mode?: 'security' | 'pet' | 'elder';
+    sensitivity?: number;
+  };
+}
 
 const ADMIN_EMAIL = "successpartner10@gmail.com";
 
@@ -33,121 +77,160 @@ const THEMES: { id: ThemeType; label: string; colors: string[] }[] = [
 ];
 
 const SettingsPage = () => {
-  const { user, signOut } = useAuth();
+  const { user, profileData, signOut, signInWithGoogle, forceLogoutAllDevices } = useAuth();
   const { theme, setTheme } = useTheme();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [devices, setDevices] = useState<Device[]>([]);
   const [sensitivity, setSensitivity] = useState(50);
-  const [notificationPref, setNotificationPref] = useState<"mute" | "vibrate" | "ring">(user?.user_metadata?.notifications || "ring");
+  const [notificationPref, setNotificationPref] = useState<"mute" | "vibrate" | "ring">("ring");
   const [displayName, setDisplayName] = useState("");
   const [loading, setLoading] = useState(false);
   const [driveConnected, setDriveConnected] = useState(false);
-  const [driveFiles, setDriveFiles] = useState<LocalFile[]>([]);
-  const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
-  const [isDeleting, setIsDeleting] = useState(false);
-
-  const [securityPin, setSecurityPin] = useState(user?.user_metadata?.security_pin || "");
+ 
+  const [securityPin, setSecurityPin] = useState("");
   const [newPin, setNewPin] = useState("");
-  const [isPinModalOpen, setIsPinModalOpen] = useState(false);
-
+ 
   const [schedule, setSchedule] = useState<{ enabled: boolean, start: string, end: string }>({
-    enabled: user?.user_metadata?.detection_schedule?.enabled ?? false,
-    start: user?.user_metadata?.detection_schedule?.start ?? "22:00",
-    end: user?.user_metadata?.detection_schedule?.end ?? "06:00"
+    enabled: false,
+    start: "22:00",
+    end: "06:00"
   });
+ 
+  const [ignorePets, setIgnorePets] = useState(false);
+  const [archiveLimit, setArchiveLimit] = useState(10);
+  const [driveQuota, setDriveQuota] = useState<{ used: number, limit: number } | null>(null);
+  const [activeBrain, setActiveBrain] = useState(aiOrchestrator.getProviderId());
+  const [autoUpgrade, setAutoUpgrade] = useState(true);
+
+  const [webhookUrl, setWebhookUrl] = useState("");
 
   const isAdmin = user?.email === ADMIN_EMAIL;
-
+  
+  // Fetch Drive Quota
   useEffect(() => {
-    if (user?.user_metadata?.security_pin) {
-      setSecurityPin(user.user_metadata.security_pin);
+    const fetchQuota = async () => {
+      const token = localStorage.getItem("google_drive_token");
+      if (token) {
+        const quota = await googleDrive.getStorageQuota(token);
+        if (quota) setDriveQuota(quota);
+      }
+    };
+    fetchQuota();
+    const interval = setInterval(fetchQuota, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Sync state with profile data
+  useEffect(() => {
+    if (profileData) {
+      setNotificationPref(profileData.notifications || "ring");
+      setDisplayName(profileData.display_name || user?.displayName || "");
+      setSecurityPin(profileData.security_pin || "");
+      setSchedule(profileData.detection_schedule || { enabled: false, start: "22:00", end: "06:00" });
+      setIgnorePets(profileData.ignore_pets ?? false);
+      setArchiveLimit(profileData.archive_limit_gb || 10);
+      setWebhookUrl(profileData.webhook_url || "");
+      setAutoUpgrade(profileData.auto_upgrade_ai ?? true);
     }
-  }, [user]);
+  }, [profileData, user]);
 
   useEffect(() => {
     if (!user) return;
-    const init = async () => {
-      try {
-        // 1. Check devices
-        const { data } = await supabase.from("devices").select("*").order("created_at");
-        if (data) setDevices(data);
 
-        // 2. Load profile
-        const { data: profile } = await supabase.from("profiles").select("display_name").eq("user_id", user.id).single();
-        if (profile?.display_name) setDisplayName(profile.display_name);
+    // Fetch devices
+    const q = query(collection(db, "devices"), where("user_id", "==", user.uid), orderBy("created_at", "asc"));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setDevices(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Device)));
+    });
 
-        // 3. Check Local Storage status
-        const isReady = await localFileSystem.init();
-        setDriveConnected(isReady);
-      } catch (e) {
-        console.error("Settings initialization error:", e);
-      }
-    };
-    init();
+    return () => unsubscribe();
   }, [user]);
 
-  useEffect(() => {
-    if (driveConnected) {
-      loadLocalFiles();
-    }
-  }, [driveConnected]);
-
-  const handleSelectFolder = async () => {
+  const saveArchiveLimit = async (val: number[]) => {
+    const limit = val[0];
+    setArchiveLimit(limit);
+    if (!user) return;
     try {
-      setLoading(true);
-      const success = await localFileSystem.selectDirectory();
-      if (success) {
-        setDriveConnected(true);
-        toast({ title: "Storage folder set" });
-      } else {
-        toast({ title: "Failed to connect folder", variant: "destructive" });
+      await updateDoc(doc(db, "profiles", user.uid), { archive_limit_gb: limit });
+      toast({ title: "Storage Limit Updated", description: `FIFO buffer set to ${limit} GB.` });
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const saveWebhook = async () => {
+    if (!user) return;
+    try {
+      await updateDoc(doc(db, "profiles", user.uid), { webhook_url: webhookUrl });
+      toast({ title: "Automation Updated", description: "Webhook URL saved." });
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const updateDeviceName = async (id: string, name: string) => {
+    try {
+      await updateDoc(doc(db, "devices", id), { name });
+      toast({ title: "Device Renamed" });
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const [shareEmail, setShareEmail] = useState("");
+  const [sharingDeviceId, setSharingDeviceId] = useState<string | null>(null);
+
+  const toggleDeviceSetting = async (id: string, field: string, value: any) => {
+    try {
+      await updateDoc(doc(db, "devices", id), {
+        [`settings.${field}`]: value
+      });
+      toast({ title: "Settings Updated" });
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const [shareDuration, setShareDuration] = useState<string>("forever");
+
+  const handleShareDevice = async (id: string) => {
+    if (!shareEmail.includes("@")) {
+      toast({ title: "Invalid Email", variant: "destructive" });
+      return;
+    }
+    try {
+      const deviceRef = doc(db, "devices", id);
+      const device = devices.find(d => d.id === id);
+      
+      let expiresAt: number | null = null;
+      if (shareDuration !== "forever") {
+        const hours = parseInt(shareDuration);
+        expiresAt = Date.now() + hours * 60 * 60 * 1000;
       }
+
+      const newInvite = { email: shareEmail, expires_at: expiresAt };
+      const currentShared = (device as any).shared_with || [];
+      const updatedShared = [...currentShared.filter((s: any) => s.email !== shareEmail), newInvite];
+
+      await updateDoc(deviceRef, { shared_with: updatedShared });
+      toast({ title: "Access Shared", description: `Invited ${shareEmail} (${shareDuration}).` });
+      setShareEmail("");
+      setSharingDeviceId(null);
     } catch (e) {
       console.error(e);
-      toast({ title: "Permission error", variant: "destructive" });
-    } finally {
-      setLoading(false);
+      toast({ title: "Sharing Failed", variant: "destructive" });
     }
   };
 
-  const handleDisconnectFolder = async () => {
-    await localFileSystem.clearDirectory();
-    setDriveConnected(false);
-    setDriveFiles([]);
-  };
-
-  const loadLocalFiles = async () => {
+  const removeShare = async (deviceId: string, email: string) => {
     try {
-      const files = await localFileSystem.listFiles();
-      setDriveFiles(files || []);
+      const device = devices.find(d => d.id === deviceId);
+      const updated = ((device as any).shared_with || []).filter((s: any) => (typeof s === 'string' ? s : s.email) !== email);
+      await updateDoc(doc(db, "devices", deviceId), { shared_with: updated });
+      toast({ title: "Access Revoked" });
     } catch (e) {
-      console.error(e);
-      toast({ title: "Failed to load files", variant: "destructive" });
-    }
-  };
-
-  const handleBulkDelete = () => {
-    if (selectedFiles.size === 0) return;
-    if (securityPin) {
-      setIsPinModalOpen(true);
-    } else {
-      confirmBulkDelete();
-    }
-  };
-
-  const confirmBulkDelete = async () => {
-    setIsPinModalOpen(false);
-    setIsDeleting(true);
-    try {
-      await localFileSystem.deleteFiles(Array.from(selectedFiles));
-      toast({ title: "Files deleted" });
-      setSelectedFiles(new Set());
-      await loadLocalFiles();
-    } catch {
-      toast({ title: "Delete Failed", variant: "destructive" });
-    } finally {
-      setIsDeleting(false);
+       console.error(e);
     }
   };
 
@@ -156,30 +239,21 @@ const SettingsPage = () => {
       toast({ title: "Invalid PIN", description: "PIN must be exactly 4 digits.", variant: "destructive" });
       return;
     }
+    if (!user) return;
     try {
       setLoading(true);
-      const { error } = await supabase.auth.updateUser({
-        data: { security_pin: newPin }
+      await updateDoc(doc(db, "profiles", user.uid), {
+        security_pin: newPin
       });
-      if (!error) {
-        setSecurityPin(newPin);
-        setNewPin("");
-        toast({ title: "Security PIN Set", description: "Now required for deleting recordings." });
-      } else {
-        toast({ title: "Failed to set PIN", variant: "destructive" });
-      }
+      setSecurityPin(newPin);
+      setNewPin("");
+      toast({ title: "Security PIN Set", description: "Now required for deleting recordings." });
     } catch (e) {
       console.error(e);
+      toast({ title: "Failed to set PIN", variant: "destructive" });
     } finally {
       setLoading(false);
     }
-  };
-
-  const toggleFileSelection = (fileId: string) => {
-    const next = new Set(selectedFiles);
-    if (next.has(fileId)) next.delete(fileId);
-    else next.add(fileId);
-    setSelectedFiles(next);
   };
 
   const handleSignOut = async () => {
@@ -189,37 +263,95 @@ const SettingsPage = () => {
 
   const saveProfile = async () => {
     if (!user) return;
-    setLoading(true);
-    const { error } = await supabase.from("profiles").update({ display_name: displayName }).eq("user_id", user.id);
-    if (!error) toast({ title: "Profile saved" });
-    setLoading(false);
+    try {
+      setLoading(true);
+      await updateDoc(doc(db, "profiles", user.uid), { display_name: displayName });
+      if (auth.currentUser) {
+        await updateProfile(auth.currentUser, { displayName });
+      }
+      toast({ title: "Profile saved" });
+    } catch (e) {
+      console.error(e);
+      toast({ title: "Failed to save profile", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const removeDevice = async (id: string) => {
-    await supabase.from("devices").delete().eq("id", id);
-    setDevices((d) => d.filter((dev) => dev.id !== id));
-    toast({ title: "Device removed" });
+    try {
+      await deleteDoc(doc(db, "devices", id));
+      toast({ title: "Device removed" });
+    } catch (e) {
+      console.error(e);
+      toast({ title: "Failed to remove device", variant: "destructive" });
+    }
   };
 
   const handleNotificationChange = async (pref: "mute" | "vibrate" | "ring") => {
+    if (!user) return;
     setNotificationPref(pref);
-    const { error } = await supabase.auth.updateUser({
-      data: { notifications: pref }
-    });
-    if (!error) {
+    try {
+      await updateDoc(doc(db, "profiles", user.uid), { notifications: pref });
       toast({ title: "Alert preference saved", description: `Notifications set to ${pref}.` });
       if (pref === "vibrate" && "vibrate" in navigator) {
         navigator.vibrate(200);
       }
+    } catch (e) {
+      console.error(e);
     }
   };
 
   const saveSchedule = async (newSchedule: typeof schedule) => {
+    if (!user) return;
     setSchedule(newSchedule);
-    await supabase.auth.updateUser({
-      data: { detection_schedule: newSchedule }
-    });
-    toast({ title: "Schedule Updated", description: `Auto-detection ${newSchedule.enabled ? 'enabled' : 'disabled'}.` });
+    try {
+      await updateDoc(doc(db, "profiles", user.uid), { detection_schedule: newSchedule });
+      toast({ title: "Schedule Updated", description: `Auto-detection ${newSchedule.enabled ? 'enabled' : 'disabled'}.` });
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const saveIgnorePets = async (enabled: boolean) => {
+    if (!user) return;
+    setIgnorePets(enabled);
+    try {
+      await updateDoc(doc(db, "profiles", user.uid), { ignore_pets: enabled });
+      toast({ title: "AI Filter Updated", description: enabled ? "Pets will be ignored strictly." : "Pets will be recorded." });
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleBrainChange = async (providerId: string) => {
+    if (!user) return;
+    setActiveBrain(providerId);
+    aiOrchestrator.setProvider(providerId);
+    try {
+      await updateDoc(doc(db, "profiles", user.uid), { ai_provider: providerId });
+      toast({ 
+        title: "AI Brain Updated", 
+        description: `Now powered by ${providerId === 'gemma' ? 'Gemma 2' : 'Gemini 1.5'}.`,
+        variant: "default" 
+      });
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const toggleAutoUpgrade = async (enabled: boolean) => {
+    if (!user) return;
+    setAutoUpgrade(enabled);
+    try {
+      await updateDoc(doc(db, "profiles", user.uid), { auto_upgrade_ai: enabled });
+      toast({ 
+        title: "Adaptive AI Updated", 
+        description: enabled ? "Auto-upgrading to latest Google models." : "Manual model control enabled." 
+      });
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   return (
@@ -228,37 +360,6 @@ const SettingsPage = () => {
         <div className="space-y-2">
           <h1 className="text-4xl font-black uppercase leading-none">Settings</h1>
           <p className="text-lg text-muted-foreground font-medium">Control your security mesh and visual style.</p>
-        </div>
-
-        {/* Visual Style Gallery */}
-        <div className="zoomon-card space-y-6">
-          <div className="flex items-center gap-3 text-primary">
-            <Palette className="w-8 h-8" />
-            <h2 className="text-2xl font-black uppercase tracking-tight">App Appearance</h2>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-            {THEMES.map((t) => (
-              <button
-                key={t.id}
-                onClick={() => setTheme(t.id)}
-                className={cn(
-                  "relative flex flex-col items-center gap-3 p-4 rounded-[2rem] border-2 transition-all group overflow-hidden",
-                  theme === t.id ? "border-primary bg-primary/10 shadow-[0_0_30px_rgba(var(--primary-rgb),0.2)]" : "border-border/40 bg-card/40 hover:border-primary/30"
-                )}
-              >
-                <div className="flex -space-x-2">
-                  <div className="w-10 h-10 rounded-full border-2 border-background shadow-lg" style={{ backgroundColor: t.colors[0] }} />
-                  <div className="w-10 h-10 rounded-full border-2 border-background shadow-lg" style={{ backgroundColor: t.colors[1] }} />
-                </div>
-                <span className={cn("text-[10px] font-black uppercase tracking-widest", theme === t.id ? "text-primary" : "text-muted-foreground")}>
-                  {t.label}
-                </span>
-                {theme === t.id && (
-                  <div className="absolute top-2 right-2 h-2 w-2 rounded-full bg-primary animate-pulse" />
-                )}
-              </button>
-            ))}
-          </div>
         </div>
 
         {/* Alert Preferences */}
@@ -302,7 +403,7 @@ const SettingsPage = () => {
               <span className="text-[10px] font-black uppercase tracking-widest">Ring</span>
             </Button>
           </div>
-          <p className="text-[10px] font-bold text-center opacity-40 uppercase tracking-widest px-4">
+          <p className="text-[10px] font-black text-center opacity-80 uppercase tracking-widest px-4">
             These settings affect events on this device only.
           </p>
         </div>
@@ -334,7 +435,7 @@ const SettingsPage = () => {
                 type="time"
                 value={schedule.start}
                 onChange={(e) => saveSchedule({ ...schedule, start: e.target.value })}
-                className="h-12 bg-black/20 border-0 text-xl font-black rounded-xl"
+                className="h-12 bg-zinc-900/60 border-0 text-xl font-black rounded-xl"
                 disabled={!schedule.enabled}
               />
             </div>
@@ -350,16 +451,26 @@ const SettingsPage = () => {
                 type="time"
                 value={schedule.end}
                 onChange={(e) => saveSchedule({ ...schedule, end: e.target.value })}
-                className="h-12 bg-black/20 border-0 text-xl font-black rounded-xl"
+                className="h-12 bg-zinc-900/60 border-0 text-xl font-black rounded-xl"
                 disabled={!schedule.enabled}
               />
             </div>
           </div>
-
-          <div className="p-4 bg-primary/5 rounded-2xl border border-primary/20 flex items-center gap-3">
-            <Calendar className="w-5 h-5 text-primary shrink-0" />
-            <p className="text-[10px] font-bold text-primary uppercase tracking-widest leading-normal">
-              hGuard will only record events during this window. Automatic night vision will still function.
+          <div className="flex items-center justify-between pt-4">
+            <div className="flex items-center gap-3 text-primary">
+              <Shield className="w-8 h-8" />
+              <h2 className="text-2xl font-black uppercase tracking-tight">AI Filter</h2>
+            </div>
+            <Switch
+              checked={ignorePets}
+              onCheckedChange={saveIgnorePets}
+              className="scale-125"
+            />
+          </div>
+          <div className="p-4 bg-primary/5 rounded-2xl border border-primary/20 flex flex-col gap-2">
+            <h3 className="text-sm font-black text-primary uppercase tracking-widest leading-normal">Smart Drive-Saver</h3>
+            <p className="text-[10px] font-bold text-primary/80 uppercase tracking-widest leading-normal">
+              Ignore pets to save Google Drive storage. If only cats or dogs are detected without a person, the recording will be deleted.
             </p>
           </div>
         </div>
@@ -367,20 +478,20 @@ const SettingsPage = () => {
         {/* Access Control & PIN */}
         <div className="zoomon-card space-y-6">
           <div className="flex items-center gap-3 text-primary">
-            <Lock className="w-8 h-8" />
+            <LockIcon className="w-8 h-8" />
             <h2 className="text-2xl font-black uppercase tracking-tight">Security & PIN</h2>
           </div>
           <div className="space-y-6">
-            <div className="p-6 bg-primary/5 border-2 border-primary/20 rounded-[2rem] space-y-4">
+            <div className="p-6 bg-primary/5 border-2 border-primary/20 rounded-[2.5rem] space-y-4">
               <div className="flex items-center justify-between">
                 <div className="space-y-1">
                   <p className="text-lg font-black uppercase leading-none">Deletion Guard</p>
-                  <p className="text-sm font-bold opacity-60 uppercase tracking-tight">Requires 4-digit PIN for destructive actions.</p>
+                  <p className="text-sm font-bold opacity-80 uppercase tracking-tight">Requires 4-digit PIN for destructive actions.</p>
                 </div>
                 {securityPin ? (
-                  <Unlock className="w-8 h-8 text-green-500" />
+                  <UnlockIcon className="w-8 h-8 text-green-500" />
                 ) : (
-                  <Lock className="w-8 h-8 text-white/20" />
+                  <LockIcon className="w-8 h-8 text-white/20" />
                 )}
               </div>
 
@@ -392,7 +503,7 @@ const SettingsPage = () => {
                   value={newPin}
                   onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ""))}
                   placeholder={securityPin ? "Change PIN (4 digits)" : "Set PIN (4 digits)"}
-                  className="h-14 font-black text-2xl tracking-[0.5em] text-center rounded-2xl bg-black/40 border-2"
+                  className="h-14 font-black text-2xl tracking-[0.5em] text-center rounded-2xl bg-zinc-900/70 border-2"
                 />
                 <Button onClick={savePin} disabled={loading || newPin.length !== 4} size="lg" className="h-14 px-8 rounded-2xl font-black">
                   {securityPin ? "UPDATE" : "SET"}
@@ -415,113 +526,262 @@ const SettingsPage = () => {
           </div>
         </div>
 
-
-
-        {/* Admin Gatekeeper Card */}
-        {isAdmin && (
-          <div className="zoomon-card space-y-6 relative overflow-hidden group">
-            <div className="absolute top-0 right-0 p-8 opacity-5">
-              <ShieldCheck className="w-32 h-32 rotate-12" />
-            </div>
-            <div className="flex items-center gap-3 text-primary">
-              <ShieldCheck className="w-8 h-8" />
-              <h2 className="text-2xl font-black uppercase tracking-tight">Gatekeeper</h2>
-            </div>
-            <div className="space-y-4">
-              <p className="text-sm font-bold opacity-60 uppercase tracking-tight max-w-md">
-                Manage secure network access. Review pending registrations and approve new viewers.
-              </p>
-              <Button
-                onClick={() => navigate("/users")}
-                className="zoomon-btn-large w-full bg-primary/10 border-2 border-primary/20 text-primary hover:bg-primary/20"
-              >
-                OPEN USER MANAGEMENT
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* Local Storage Backup Card */}
+        {/* Storage Limits Dashboard */}
         <div className="zoomon-card space-y-6">
           <div className="flex items-center gap-3 text-primary">
             <HardDrive className="w-8 h-8" />
-            <h2 className="text-2xl font-black uppercase tracking-tight">Local Storage Hub</h2>
+            <h2 className="text-2xl font-black uppercase tracking-tight">Storage Control</h2>
           </div>
-
-          <div className="space-y-6">
-            {!driveConnected ? (
-              <div className="space-y-4">
-                <Button onClick={handleSelectFolder} className="zoomon-btn-large w-full bg-background border-2 border-primary text-primary hover:bg-primary/5">
-                  <Download className="w-6 h-6 mr-3" />
-                  SELECT STORAGE FOLDER
-                </Button>
-                <p className="text-[10px] font-bold text-center opacity-40 uppercase tracking-widest">
-                  Tip: Choose a folder that syncs with your desktop Drive or Dropbox for cloud backup.
-                </p>
+          
+          <div className="p-6 bg-primary/5 border-2 border-primary/20 rounded-[2rem] space-y-8">
+            <div className="flex flex-col gap-2">
+              <div className="flex justify-between items-end">
+                <p className="text-lg font-black uppercase leading-none">Cloud Snapshot Limit</p>
+                <div className="px-3 py-1 bg-primary/20 rounded-lg border border-primary/30">
+                  <span className="text-sm font-black text-primary">{archiveLimit} GB</span>
+                </div>
               </div>
-            ) : (
-              <div className="space-y-8">
-                <div className="flex items-center justify-between p-6 bg-green-500/10 border-2 border-green-500/30 rounded-[2rem]">
-                  <div className="flex items-center gap-4">
-                    <div className="relative h-5 w-5"><span className="animate-ping absolute inset-0 rounded-full bg-green-400 opacity-75"></span><span className="relative block h-5 w-5 bg-green-500 rounded-full"></span></div>
-                    <span className="text-xl font-black uppercase text-green-500 tracking-tighter">Vault Connected</span>
-                  </div>
-                  <Button variant="outline" className="h-12 border-2 border-green-500/20 text-green-500 font-black hover:bg-green-500/20" onClick={handleDisconnectFolder}>CHANGE / DISCONNECT</Button>
+              <p className="text-xs font-bold opacity-80 uppercase tracking-tight">Set your FIFO buffer size. Older non-starred clips will be purged.</p>
+              <div className="pt-4 px-2">
+                <Slider 
+                  value={[archiveLimit]} 
+                  onValueChange={saveArchiveLimit}
+                  min={2} 
+                  max={50} 
+                  step={1}
+                  className="py-4"
+                />
+              </div>
+            </div>
+
+            {driveQuota && (
+              <div className="space-y-3 pt-4 border-t border-primary/10">
+                <div className="flex justify-between text-[10px] font-black uppercase tracking-widest leading-none">
+                  <span className="text-primary">Drive Usage</span>
+                  <span className="opacity-60">{Math.round(driveQuota.used / 1024 / 1024 / 1024 * 10) / 10} GB / {Math.round(driveQuota.limit / 1024 / 1024 / 1024)} GB</span>
                 </div>
-
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center px-4">
-                    <h3 className="text-xl font-black uppercase tracking-tighter">{driveFiles.length} RECORDINGS</h3>
-                    {selectedFiles.size > 0 && (
-                      <Button variant="destructive" onClick={handleBulkDelete} disabled={isDeleting} className="h-14 px-8 font-black rounded-2xl shadow-xl shadow-destructive/40 transition-all">
-                        {isDeleting ? "WIPING..." : `DELETE ${selectedFiles.size}`}
-                      </Button>
-                    )}
-                  </div>
-
-                  {securityPin && (
-                    <div className="px-4 flex items-center gap-2 text-primary">
-                      <ShieldCheck className="w-5 h-5 animate-pulse" />
-                      <span className="text-xs font-black uppercase tracking-widest opacity-60">Pin Guard Active</span>
-                    </div>
-                  )}
-
-                  <div className="space-y-3 max-h-[400px] overflow-y-auto pr-3 custom-scrollbar">
-                    {driveFiles.map(file => (
-                      <div key={file.id} className={cn("flex items-center gap-5 p-5 bg-card border-2 rounded-[2rem] transition-all", selectedFiles.has(file.id) ? "border-destructive/50 bg-destructive/5" : "border-border/40 hover:border-primary/40")}>
-                        <Switch checked={selectedFiles.has(file.id)} onCheckedChange={() => toggleFileSelection(file.id)} className="scale-125 data-[state=checked]:bg-destructive" />
-                        <div className="min-w-0 flex-1">
-                          <p className="text-xl font-black uppercase truncate tracking-tight">{file.name}</p>
-                          <p className="text-xs font-bold opacity-40 uppercase tracking-widest">{new Date(file.createdTime).toLocaleTimeString()} · {(file.size / 1024 / 1024).toFixed(1)} MB</p>
-                        </div>
-                      </div>
-                    ))}
-                    {driveFiles.length === 0 && <p className="text-center py-10 font-black opacity-20 uppercase italic">Your vault is empty.</p>}
-                  </div>
+                <div className="h-2 bg-muted/40 rounded-full overflow-hidden border border-white/5">
+                  <div 
+                    className={cn(
+                      "h-full transition-all duration-1000",
+                      (driveQuota.used / driveQuota.limit) > 0.9 ? "bg-destructive w-full" : "bg-primary"
+                    )} 
+                    style={{ width: `${Math.min(100, (driveQuota.used / driveQuota.limit) * 100)}%` }}
+                  />
                 </div>
+                {(driveQuota.used / driveQuota.limit) > 0.9 && (
+                   <p className="text-[10px] font-bold text-destructive animate-pulse uppercase tracking-widest text-center mt-2">
+                     Warning: Google Drive is nearly full! Purge may fail.
+                   </p>
+                )}
               </div>
             )}
           </div>
         </div>
 
-        {/* Security Hardware Card */}
+        {/* Google Drive Connection */}
         <div className="zoomon-card space-y-6">
           <div className="flex items-center gap-3 text-primary">
-            <Settings2 className="w-8 h-8" />
-            <h2 className="text-2xl font-black uppercase tracking-tight">Security Nodes</h2>
+            <ShieldCheck className="w-8 h-8" />
+            <h2 className="text-2xl font-black uppercase tracking-tight">Account Sync</h2>
+          </div>
+          <div className={cn(
+            "p-6 rounded-[2rem] border-2 transition-all flex items-center justify-between",
+            localStorage.getItem("google_drive_token") ? "bg-green-500/10 border-green-500/30" : "bg-card/40 border-border/40"
+          )}>
+            <div className="flex items-center gap-4">
+              <div className={cn("h-4 w-4 rounded-full", localStorage.getItem("google_drive_token") ? "bg-green-500 animate-pulse" : "bg-white/20")} />
+              <div>
+                <p className="text-lg font-black uppercase leading-none">Google Drive</p>
+                <p className="text-xs font-bold opacity-80 uppercase tracking-tight">
+                  {localStorage.getItem("google_drive_token") ? "Authorized & Linked" : "Not Linked"}
+                </p>
+              </div>
+            </div>
+            <Button
+              variant={localStorage.getItem("google_drive_token") ? "outline" : "default"}
+              onClick={signInWithGoogle}
+              className="rounded-xl font-black uppercase tracking-widest text-[10px]"
+            >
+              {localStorage.getItem("google_drive_token") ? "MANAGE ACCESS" : "CONNECT DRIVE"}
+            </Button>
+          </div>
+        </div>
+
+        {/* AI Intelligence Brain */}
+        <div className="zoomon-card space-y-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3 text-primary">
+              <Brain className="w-8 h-8" />
+              <h2 className="text-2xl font-black uppercase tracking-tight">AI Intelligence</h2>
+            </div>
+            <Switch
+              checked={autoUpgrade}
+              onCheckedChange={toggleAutoUpgrade}
+              className="scale-125"
+            />
+          </div>
+          
+          <div className="p-4 bg-primary/5 rounded-2xl border border-primary/20 mb-4">
+            <div className="flex items-center gap-2 mb-1">
+              <Zap className="w-3 h-3 text-primary" />
+              <span className="text-[10px] font-black uppercase tracking-widest text-primary">Adaptive Model Selection</span>
+            </div>
+            <p className="text-[9px] font-bold text-primary/70 uppercase tracking-tight">
+              {autoUpgrade 
+                ? "System is automatically routing requests to the most efficient model (Gemini 1.5 Flash)." 
+                : "Manual model selection active. Performance may vary."}
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <Button
+              variant="outline"
+              onClick={() => handleBrainChange('gemma')}
+              className={cn(
+                "h-32 flex-col gap-3 rounded-[2rem] border-2 transition-all p-6",
+                activeBrain === 'gemma' ? "bg-primary/10 border-primary text-primary" : "bg-card/40 border-border/40 opacity-60"
+              )}
+            >
+              <Cpu className="w-10 h-10" />
+              <div className="text-center">
+                <p className="text-[10px] font-black uppercase tracking-widest">Local-Edge</p>
+                <p className="text-[8px] font-bold opacity-60 uppercase">Gemma 2 / Flash</p>
+              </div>
+            </Button>
+
+            <Button
+              variant="outline"
+              onClick={() => handleBrainChange('gemini')}
+              className={cn(
+                "h-32 flex-col gap-3 rounded-[2rem] border-2 transition-all p-6",
+                activeBrain === 'gemini' ? "bg-primary/10 border-primary text-primary" : "bg-card/40 border-border/40 opacity-60"
+              )}
+            >
+              <Brain className="w-10 h-10" />
+              <div className="text-center">
+                <p className="text-[10px] font-black uppercase tracking-widest">Cloud Neural</p>
+                <p className="text-[8px] font-bold opacity-60 uppercase">Gemini 1.5 Pro</p>
+              </div>
+            </Button>
+          </div>
+        </div>
+
+        {/* Nuclear Mesh Reset Card */}
+
+        <div className="zoomon-card border-destructive/20 bg-destructive/5 space-y-6">
+          <div className="flex items-center gap-3 text-destructive">
+            <Zap className="w-8 h-8" />
+            <h2 className="text-2xl font-black uppercase tracking-tight">System Purge</h2>
           </div>
           <div className="space-y-4">
-            {devices.map(d => (
-              <div key={d.id} className="flex items-center justify-between p-6 bg-muted/20 border-2 border-border/30 rounded-[2.5rem] group hover:border-primary/50 transition-all">
-                <div>
-                  <p className="text-2xl font-black uppercase group-hover:text-primary transition-colors">{d.name}</p>
-                  <p className="text-sm font-bold opacity-50 uppercase tracking-widest">{d.type} · <span className={cn(d.status === 'online' ? 'text-green-500' : 'text-orange-500')}>{d.status}</span></p>
-                </div>
-                <Button variant="ghost" size="icon" onClick={() => removeDevice(d.id)} className="h-16 w-16 rounded-3xl hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all border-2 border-transparent hover:border-destructive/30">
-                  <Trash2 className="h-8 w-8" />
+            <p className="text-sm font-bold text-destructive/60 uppercase tracking-widest leading-relaxed">
+              If your mesh is displaying 'Ghost' cameras or stale devices, use this tool to wipe the slate clean.
+            </p>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" className="w-full h-16 rounded-[2rem] font-black uppercase tracking-widest">
+                  RESET SECURITY MESH
                 </Button>
-              </div>
-            ))}
+              </AlertDialogTrigger>
+              <AlertDialogContent className="bg-zinc-950 border-destructive/50">
+                <AlertDialogHeader>
+                  <AlertDialogTitle className="text-2xl font-black text-destructive italic underline">NUCLEAR PURGE</AlertDialogTitle>
+                  <AlertDialogDescription className="text-white/70 font-bold uppercase tracking-widest leading-loose">
+                    This will PERMANENTLY DELETE all camera records from your account. You will need to restart every camera manually.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel className="rounded-2xl border-white/10 font-black">CANCEL</AlertDialogCancel>
+                  <AlertDialogAction 
+                    onClick={async () => {
+                      if (!user) return;
+                      const q = query(collection(db, "devices"), where("user_id", "==", user.uid));
+                      const snap = await getDocs(q);
+                      for (const d of snap.docs) await deleteDoc(doc(db, "devices", d.id));
+                      window.location.reload();
+                    }}
+                    className="bg-destructive text-white rounded-2xl font-black"
+                  >
+                    CONFIRM PURGE
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        </div>
+
+        {/* Webhooks & Automation */}
+        <div className="zoomon-card space-y-6">
+          <div className="flex items-center gap-3 text-primary">
+            <Zap className="h-8 w-8" />
+            <h2 className="text-2xl font-black uppercase tracking-tight">Automation</h2>
+          </div>
+          <div className="p-8 bg-card/40 border-2 border-border/40 rounded-[2.5rem] space-y-4">
+            <p className="text-[10px] font-black uppercase tracking-widest text-white/70">Real-time Webhook URL</p>
+            <div className="flex gap-3">
+              <Input 
+                placeholder="https://your-webhook-endpoint.com" 
+                value={webhookUrl}
+                onChange={(e) => setWebhookUrl(e.target.value)}
+                className="h-14 bg-zinc-900/70 border-0 rounded-2xl font-bold px-6 text-primary"
+              />
+              <Button onClick={saveWebhook} className="h-14 px-8 rounded-2xl font-black uppercase tracking-widest">
+                SAVE
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Force Logout All Devices */}
+        <div className="zoomon-card border-orange-500/20 bg-orange-500/5 space-y-6">
+          <div className="flex items-center gap-3 text-orange-400">
+            <LockIcon className="w-8 h-8" />
+            <h2 className="text-2xl font-black uppercase tracking-tight">Session Control</h2>
+          </div>
+          <div className="space-y-4">
+            <p className="text-sm font-bold text-orange-400/70 uppercase tracking-widest leading-relaxed">
+              Signs out all active devices instantly, clears their local cache, and forces them to re-authenticate. Use if you suspect unauthorized access.
+            </p>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="w-full h-16 rounded-[2rem] font-black uppercase tracking-widest border-orange-500/40 text-orange-400 hover:bg-orange-500/10 hover:border-orange-400"
+                >
+                  <LockIcon className="h-5 w-5 mr-3" />
+                  FORCE LOGOUT ALL DEVICES
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent className="bg-zinc-950 border-orange-500/40">
+                <AlertDialogHeader>
+                  <AlertDialogTitle className="text-2xl font-black text-orange-400">Force Global Logout?</AlertDialogTitle>
+                  <AlertDialogDescription className="text-white/70 font-bold uppercase tracking-widest leading-loose">
+                    This will immediately sign out ALL devices connected to your account, clear their local caches, and redirect them to the login screen. You will also be signed out.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel className="rounded-2xl border-white/10 font-black">CANCEL</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={async () => {
+                      await forceLogoutAllDevices();
+                      // Also sign this device out and clear its own cache
+                      await signOut();
+                      localStorage.clear();
+                      sessionStorage.clear();
+                      if ('caches' in window) {
+                        const keys = await caches.keys();
+                        await Promise.all(keys.map(k => caches.delete(k)));
+                      }
+                      window.location.href = "/login";
+                    }}
+                    className="bg-orange-500 text-white rounded-2xl font-black hover:bg-orange-600"
+                  >
+                    CONFIRM — LOGOUT ALL
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         </div>
 
@@ -529,14 +789,6 @@ const SettingsPage = () => {
           <LogOut className="h-10 w-10" /> DISCONNECT
         </Button>
       </div>
-
-      <PinModal
-        isOpen={isPinModalOpen}
-        onClose={() => setIsPinModalOpen(false)}
-        onSuccess={confirmBulkDelete}
-        correctPin={securityPin}
-        title="Confirm Data Wipe"
-      />
     </AppLayout>
   );
 };

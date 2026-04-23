@@ -1,4 +1,4 @@
-const CACHE_NAME = 'securecam-v1';
+const CACHE_NAME = 'hguard-v2.5.1-protocol';
 const STATIC_ASSETS = ['/', '/index.html', '/manifest.json', '/favicon.ico'];
 
 self.addEventListener('install', (event) => {

@@ -2,13 +2,12 @@ import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { LayoutDashboard, Camera, Bell, Settings, LogOut, Shield, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Logo } from "./Logo";
 
 const ADMIN_EMAIL = "successpartner10@gmail.com";
 
 const navItems = [
   { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
-  { to: "/camera", icon: Camera, label: "Camera" },
-  { to: "/alerts", icon: Bell, label: "Events" },
   { to: "/users", icon: Users, label: "Users", adminOnly: true },
   { to: "/settings", icon: Settings, label: "Settings" },
 ];
@@ -22,14 +21,18 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
   return (
     <div className="flex min-h-screen flex-col bg-background">
       {/* Top bar */}
-      <header className="glass-panel sticky top-0 z-50 flex h-14 items-center justify-between px-4">
-        <Link to="/dashboard" className="flex items-center gap-2">
-          <img src="/logo.png" alt="hGuard Logo" className="h-8 w-8 object-contain rounded-lg" />
-          <span className="text-xl font-black text-foreground tracking-tighter uppercase">hGuard</span>
+      <header className="glass-panel sticky top-0 z-50 flex h-20 items-center justify-between px-6 border-b border-white/5">
+        <Link to="/dashboard" className="flex items-center gap-3">
+          <Logo size="sm" className="h-10" />
         </Link>
-        <button onClick={signOut} className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
-          <LogOut className="h-5 w-5" />
-        </button>
+        <div className="flex items-center gap-4">
+          <span className="text-[8px] font-black text-primary/40 uppercase tracking-widest hidden sm:block">
+            { (window as any).hGuard_Version || "v2.5.1" }
+          </span>
+          <button onClick={signOut} className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/5 text-muted-foreground hover:bg-white/10 hover:text-white transition-all border border-white/5">
+            <LogOut className="h-6 w-6" />
+          </button>
+        </div>
       </header>
 
       {/* Main content */}
@@ -55,12 +58,12 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
               key={to}
               to={to}
               className={cn(
-                "flex flex-col items-center gap-1 transition-all duration-300 px-1 py-1.5 rounded-xl",
+                "flex flex-col items-center justify-center gap-1 transition-all duration-300 px-1 py-1.5 rounded-xl w-full h-full",
                 active ? "text-primary bg-primary/10 scale-105" : "text-muted-foreground hover:bg-muted/50"
               )}
             >
               <Icon className={cn("h-6 w-6", active && "glow-primary")} />
-              <span className={cn("text-[9px] font-black tracking-tighter uppercase truncate w-full text-center", active ? "opacity-100" : "opacity-60")}>
+              <span className={cn("text-[9px] font-black tracking-tighter uppercase truncate w-full text-center", active ? "opacity-100" : "opacity-90")}>
                 {shortLabel}
               </span>
             </Link>

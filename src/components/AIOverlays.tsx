@@ -1,180 +1,202 @@
-import React from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Tag } from "lucide-react";
-import type { DetectedObject } from "@tensorflow-models/coco-ssd";
+import React, { useState, useEffect } from "react";
+import { cn } from "@/lib/utils";
+import { motion } from "framer-motion";
 
-export const DETECTION_CATEGORIES = [
-    { id: "all", label: "ALL", classes: null, color: "hsl(var(--primary))" },
-    { id: "person", label: "PERSON", classes: ["person"], color: "#3b82f6" },
-    { id: "pet", label: "PET", classes: ["cat", "dog", "bird", "horse", "sheep", "cow"], color: "#10b981" },
-    { id: "vehicle", label: "VEHICLE", classes: ["car", "truck", "bus", "motorcycle", "bicycle"], color: "#f59e0b" },
-    { id: "plant", label: "PLANT", classes: ["potted plant", "vase"], color: "#22c55e" },
-    { id: "other", label: "OTHER", classes: "__other__" as any, color: "#a855f7" },
-] as const;
+interface AIOverlaysProps {
+  canvasRef?: React.RefObject<HTMLCanvasElement>;
+  isMonitoring: boolean;
+  analysis: any;
+}
 
-export type CategoryId = typeof DETECTION_CATEGORIES[number]["id"];
+interface LogEntry {
+  id: string;
+  time: string;
+  label: string;
+  color: string;
+}
 
-export const getCategoryColor = (obj: DetectedObject, activeCategories: Set<CategoryId>): string => {
-    for (const cat of DETECTION_CATEGORIES) {
-        if (cat.id === "all" || cat.id === "other") continue;
-        if (Array.isArray(cat.classes) && cat.classes.includes(obj.class)) return cat.color;
+// Generate consistent high-contrast colors following the reference palette
+const getColorForLabel = (label: string | undefined, index: number): string => {
+  const palette = [
+    '#ef4444', // red
+    '#3b82f6', // blue
+    '#22c55e', // green
+    '#eab308', // yellow
+    '#a855f7', // purple
+    '#f97316', // orange
+    '#06b6d4', // cyan
+  ];
+  if (!label) return palette[(index % (palette.length - 1)) + 1];
+  
+  const upper = label.toUpperCase();
+  if (upper.includes('PERSON')) return palette[0];
+  if (upper.includes('CHAIR')) return palette[1];
+  if (upper.includes('BANANA')) return palette[3];
+  if (upper.includes('BOOK')) return palette[6];
+  if (upper.includes('COUCH')) return palette[2];
+  return palette[(index % (palette.length - 1)) + 1];
+};
+
+export const AIOverlays = ({ isMonitoring, analysis }: AIOverlaysProps) => {
+  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const objects = analysis?.detected_objects || [];
+
+  useEffect(() => {
+    if (objects.length > 0) {
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }) + '.' + Math.floor(now.getMilliseconds() / 100);
+      
+      const newLogs = objects.map((obj: any, idx: number) => ({
+        id: Math.random().toString(36).substr(2, 9),
+        time: timeStr,
+        label: obj.label,
+        color: getColorForLabel(obj.label, idx)
+      }));
+
+      setLogs(prev => [...prev, ...newLogs].slice(-25)); // Keep last 25 for the scrolling log
     }
-    return "#a855f7";
-};
+  }, [analysis]);
 
-export const filterObjects = (objects: DetectedObject[], activeCategories: Set<CategoryId>): DetectedObject[] => {
-    if (activeCategories.has("all")) return objects;
-    if (activeCategories.size === 0) return [];
-    const knownClasses = DETECTION_CATEGORIES.flatMap(c => (Array.isArray(c.classes) ? c.classes : []));
-    return objects.filter(obj => {
-        for (const catId of activeCategories) {
-            const cat = DETECTION_CATEGORIES.find(c => c.id === catId);
-            if (!cat) continue;
-            if (catId === "other" && !knownClasses.includes(obj.class)) return true;
-            if (Array.isArray(cat.classes) && cat.classes.includes(obj.class)) return true;
-        }
-        return false;
-    });
-};
+  if (!isMonitoring) return null;
 
-export const countByCategory = (objects: DetectedObject[], catId: CategoryId): number => {
-    if (catId === "all") return objects.length;
-    const cat = DETECTION_CATEGORIES.find(c => c.id === catId);
-    if (!cat) return 0;
-    if (catId === "other") {
-        const knownClasses = DETECTION_CATEGORIES.flatMap(c => (Array.isArray(c.classes) ? c.classes : []));
-        return objects.filter(o => !knownClasses.includes(o.class)).length;
-    }
-    if (!Array.isArray(cat.classes)) return 0;
-    return objects.filter(o => cat.classes!.includes(o.class)).length;
-};
-
-export const RadarOverlay = React.memo(({ detectedObjects, videoWidth, videoHeight }: { detectedObjects: DetectedObject[], videoWidth: number, videoHeight: number }) => {
-    return (
-        <div className="absolute inset-0 pointer-events-none z-20 flex items-center justify-center opacity-40">
-            <div className="relative h-[280px] w-[280px]">
-                <motion.div
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
-                    className="absolute inset-0 rounded-full border border-primary/20"
-                >
-                    <div className="absolute top-0 left-1/2 -translate-x-1/2 h-1/2 w-1 bg-gradient-to-t from-primary/60 via-primary/10 to-transparent origin-bottom" />
-                </motion.div>
-
-                <div className="absolute inset-[40px] rounded-full border border-primary/10" />
-                <div className="absolute inset-[80px] rounded-full border border-primary/10" />
-
-                {/* AI Object Markers on Radar */}
-                {detectedObjects.map((obj, i) => (
-                    <motion.div
-                        key={i}
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        className="absolute h-6 w-6 bg-primary rounded-full shadow-[0_0_20px_hsl(var(--primary))] flex items-center justify-center"
-                        style={{
-                            left: `${(obj.bbox[0] / (videoWidth || 640)) * 100}%`,
-                            top: `${(obj.bbox[1] / (videoHeight || 480)) * 100}%`
-                        }}
-                    >
-                        <div className="text-[8px] font-black text-primary-foreground uppercase mt-8 text-center w-max whitespace-nowrap">{obj.class}</div>
-                    </motion.div>
-                ))}
+  return (
+    <div className="absolute inset-0 pointer-events-none z-20 overflow-hidden font-mono text-[9px] sm:text-[10px]">
+      
+      {/* 1. Viewport Bounding Boxes */}
+      {objects.map((obj: any, idx: number) => {
+        if (!obj.box_2d) return null;
+        const [ymin, xmin, ymax, xmax] = obj.box_2d;
+        const color = getColorForLabel(obj.label, idx);
+        
+        return (
+          <motion.div
+            key={`box-${idx}`}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="absolute border-[1.5px]"
+            style={{
+              left: `${xmin / 10}%`,
+              top: `${ymin / 10}%`,
+              width: `${(xmax - xmin) / 10}%`,
+              height: `${(ymax - ymin) / 10}%`,
+              borderColor: color,
+            }}
+          >
+            {/* Box Label Tag */}
+            <div 
+              className="absolute -top-[14px] left-[-1.5px] px-1 py-[1.5px] text-[7px] font-black uppercase text-[#111827] flex items-center gap-2 border-[1.5px]"
+              style={{ backgroundColor: color, borderColor: color }}
+            >
+              <span>{obj.label}</span>
+              <span>{Math.round((obj.confidence || 0) * 100)}</span>
             </div>
-        </div>
-    );
-});
+          </motion.div>
+        );
+      })}
 
-export const BoundingBoxesOverlay = React.memo(({
-    detectedObjects,
-    filteredObjects,
-    activeCategories
-}: {
-    detectedObjects: DetectedObject[],
-    filteredObjects: DetectedObject[],
-    activeCategories: Set<CategoryId>
-}) => {
-    const isSpotlightActive = !activeCategories.has("all") && filteredObjects.length > 0;
-
-    return (
+      {/* If we have analysis, show the complex HUD */}
+      {analysis && (
         <>
-            <AnimatePresence>
-                {isSpotlightActive && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="absolute inset-0 z-[15] pointer-events-none"
-                        style={{ background: 'rgba(0,0,0,0.55)' }}
-                    >
-                        <svg className="absolute inset-0 w-full h-full" xmlns="http://www.w3.org/2000/svg">
-                            <defs>
-                                <mask id="spotlight-mask">
-                                    <rect width="100%" height="100%" fill="white" />
-                                    {filteredObjects.map((obj, i) => (
-                                        <rect
-                                            key={`mask-${i}`}
-                                            x={`${(obj.bbox[0] / 320) * 100}%`}
-                                            y={`${(obj.bbox[1] / 240) * 100}%`}
-                                            width={`${(obj.bbox[2] / 320) * 100}%`}
-                                            height={`${(obj.bbox[3] / 240) * 100}%`}
-                                            rx="12"
-                                            fill="black"
-                                        />
-                                    ))}
-                                </mask>
-                            </defs>
-                            <rect width="100%" height="100%" fill="rgba(0,0,0,0.5)" mask="url(#spotlight-mask)" />
-                        </svg>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+          {/* Light Theme Sidebar HUD - Hidden on small mobile, collapsible on larger mobile */}
+          <div className="absolute top-0 left-0 w-32 sm:w-48 h-full bg-[#fcfcfc]/95 backdrop-blur-md border-r border-[#e5e7eb] text-[#111827] flex flex-col pointer-events-none overflow-y-auto shadow-2xl transition-transform duration-500 -translate-x-full sm:translate-x-0 group-hover:translate-x-0">
+            
+            {/* Header / Config */}
+            <div className="p-3 border-b border-[#e5e7eb] flex flex-col gap-2">
+              <div className="flex gap-1.5 opacity-60">
+                 <div className="h-3 w-4 border-[1.5px] border-[#111827] rounded-sm flex items-center justify-center">
+                    <div className="h-1 w-1.5 bg-[#111827]" />
+                 </div>
+                 <div className="h-3 w-4 border-[1.5px] border-[#111827] rounded-sm flex items-center justify-center">
+                    <div className="h-[2px] w-2 bg-[#111827]" />
+                 </div>
+                 <div className="h-3 w-3 border-[1.5px] border-[#111827] flex items-center justify-center">
+                    <div className="h-1 w-1 bg-[#111827]" />
+                 </div>
+              </div>
+              <div className="flex items-center gap-2 mt-2">
+                 <span className="text-[7px] text-[#9ca3af] uppercase font-bold tracking-widest whitespace-nowrap">Conf. Threshold</span>
+                 <div className="flex-1 h-1 bg-[#e5e7eb] rounded-full overflow-hidden">
+                    <div className="h-full bg-[#a855f7] w-[60%]" />
+                 </div>
+                 <span className="text-[8px] font-bold text-[#a855f7]">0.60</span>
+              </div>
+              <div className="text-[7px] text-[#d1d5db] font-bold tracking-widest mt-1 border-b border-dashed border-[#e5e7eb] pb-1 inline-block text-left w-20">
+                filter labels
+              </div>
+            </div>
 
-            <AnimatePresence>
-                {detectedObjects.map((obj, i) => {
-                    const isFiltered = filteredObjects.some(f => f === obj);
-                    const color = getCategoryColor(obj, activeCategories);
-
-                    const opacity = isFiltered ? 1 : 0.25;
-                    const scale = isFiltered ? 1 : 0.95;
-
-                    return (
-                        <motion.div
-                            key={`bbox-${i}-${obj.class}`}
-                            initial={{ opacity: 0, scale: 0.8 }}
-                            animate={{ opacity, scale }}
-                            exit={{ opacity: 0, scale: 0.8 }}
-                            className="absolute z-20 pointer-events-none"
-                            style={{
-                                left: `${(obj.bbox[0] / 320) * 100}%`,
-                                top: `${(obj.bbox[1] / 240) * 100}%`,
-                                width: `${(obj.bbox[2] / 320) * 100}%`,
-                                height: `${(obj.bbox[3] / 240) * 100}%`,
-                            }}
-                        >
-                            <div className="absolute inset-0">
-                                <div className="absolute top-0 left-0 w-4 h-4 border-t border-l rounded-tl-md" style={{ borderColor: color }} />
-                                <div className="absolute top-0 right-0 w-4 h-4 border-t border-r rounded-tr-md" style={{ borderColor: color }} />
-                                <div className="absolute bottom-0 left-0 w-4 h-4 border-b border-l rounded-bl-md" style={{ borderColor: color }} />
-                                <div className="absolute bottom-0 right-0 w-4 h-4 border-b border-r rounded-br-md" style={{ borderColor: color }} />
-                            </div>
-
-                            {isFiltered && (
-                                <div className="absolute inset-0 rounded-lg opacity-20" style={{ boxShadow: `0 0 15px ${color}, inset 0 0 10px ${color}` }} />
-                            )}
-
-                            {isFiltered && (
-                                <div
-                                    className="absolute -top-5 left-0 px-2 py-0.5 rounded-md text-[8px] font-bold uppercase tracking-tighter text-white/90 backdrop-blur-md border border-white/5 shadow-2xl flex items-center gap-1"
-                                    style={{ backgroundColor: `${color}44` }}
-                                >
-                                    <Tag className="h-2 w-2 opacity-60" />
-                                    {obj.class}
-                                </div>
-                            )}
-                        </motion.div>
-                    );
+            {/* Objects Section */}
+            <div className="p-3 border-b border-[#e5e7eb]">
+              <div className="text-[8px] font-bold text-[#6b7280] uppercase tracking-widest mb-1">Objects</div>
+              <div className="text-3xl font-black text-[#f97316] leading-none mb-3">{objects.length}</div>
+              
+              <div className="space-y-1.5">
+                {objects.map((obj: any, idx: number) => {
+                  const color = getColorForLabel(obj.label, idx);
+                  const conf = Math.round((obj.confidence || 0) * 100);
+                  return (
+                    <div key={`list-${idx}`} className="flex items-center gap-2 text-[7px] uppercase font-bold">
+                       <span className="w-12 truncate text-[#4b5563] text-left">{obj.label}</span>
+                       <div className="flex-1 h-1.5 bg-[#e5e7eb] rounded-sm overflow-hidden flex">
+                         <div className="h-full" style={{ width: `${conf}%`, backgroundColor: color }} />
+                       </div>
+                       <span className="w-4 text-right text-[#4b5563]">{conf}</span>
+                    </div>
+                  );
                 })}
-            </AnimatePresence>
+              </div>
+            </div>
+
+            {/* Heat Map Section */}
+            <div className="p-3 border-b border-[#e5e7eb]">
+              <div className="text-[8px] font-bold text-[#6b7280] uppercase tracking-widest mb-2">Heat Map</div>
+              <div className="grid grid-cols-12 gap-[1px] bg-[#111827] p-[1.5px] max-w-fit rounded-sm shadow-inner">
+                {Array.from({ length: 96 }).map((_, i) => {
+                  const col = i % 12;
+                  const row = Math.floor(i / 12);
+                  // Generate Tetris-like clusters
+                  const isRed = (col > 8 && row > 1 && row < 6);
+                  const isYellow = (col > 2 && col < 5 && row > 3 && row < 7);
+                  const isCyan = (col < 2 && row > 3 && row < 6) || (col === 2 && row === 4);
+                  
+                  // Pulse active blocks slightly if motion exists
+                  const isActive = (isRed || isYellow || isCyan) && analysis?.motion_level > 0.1;
+                  
+                  let color = '#111827';
+                  if (isActive) {
+                    if (isRed) color = '#ef4444';
+                    else if (isYellow) color = '#eab308';
+                    else if (isCyan) color = '#06b6d4';
+                  }
+
+                  return <div key={`hm-${i}`} className="w-2.5 h-2.5 border-[0.5px] border-[#1f2937]" style={{ backgroundColor: color }} />
+                })}
+              </div>
+            </div>
+
+            {/* Models Section */}
+            <div className="p-3 border-b border-[#e5e7eb] text-[8px] space-y-2">
+              <div className="text-[#6b7280] font-bold uppercase tracking-widest mb-1">Models</div>
+              <div className="flex justify-between font-bold text-[#4b5563]"><span>GEMMA 4</span> <span className="text-[#ef4444]">PRO</span></div>
+              <div className="flex justify-between font-bold text-[#4b5563]"><span>RT-DETR</span> <span>ON</span></div>
+              <div className="flex justify-between font-bold text-[#4b5563] mt-2 pt-2"><span>FPS</span> <span>30</span></div>
+            </div>
+
+            {/* Log Section */}
+            <div className="p-3 flex-1 flex flex-col overflow-hidden">
+               <div className="text-[8px] font-bold text-[#6b7280] uppercase tracking-widest mb-2">Log</div>
+               <div className="flex-1 overflow-y-auto space-y-1 text-[7px] uppercase font-bold pr-1">
+                  {[...logs].reverse().map((log) => (
+                     <div key={log.id} className="flex gap-2">
+                        <span className="text-[#9ca3af] whitespace-nowrap">{log.time} {'>'}</span>
+                        <span style={{ color: log.color }}>{log.label}</span>
+                     </div>
+                  ))}
+                </div>
+             </div>
+           </div>
         </>
-    );
-});
+      )}
+    </div>
+  );
+};
