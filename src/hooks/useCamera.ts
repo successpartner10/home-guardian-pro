@@ -11,6 +11,7 @@ interface UseCameraOptions {
   highPrecisionAudio?: boolean;
   ignoreZones?: { x: number, y: number, width: number, height: number }[];
   deviceId?: string;
+  isScreenCapture?: boolean;
 }
 
 export const useCamera = ({
@@ -23,6 +24,7 @@ export const useCamera = ({
   highPrecisionAudio = true,
   ignoreZones = [],
   deviceId,
+  isScreenCapture = false,
 }: UseCameraOptions = {}) => {
   const { toast } = useToast();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -84,18 +86,26 @@ export const useCamera = ({
       }
       let stream;
       try {
-        const constraints: MediaStreamConstraints = {
-          video: deviceId 
-            ? { deviceId: { exact: deviceId }, width: { ideal: 1280 }, height: { ideal: 720 } }
-            : { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } },
-          audio: highPrecisionAudio ? {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true,
-          } : true,
-        };
-        console.log("[useCamera] Requesting HD Environmental Camera...");
-        stream = await navigator.mediaDevices.getUserMedia(constraints);
+        if (isScreenCapture) {
+          console.log("[useCamera] Requesting Screen Capture for Bridge Mode...");
+          stream = await navigator.mediaDevices.getDisplayMedia({
+            video: { displaySurface: "browser" },
+            audio: true
+          });
+        } else {
+          const constraints: MediaStreamConstraints = {
+            video: deviceId 
+              ? { deviceId: { exact: deviceId }, width: { ideal: 1280 }, height: { ideal: 720 } }
+              : { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } },
+            audio: highPrecisionAudio ? {
+              echoCancellation: true,
+              noiseSuppression: true,
+              autoGainControl: true,
+            } : true,
+          };
+          console.log("[useCamera] Requesting Hardware Camera...");
+          stream = await navigator.mediaDevices.getUserMedia(constraints);
+        }
       } catch (e) {
         console.warn("[useCamera] HD requested failed, trying standard mobile Fallback:", e);
         try {

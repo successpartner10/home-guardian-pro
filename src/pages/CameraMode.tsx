@@ -181,6 +181,7 @@ const CameraMode = () => {
   const [ambientBrightness, setAmbientBrightness] = useState(100);
   const [availableCameras, setAvailableCameras] = useState<MediaDeviceInfo[]>([]);
   const [selectedCameraId, setSelectedCameraId] = useState<string>(localStorage.getItem("hguard_preferred_camera") || "");
+  const [isBridgeMode, setIsBridgeMode] = useState(false);
   const isRecordingRef = useRef(false);
 
   useEffect(() => {
@@ -422,7 +423,7 @@ const CameraMode = () => {
   }, [sirenActive, toggleSiren, wakeUp]);
 
   const { videoRef, canvasRef, isActive, isMuted, flashOn, brightness, zoomLevel, zoomCenter, detectionZone, setDetectionZone, startCamera, stopCamera, restartCamera, toggleMute, toggleFlash, takeSnapshot, stream, error: cameraError } =
-    useCamera({ onMotionDetected: handleMotion, onSoundDetected: handleSound, onFallDetected: handleFall, ignoreZones, deviceId: selectedCameraId });
+    useCamera({ onMotionDetected: handleMotion, onSoundDetected: handleSound, onFallDetected: handleFall, ignoreZones, deviceId: selectedCameraId, isScreenCapture: isBridgeMode });
 
   const handleRemoteCommand = useCallback((msg: any) => {
     wakeUp();
@@ -495,16 +496,60 @@ const CameraMode = () => {
       />
       <canvas ref={canvasRef} className="hidden" />
 
-      {/* Hardware Selector */}
-      {availableCameras.length > 1 && (
-        <div className="absolute top-20 left-1/2 -translate-x-1/2 z-50 flex gap-2">
-          {availableCameras.map((cam, idx) => (
-            <button key={cam.deviceId} onClick={() => handleCameraChange(cam.deviceId)} className={cn("px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest transition-all border", selectedCameraId === cam.deviceId ? "bg-primary border-primary text-black" : "bg-black/40 border-white/10 text-white/40")}>
-              {cam.label || `Cam ${idx + 1}`}
-            </button>
-          ))}
+      {/* Source Selection Controls */}
+      <div className="absolute top-20 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-4 w-full max-w-xs">
+        <div className="bg-black/60 backdrop-blur-xl border border-white/10 rounded-2xl p-1.5 flex gap-1 shadow-2xl">
+          <button
+            onClick={() => { setIsBridgeMode(false); restartCamera(); }}
+            className={cn(
+              "px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all",
+              !isBridgeMode ? "bg-primary text-black" : "text-white/40 hover:text-white/60"
+            )}
+          >
+            LENS
+          </button>
+          <button
+            onClick={() => { setIsBridgeMode(true); restartCamera(); }}
+            className={cn(
+              "px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all",
+              isBridgeMode ? "bg-blue-500 text-white" : "text-white/40 hover:text-white/60"
+            )}
+          >
+            BRIDGE
+          </button>
         </div>
-      )}
+
+        {isBridgeMode && (
+          <motion.div 
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="px-4 py-2 rounded-xl bg-blue-500/20 border border-blue-500/30 text-center"
+          >
+            <p className="text-[8px] font-bold text-blue-300 uppercase tracking-widest leading-tight">
+              Select your Ring/Zoom tab<br/>to start the bridge
+            </p>
+          </motion.div>
+        )}
+
+        {!isBridgeMode && availableCameras.length > 1 && (
+          <div className="flex flex-wrap justify-center gap-1.5">
+            {availableCameras.map((cam, idx) => (
+              <button
+                key={cam.deviceId}
+                onClick={() => handleCameraChange(cam.deviceId)}
+                className={cn(
+                  "px-3 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all border",
+                  selectedCameraId === cam.deviceId 
+                    ? "bg-white border-white text-black" 
+                    : "bg-black/40 border-white/10 text-white/40 hover:bg-white/10"
+                )}
+              >
+                {cam.label || `Cam ${idx + 1}`}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
 
       <ActionBar
         toggleSiren={toggleSiren} sirenActive={sirenActive} handleSnapshot={() => { const s = takeSnapshot(); if (s) toast({ title: "Snapshot Saved" }); }}
