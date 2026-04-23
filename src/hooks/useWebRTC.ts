@@ -436,10 +436,10 @@ export const useWebRTC = ({
           // Skip our own signals
           if (data.from === myId) return;
 
-          // Stale signal guard — reject signals older than 60 seconds
-          // (generous window to handle Firestore clock drift)
+          // Stale signal guard — reject signals older than 10 minutes
+          // (very generous window to handle Firestore clock drift)
           const signalTime = data.created_at?.toDate?.()?.getTime();
-          if (signalTime && signalTime < mountTime - 60000) {
+          if (signalTime && signalTime < mountTime - 600000) {
             console.log(`[Signaling] Ignoring stale ${data.type} from ${data.from}`);
             return;
           }
