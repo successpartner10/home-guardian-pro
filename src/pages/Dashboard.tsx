@@ -311,14 +311,39 @@ const Dashboard = () => {
           className="space-y-6 text-center"
         >
           <Logo size="lg" className="h-24 w-24 mx-auto drop-shadow-2xl animate-float" />
-          <div className="space-y-2">
-            <h1 className="text-6xl font-extrabold tracking-tight leading-none text-white selection:bg-primary selection:text-black">
-              HGUARD <span className="text-primary/90">ELITE</span>
+          <div className="flex flex-col items-center gap-2">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary animate-pulse-subtle">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+              </span>
+              <span className="text-[9px] font-black uppercase tracking-widest">System Armed</span>
+            </div>
+            <h1 className="text-4xl sm:text-6xl font-black text-white uppercase tracking-tighter leading-none">
+              Mission <span className="text-primary">Control</span>
             </h1>
-            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-[0.5em]">
-              Elite Mesh Surveillance
+            <p className="text-sm font-bold text-white/30 uppercase tracking-[0.2em]">
+              Central Mesh Interface
             </p>
           </div>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+          className="flex justify-center mb-8"
+        >
+          <button 
+            onClick={() => navigate('/help')}
+            className="group flex items-center gap-3 px-6 py-3 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-primary/30 transition-all duration-200"
+          >
+            <HelpCircle className="h-5 w-5 text-primary group-hover:scale-110 transition-transform" />
+            <div className="text-left">
+              <p className="text-[10px] font-black text-white uppercase tracking-widest leading-none">New to HGUARD?</p>
+              <p className="text-[9px] font-bold text-white/40 uppercase tracking-tighter mt-1">Visit the Academy for feature guides</p>
+            </div>
+          </button>
         </motion.div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto w-full">
@@ -391,7 +416,7 @@ const Dashboard = () => {
         <motion.div 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 0.5, duration: 1 }}
+          transition={{ delay: 0.4, duration: 0.5 }}
           className="pt-12 border-t border-white/5 space-y-8"
         >
           <div className="flex flex-col items-center gap-4">

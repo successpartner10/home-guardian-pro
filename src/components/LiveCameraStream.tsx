@@ -25,7 +25,7 @@ interface LiveCameraStreamProps {
     localStream?: MediaStream | null;
 }
 
-export const LiveCameraStream: React.FC<LiveCameraStreamProps> = ({ device, onFullscreen, localStream }) => {
+const LiveCameraStream: React.FC<LiveCameraStreamProps> = ({ device, onFullscreen, localStream }) => {
     const remoteVideoRef = useRef<HTMLVideoElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
@@ -425,3 +425,4 @@ const ControlBtn = ({
         <span className="text-[9px] font-bold text-inherit">{label}</span>
     </button>
 );
+export default React.memo(LiveCameraStream);

@@ -59,8 +59,8 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
               key={to}
               to={to}
               className={cn(
-                "flex flex-col items-center justify-center gap-1 transition-all duration-300 px-1 py-1.5 rounded-xl w-full h-full",
-                active ? "text-primary bg-primary/10 scale-105" : "text-muted-foreground hover:bg-muted/50"
+                "flex flex-col items-center justify-center gap-1 transition-all duration-200 px-1 py-1.5 rounded-xl w-full h-full",
+                active ? "text-primary bg-primary/10 scale-105" : "text-muted-foreground hover:bg-muted/30"
               )}
             >
               <Icon className={cn("h-6 w-6", active && "glow-primary")} />
