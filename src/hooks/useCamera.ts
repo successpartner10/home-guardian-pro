@@ -10,6 +10,7 @@ interface UseCameraOptions {
   detectionSchedule?: { enabled: boolean, start: string, end: string };
   highPrecisionAudio?: boolean;
   ignoreZones?: { x: number, y: number, width: number, height: number }[];
+  deviceId?: string;
 }
 
 export const useCamera = ({
@@ -21,6 +22,7 @@ export const useCamera = ({
   detectionSchedule,
   highPrecisionAudio = true,
   ignoreZones = [],
+  deviceId,
 }: UseCameraOptions = {}) => {
   const { toast } = useToast();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -82,8 +84,10 @@ export const useCamera = ({
       }
       let stream;
       try {
-        const constraints = {
-          video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } },
+        const constraints: MediaStreamConstraints = {
+          video: deviceId 
+            ? { deviceId: { exact: deviceId }, width: { ideal: 1280 }, height: { ideal: 720 } }
+            : { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } },
           audio: highPrecisionAudio ? {
             echoCancellation: true,
             noiseSuppression: true,
