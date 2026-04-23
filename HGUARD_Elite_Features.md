@@ -89,6 +89,8 @@
 - **Command Wake** — Wakes device instantly upon receiving any remote command
 - **Camera Health HUD** — Real-time battery %, unread alert count, and total clip stats
 - **Bidirectional Naming** — Rename cameras from either the camera node or any viewer
+- **AI Zoom Enhance** — Intelligent digital sharpening and contrast boosting during zoom
+- **Audio Clarity+** — Active noise cancellation and speech isolation for two-way talk
 
 ---
 

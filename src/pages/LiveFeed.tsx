@@ -137,7 +137,13 @@ const LiveFeed = () => {
 
   const startTalking = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        } 
+      });
       setLocalStream(stream);
       setIsTalking(true);
     } catch (e) {
@@ -353,8 +359,13 @@ const LiveFeed = () => {
                 ref={remoteVideoRef}
                 className={cn(
                   "h-full w-full object-contain transition-all duration-700 ease-out",
-                  isNightVision ? "contrast-[1.2] brightness-[1.8] sepia-[1] hue-rotate-[70deg] saturate-[2]" : ""
+                  isNightVision ? "contrast-[1.2] brightness-[1.8] sepia-[1] hue-rotate-[70deg] saturate-[2]" : "",
+                  zoomLevel > 1.5 && "brightness-[1.05] contrast-[1.1] saturate-[1.05]"
                 )}
+                style={{ 
+                  transformOrigin: `${zoomCenter.x}% ${zoomCenter.y}%`,
+                  imageRendering: zoomLevel > 2 ? 'crisp-edges' : 'auto'
+                }}
                 autoPlay
                 playsInline
                 muted={muted}

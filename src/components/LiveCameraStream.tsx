@@ -83,7 +83,14 @@ export const LiveCameraStream: React.FC<LiveCameraStreamProps> = ({ device, onFu
     const startTalk = async (e: React.PointerEvent) => {
         e.stopPropagation();
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true
+                }, 
+                video: false 
+            });
             setMicStream(stream);
             setIsTalkActive(true);
         } catch (err) {
@@ -199,8 +206,15 @@ export const LiveCameraStream: React.FC<LiveCameraStreamProps> = ({ device, onFu
                 <>
                     <video
                         ref={remoteVideoRef}
-                        className="absolute inset-0 h-full w-full object-cover transition-opacity duration-700 gpu-accelerated"
-                        style={{ transformOrigin: `${zoomCenter.x}% ${zoomCenter.y}%`, transform: `scale(${zoomLevel})` }}
+                        className={cn(
+                          "absolute inset-0 h-full w-full object-cover transition-all duration-700 gpu-accelerated",
+                          zoomLevel > 1.5 && "brightness-[1.05] contrast-[1.1] saturate-[1.05]"
+                        )}
+                        style={{ 
+                          transformOrigin: `${zoomCenter.x}% ${zoomCenter.y}%`, 
+                          transform: `scale(${zoomLevel})`,
+                          imageRendering: zoomLevel > 2 ? 'crisp-edges' : 'auto'
+                        }}
                         autoPlay
                         playsInline
                         muted
