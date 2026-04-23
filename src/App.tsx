@@ -18,6 +18,7 @@ import SettingsPage from "./pages/SettingsPage";
 import PendingApproval from "./pages/PendingApproval";
 import UserManagement from "./pages/UserManagement";
 import Onboarding from "./pages/Onboarding";
+import ArchivePage from "./pages/ArchivePage";
 import NotFound from "./pages/NotFound";
 import InstallPrompt from "./components/InstallPrompt";
 
@@ -54,6 +55,7 @@ const App = () => (
               <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
               <Route path="/pending" element={<ProtectedRoute><PendingApproval /></ProtectedRoute>} />
               <Route path="/users" element={<ProtectedRoute><UserManagement /></ProtectedRoute>} />
+              <Route path="/archive" element={<ProtectedRoute><ArchivePage /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
             <InstallPrompt />

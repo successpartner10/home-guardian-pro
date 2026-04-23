@@ -1,9 +1,11 @@
 export class GoogleDriveStorage {
-    async listFiles(accessToken: string): Promise<any[]> {
+    async listFiles(accessToken: string, folderId?: string): Promise<any[]> {
         try {
-            const query = encodeURIComponent("trashed=false");
+            let q = "trashed=false";
+            if (folderId) q += ` and '${folderId}' in parents`;
+            const query = encodeURIComponent(q);
             const response = await fetch(
-                `https://www.googleapis.com/drive/v3/files?q=${query}&fields=files(id,name,size,createdTime)&orderBy=createdTime&pageSize=1000`,
+                `https://www.googleapis.com/drive/v3/files?q=${query}&fields=files(id,name,size,createdTime,mimeType)&orderBy=createdTime desc&pageSize=1000`,
                 { headers: { Authorization: `Bearer ${accessToken}` } }
             );
             if (!response.ok) throw new Error(`List failed: ${response.statusText}`);
@@ -46,6 +48,12 @@ export class GoogleDriveStorage {
             console.error('downloadFile Error:', e);
             return null;
         }
+    }
+
+    async getFileUrl(fileId: string, accessToken: string): Promise<string | null> {
+      const blob = await this.downloadFile(fileId, accessToken);
+      if (blob) return URL.createObjectURL(blob);
+      return null;
     }
 
     async saveFile(name: string, blob: Blob, accessToken: string): Promise<boolean> {

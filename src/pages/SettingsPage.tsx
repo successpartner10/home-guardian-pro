@@ -533,23 +533,43 @@ const SettingsPage = () => {
           </div>
           
           <div className="p-6 bg-primary/5 border-2 border-primary/20 rounded-[2rem] space-y-8">
-            <div className="flex flex-col gap-2">
-              <div className="flex justify-between items-end">
+            <div className="space-y-6">
+              <div className="flex justify-between items-center">
                 <p className="text-lg font-black uppercase leading-none">Cloud Snapshot Limit</p>
-                <div className="px-3 py-1 bg-primary/20 rounded-lg border border-primary/30">
-                  <span className="text-sm font-black text-primary">{archiveLimit} GB</span>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    value={archiveLimit}
+                    onChange={(e) => saveArchiveLimit([parseInt(e.target.value) || 0])}
+                    className="w-20 h-10 bg-black/40 border-white/10 text-center font-black rounded-xl"
+                  />
+                  <span className="text-[10px] font-black text-white/40 uppercase">GB</span>
                 </div>
               </div>
+              
               <p className="text-xs font-bold opacity-80 uppercase tracking-tight">Set your FIFO buffer size. Older non-starred clips will be purged.</p>
-              <div className="pt-4 px-2">
-                <Slider 
-                  value={[archiveLimit]} 
-                  onValueChange={saveArchiveLimit}
-                  min={2} 
-                  max={50} 
-                  step={1}
-                  className="py-4"
-                />
+
+              <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-[1.5rem]">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-primary/10 text-primary">
+                    <DiscIcon className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <Label className="text-sm font-bold uppercase tracking-widest">Drive Status</Label>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-widest mt-0.5">
+                      {driveQuota 
+                        ? `${Math.round(driveQuota.used / 1024 / 1024 / 1024 * 10) / 10} GB of ${Math.round(driveQuota.limit / 1024 / 1024 / 1024)} GB used`
+                        : "Info Not Available — Connect Drive"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-2xl flex items-start gap-4">
+                <AlertTriangle className="h-5 w-5 text-yellow-500 mt-1 shrink-0" />
+                <p className="text-[11px] text-yellow-500/80 leading-relaxed font-medium">
+                  When your Google Drive usage for HGUARD exceeds <span className="font-bold text-yellow-400">{archiveLimit} GB</span>, the oldest recordings will be automatically purged to maintain your safety buffer (FIFO).
+                </p>
               </div>
             </div>
 

@@ -321,10 +321,10 @@ const Dashboard = () => {
           </div>
         </motion.div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-3xl mx-auto w-full">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto w-full">
           <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
           >
             <Button
@@ -345,8 +345,8 @@ const Dashboard = () => {
           </motion.div>
 
           <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
           >
             <Button
@@ -362,6 +362,27 @@ const Dashboard = () => {
               <div className="text-center">
                 <div className="text-2xl font-bold tracking-tight">Viewer Center</div>
                 <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mt-1">Monitor active feeds</div>
+              </div>
+            </Button>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+          >
+            <Button
+              size="lg"
+              onClick={() => navigate('/archive')}
+              className="group relative h-48 w-full bg-white/[0.03] hover:bg-white/[0.08] border border-white/10 hover:border-purple-500/50 text-white rounded-[2rem] transition-all duration-500 flex flex-col gap-4 items-center justify-center overflow-hidden"
+            >
+              <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="p-4 rounded-2xl bg-purple-500/10 text-purple-400 group-hover:scale-110 transition-transform duration-500">
+                <Video className="h-8 w-8" />
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold tracking-tight">Elite Archive</div>
+                <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mt-1">Review saved footage</div>
               </div>
             </Button>
           </motion.div>

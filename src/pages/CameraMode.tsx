@@ -581,13 +581,18 @@ const CameraMode = () => {
               const fileId = await googleDrive.saveFile(filename, videoBlob, providerToken);
               if (fileId) {
                 console.log("[CameraMode] Video clip saved to Google Drive:", fileId);
+                
+                // Enforce user-defined quota (GB to Bytes)
+                const limitGB = profileData?.archive_limit_gb || 10;
+                googleDrive.enforceQuota(providerToken, limitGB * 1024 * 1024 * 1024).catch(() => {});
+
                 // Increment total clips counter
                 if (resolvedDeviceIdRef.current) {
                   updateDoc(doc(db, "devices", resolvedDeviceIdRef.current), {
                     total_clips: increment(1)
                   }).catch(() => {});
                 }
-                toast({ title: "Recording Saved", description: "Video clip uploaded to Google Drive." });
+                toast({ title: "Recording Saved", description: `Video clip uploaded. Storage buffer: ${limitGB}GB.` });
                 videoUrl = filename;
               }
             }
@@ -988,8 +993,7 @@ const CameraMode = () => {
         )}
         style={{ 
           transformOrigin: `${zoomCenter.x}% ${zoomCenter.y}%`, 
-          transform: `scale(${zoomLevel})`,
-          filter: nightVision ? 'url(#noiseFilter) brightness(1.8) contrast(1.4) sepia(1) hue-rotate(70deg) saturate(2.5)' : 'none'
+          transform: `scale(${zoomLevel})`
         }}
         autoPlay
         playsInline
@@ -1037,19 +1041,6 @@ const CameraMode = () => {
         analysis={analysis} 
         canvasRef={canvasRef}
       />
-
-      {/* Movie-style Film Grain / Noise Filter for Night Vision */}
-      <svg className="hidden">
-        <filter id="noiseFilter">
-          <feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch" />
-          <feComponentTransfer>
-            <feFuncR type="linear" slope="0.1" />
-            <feFuncG type="linear" slope="0.1" />
-            <feFuncB type="linear" slope="0.1" />
-          </feComponentTransfer>
-          <feBlend in="SourceGraphic" mode="overlay" />
-        </filter>
-      </svg>
 
       <canvas ref={canvasRef} className="hidden" />
 

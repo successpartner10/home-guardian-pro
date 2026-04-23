@@ -92,7 +92,8 @@
 - **AI Zoom Enhance** — Intelligent digital sharpening and contrast boosting during zoom
 - **Audio Clarity+** — Active noise cancellation and speech isolation for two-way talk
 - **Tactical AI Night Vision** — Automatic low-light switching with "High Sensitivity" AI processing
-- **Movie Aesthetics** — Professional-grade green IR filter with film grain and noise isolation
+- **Elite Archive** — Review and play back recorded clips directly within the app
+- **Drive Quota Control** — Set custom storage limits for your Google Drive buffer
 
 ---
 

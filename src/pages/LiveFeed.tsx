@@ -364,26 +364,13 @@ const LiveFeed = () => {
                 )}
                 style={{ 
                   transformOrigin: `${zoomCenter.x}% ${zoomCenter.y}%`,
-                  imageRendering: zoomLevel > 2 ? 'crisp-edges' : 'auto',
-                  filter: isNightVision ? 'url(#noiseFilter) brightness(1.8) contrast(1.4) sepia(1) hue-rotate(70deg) saturate(2.5)' : 'none'
+                  imageRendering: zoomLevel > 2 ? 'crisp-edges' : 'auto'
                 }}
                 autoPlay
                 playsInline
                 muted={muted}
               />
 
-              {/* Movie-style Film Grain / Noise Filter for Night Vision */}
-              <svg className="hidden">
-                <filter id="noiseFilter">
-                  <feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch" />
-                  <feComponentTransfer>
-                    <feFuncR type="linear" slope="0.1" />
-                    <feFuncG type="linear" slope="0.1" />
-                    <feFuncB type="linear" slope="0.1" />
-                  </feComponentTransfer>
-                  <feBlend in="SourceGraphic" mode="overlay" />
-                </filter>
-              </svg>
               {/* Stream AI Analysis Full HUD */}
               {aiAnalysis ? (
                 <AIOverlays isMonitoring={true} analysis={aiAnalysis} />
