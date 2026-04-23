@@ -14,7 +14,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, LayoutGrid, Maximize, Mic, MicOff, Share2, Trash2 } from "lucide-react";
-import { LiveCameraStream } from "@/components/LiveCameraStream";
+import LiveCameraStream from "@/components/LiveCameraStream";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/Logo";
 import { RefreshCw } from "lucide-react";
