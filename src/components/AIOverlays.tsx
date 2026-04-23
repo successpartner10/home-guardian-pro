@@ -6,6 +6,7 @@ interface AIOverlaysProps {
   canvasRef?: React.RefObject<HTMLCanvasElement>;
   isMonitoring: boolean;
   analysis: any;
+  isThermal?: boolean;
 }
 
 interface LogEntry {
@@ -37,7 +38,7 @@ const getColorForLabel = (label: string | undefined, index: number): string => {
   return palette[(index % (palette.length - 1)) + 1];
 };
 
-export const AIOverlays = ({ isMonitoring, analysis }: AIOverlaysProps) => {
+export const AIOverlays = ({ isMonitoring, analysis, isThermal = false }: AIOverlaysProps) => {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const objects = analysis?.detected_objects || [];
 
@@ -61,6 +62,33 @@ export const AIOverlays = ({ isMonitoring, analysis }: AIOverlaysProps) => {
 
   return (
     <div className="absolute inset-0 pointer-events-none z-20 overflow-hidden font-mono text-[9px] sm:text-[10px]">
+      {/* Thermal Filter Definition */}
+      <svg className="absolute w-0 h-0 invisible">
+        <filter id="hguard-thermal-reconstruction">
+          {/* Grayscale first */}
+          <feColorMatrix type="saturate" values="0" />
+          {/* Map intensity to colors: 0 (cold) to 1 (hot) */}
+          <feComponentTransfer>
+            <feFuncR type="table" tableValues="0.1 0 0.5 1 1" />
+            <feFuncG type="table" tableValues="0 0.1 0 0.8 1" />
+            <feFuncB type="table" tableValues="0.5 0.8 0.2 0 0.8" />
+          </feComponentTransfer>
+          {/* Add a thermal bloom/blur */}
+          <feGaussianBlur stdDeviation="1.5" result="blur" />
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+      </svg>
+
+      <div 
+        className={cn(
+          "absolute inset-0 transition-opacity duration-1000",
+          isThermal ? "opacity-100 backdrop-blur-[1px]" : "opacity-0"
+        )}
+        style={{ filter: isThermal ? "url(#hguard-thermal-reconstruction) contrast(1.4) brightness(1.1)" : "none" }}
+      />
       
       {/* 1. Viewport Bounding Boxes */}
       {objects.map((obj: any, idx: number) => {

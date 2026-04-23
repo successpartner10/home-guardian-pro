@@ -43,7 +43,7 @@ const proposals: AIProposal[] = [
   {
     id: "thermal-vision",
     title: "AI Thermal Reconstruction",
-    status: "future",
+    status: "available",
     icon: Thermometer,
     description: "Using AI to digitally map heat signatures from standard low-light IR sensors.",
     potential: "Detect fever or hidden human presence in pitch-black environments."
@@ -51,7 +51,7 @@ const proposals: AIProposal[] = [
   {
     id: "mesh-tracking",
     title: "Cross-Camera Object Tracking",
-    status: "research",
+    status: "available",
     icon: Sparkles,
     description: "Automatically hand over tracking of a person from one camera to another as they move through your property.",
     potential: "Unified 'Follow' view that keeps the intruder in frame across all nodes."

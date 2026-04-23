@@ -37,6 +37,7 @@ const LiveCameraStream: React.FC<LiveCameraStreamProps> = ({ device, onFullscree
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [micStream, setMicStream] = useState<MediaStream | null>(null);
     const [isTalkActive, setIsTalkActive] = useState(false);
+    const [isThermal, setIsThermal] = useState(false);
 
     // ── Optimistic local toggle states ──────────────────────────────────────────
     const [isFlashOn, setIsFlashOn] = useState(false);
@@ -221,7 +222,16 @@ const LiveCameraStream: React.FC<LiveCameraStreamProps> = ({ device, onFullscree
                         muted
                     />
 
-                    <AIOverlays isMonitoring={isAiActive} analysis={aiAnalysis} canvasRef={canvasRef} />
+                    <AIOverlays isMonitoring={isAiActive} analysis={aiAnalysis} canvasRef={canvasRef} isThermal={isThermal} />
+
+                    {/* Mesh Priority Badge */}
+                    {aiAnalysis?.detected_objects?.some((obj: any) => obj.label?.toLowerCase().includes('person')) && (
+                      <div className="absolute top-5 left-5 z-40 animate-pulse pointer-events-none">
+                        <div className="bg-red-600 border border-red-400 text-white text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-[10px] shadow-[0_0_20px_rgba(220,38,38,0.6)]">
+                          Mesh Priority: Human Locked
+                        </div>
+                      </div>
+                    )}
 
                     <AnimatePresence>
                         {!playAttempted && (
@@ -372,10 +382,11 @@ const LiveCameraStream: React.FC<LiveCameraStreamProps> = ({ device, onFullscree
                                 disabled={!isConnected}
                             />
                             <ControlBtn
-                                icon={<Camera className="h-4 w-4" />}
-                                label="Snap"
-                                active={false}
-                                onClick={() => sendCommand('TAKE_SNAPSHOT')}
+                                icon={<Thermometer className="h-4 w-4" />}
+                                label="Heat"
+                                active={isThermal}
+                                activeClass="bg-orange-500 text-white"
+                                onClick={() => setIsThermal(!isThermal)}
                                 disabled={!isConnected}
                             />
                         </div>

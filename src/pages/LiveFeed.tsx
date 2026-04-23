@@ -12,7 +12,7 @@ import {
 } from "firebase/firestore";
 import { useWebRTC } from "@/hooks/useWebRTC";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Wifi, WifiOff, Volume2, VolumeX, Camera, Maximize, RefreshCw, Box, Flashlight, FlashlightOff, AlertTriangle, Users, RotateCw, ChevronRight, Share2, Copy, Check, Maximize2, Moon, Sun, Mic, Brain } from "lucide-react";
+import { ArrowLeft, Wifi, WifiOff, Volume2, VolumeX, Camera, Maximize, RefreshCw, Box, Flashlight, FlashlightOff, AlertTriangle, Users, RotateCw, ChevronRight, Share2, Copy, Check, Maximize2, Moon, Sun, Mic, Brain, Thermometer } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -72,6 +72,7 @@ const LiveFeed = () => {
   const [isSirenOn, setIsSirenOn] = useState(false);
   const [isNightVision, setIsNightVision] = useState(false);
   const [isAiActive, setIsAiActive] = useState(false);
+  const [isThermal, setIsThermal] = useState(false);
   const [aiAnalysis, setAiAnalysis] = useState<any>(null);
   const { toast } = useToast();
 
@@ -373,8 +374,12 @@ const LiveFeed = () => {
 
               {/* Stream AI Analysis Full HUD */}
               {aiAnalysis ? (
-                <AIOverlays isMonitoring={true} analysis={aiAnalysis} />
-              ) : isAiActive ? (
+                <AIOverlays 
+                isMonitoring={isAiActive} 
+                analysis={aiAnalysis} 
+                isThermal={isThermal}
+              />
+) : isAiActive ? (
                 <div className="absolute top-24 inset-x-4 z-40 max-w-2xl mx-auto" style={{ transform: `scale(${1/zoomLevel})` }}>
                   <div className="mx-auto w-fit bg-black/80 backdrop-blur-3xl border border-purple-500/30 px-6 py-3 rounded-full flex items-center gap-3 shadow-[0_0_30px_rgba(168,85,247,0.3)] animate-pulse">
                     <div className="h-4 w-4 border-2 border-purple-400 border-t-transparent rounded-full animate-spin" />
@@ -621,6 +626,30 @@ const LiveFeed = () => {
           >
             <Mic className={cn("h-6 w-6", isTalking ? "animate-pulse" : "")} />
           </Button>
+
+          <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setIsThermal(!isThermal)}
+                      className={cn(
+                        "h-12 w-12 rounded-2xl transition-all border",
+                        isThermal ? "bg-orange-500 border-orange-400 text-white shadow-[0_0_20px_rgba(249,115,22,0.4)]" : "bg-white/5 border-white/10 text-muted-foreground hover:bg-white/10 hover:text-white"
+                      )}
+                    >
+                      <Thermometer className="h-6 w-6" />
+                    </Button>
+
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => sendCommand('TOGGLE_AI')}
+                      className={cn(
+                        "h-12 w-12 rounded-2xl transition-all border",
+                        isAiActive ? "bg-primary border-primary text-black shadow-[0_0_20px_rgba(var(--primary-rgb),0.4)]" : "bg-white/5 border-white/10 text-muted-foreground hover:bg-white/10 hover:text-white"
+                      )}
+                    >
+                      <Brain className="h-6 w-6" />
+                    </Button>
 
           <Button variant="ghost" size="icon" onClick={toggleFullscreen} className="h-12 w-12 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white hover:bg-white/20 shadow-2xl mt-2">
               <Maximize className="h-5 w-5" />

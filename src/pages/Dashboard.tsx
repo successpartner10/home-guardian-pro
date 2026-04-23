@@ -22,7 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Camera, Wifi, WifiOff, Video, MonitorSmartphone, LayoutGrid, Trash2, RefreshCcw, Sparkles, Brain } from "lucide-react";
+import { Camera, Wifi, WifiOff, Video, MonitorSmartphone, LayoutGrid, Trash2, RefreshCcw, Sparkles, Brain, Target } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -67,6 +67,7 @@ const Dashboard = () => {
   const [unreadAlerts, setUnreadAlerts] = useState(0);
   const [loading, setLoading] = useState(true);
   const [registering, setRegistering] = useState(false);
+  const [isMeshTracking, setIsMeshTracking] = useState(false);
   const [customName, setCustomName] = useState(
     localStorage.getItem("hguard_preferred_name") || 
     sessionStorage.getItem("hguard_preferred_name") || 
@@ -135,6 +136,27 @@ const Dashboard = () => {
       unsubscribeAlerts();
     };
   }, [user]);
+
+  // Mesh Tracking Handoff Logic
+  useEffect(() => {
+    if (!isMeshTracking || devices.length === 0) return;
+
+    // Find first device with a recent unread alert (our proxy for active detection)
+    // or we could check a specific 'active_detection' field if we added it.
+    // For now, use unread_alerts as the trigger.
+    const activeTarget = devices.find(d => d.type === 'camera' && d.status === 'online' && (d as any).unread_alerts > 0);
+    
+    if (activeTarget) {
+      toast({ 
+        title: "MESH HANDOFF", 
+        description: `Target locked on ${activeTarget.name}. Switching focus...`,
+        className: "bg-blue-600 text-white border-none shadow-2xl"
+      });
+      // Small delay to allow user to see the toast before switching
+      const timer = setTimeout(() => navigate(`/live/${activeTarget.id}`), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [devices, isMeshTracking, navigate, toast]);
 
   const getOrCreateDeviceId = () => {
     let id = localStorage.getItem("hguard_device_persistent_id");
@@ -304,15 +326,15 @@ const Dashboard = () => {
   return (
     <AppLayout>
       <div className="p-6 h-full flex flex-col justify-center max-w-4xl mx-auto space-y-16">
-        <motion.div 
-          initial={{ opacity: 0, y: 30 }}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, ease: "easeOut" }}
-          className="space-y-6 text-center"
+          className="flex flex-col items-center gap-6 mb-12"
         >
           <Logo size="lg" className="h-24 w-24 mx-auto drop-shadow-2xl animate-float" />
-          <div className="flex flex-col items-center gap-2">
-            <div className="flex items-center gap-4">
+          
+          <div className="flex flex-col items-center gap-4">
+            <div className="flex items-center gap-3">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary animate-pulse-subtle">
                 <span className="relative flex h-2 w-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
@@ -320,25 +342,32 @@ const Dashboard = () => {
                 </span>
                 <span className="text-[9px] font-black uppercase tracking-widest">System Armed</span>
               </div>
-              
-              {user?.email === "successpartner10@gmail.com" && (
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => navigate('/ai-lab')}
-                  className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-400 shadow-[0_0_15px_rgba(168,85,247,0.2)]"
-                >
-                  <Sparkles className="h-3 w-3 animate-pulse" />
-                  <span className="text-[9px] font-black uppercase tracking-widest">AI Insight Available</span>
-                </motion.button>
-              )}
+
+              <button
+                onClick={() => setIsMeshTracking(!isMeshTracking)}
+                className={cn(
+                  "inline-flex items-center gap-2 px-3 py-1 rounded-full border transition-all duration-300",
+                  isMeshTracking 
+                    ? "bg-blue-500/20 border-blue-400/40 text-blue-400 shadow-[0_0_20px_rgba(59,130,246,0.3)]" 
+                    : "bg-white/5 border-white/10 text-white/30 hover:bg-white/10"
+                )}
+              >
+                <Target className={cn("h-3 w-3", isMeshTracking && "animate-spin-slow")} />
+                <span className="text-[9px] font-black uppercase tracking-widest">Mesh Tracking {isMeshTracking ? 'ON' : 'OFF'}</span>
+              </button>
             </div>
-            <h1 className="text-4xl sm:text-6xl font-black text-white uppercase tracking-tighter leading-none">
-              Mission <span className="text-primary">Control</span>
-            </h1>
-            <p className="text-sm font-bold text-white/30 uppercase tracking-[0.2em]">
-              Central Mesh Interface
-            </p>
+            
+            {user?.email === "successpartner10@gmail.com" && (
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => navigate('/ai-lab')}
+                className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-400 shadow-[0_0_15px_rgba(168,85,247,0.2)]"
+              >
+                <Sparkles className="h-3 w-3 animate-pulse" />
+                <span className="text-[9px] font-black uppercase tracking-widest">AI Insight Available</span>
+              </motion.button>
+            )}
           </div>
         </motion.div>
 
