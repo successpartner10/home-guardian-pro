@@ -226,7 +226,13 @@ const LiveFeed = () => {
     // Real-time listener
     const unsubscribe = onSnapshot(docRef, (snap) => {
       if (snap.exists()) {
-        setDevice({ id: snap.id, ...snap.data() } as Device);
+        const data = snap.data();
+        setDevice({ id: snap.id, ...data } as Device);
+        
+        // Reset unread alerts if count is > 0
+        if (data.unread_alerts > 0) {
+          updateDoc(docRef, { unread_alerts: 0 }).catch(() => {});
+        }
       }
     }, (err) => {
       console.error("LiveFeed real-time listener error:", err);
@@ -235,6 +241,13 @@ const LiveFeed = () => {
 
     return () => unsubscribe();
   }, [deviceId]);
+
+  const handleRename = async () => {
+    const newName = prompt("Enter new camera name:", device?.name);
+    if (newName && newName !== device?.name && deviceId) {
+      await updateDoc(doc(db, "devices", deviceId), { name: newName });
+    }
+  };
 
   // Auto-connect: wait for both device online + signaling channel ready
   useEffect(() => {
@@ -415,21 +428,51 @@ const LiveFeed = () => {
             </Link>
           </div>
 
-          <div className="flex items-center gap-3 rounded-full bg-black/40 border border-white/10 px-4 py-2 backdrop-blur-md shadow-2xl">
-            {isConnected ? (
-              <>
-                <span className="relative flex h-3 w-3">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
-                </span>
-                <span className="text-sm font-semibold tracking-wide text-white uppercase leading-none">Live</span>
-              </>
-            ) : (
-              <div className="flex items-center gap-2">
-                <div className="h-2 w-2 rounded-full bg-zinc-600" />
-                <span className="text-sm font-medium text-white/50 uppercase tracking-widest leading-none">{connectionLabel}</span>
+          <div className="flex items-center gap-3">
+            {device && (
+              <div className="flex flex-col items-end gap-1 px-4 py-2 bg-black/40 border border-white/10 rounded-2xl backdrop-blur-md">
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={handleRename}
+                    className="text-[10px] font-black text-white/60 hover:text-white uppercase tracking-widest transition-colors"
+                  >
+                    {device.name || "Camera"}
+                  </button>
+                  <div className="h-1 w-1 rounded-full bg-white/20" />
+                  <span className={cn(
+                    "text-[10px] font-black uppercase tracking-widest",
+                    (device as any).is_charging ? "text-green-400" : (device as any).battery_level < 20 ? "text-red-500" : "text-white/60"
+                  )}>
+                    {(device as any).battery_level ?? 100}% {(device as any).is_charging ? "Charging" : ""}
+                  </span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-[9px] font-bold text-primary uppercase tracking-[0.2em]">
+                    {(device as any).unread_alerts || 0} New Alerts
+                  </span>
+                  <span className="text-[9px] font-bold text-white/30 uppercase tracking-[0.2em]">
+                    {(device as any).total_clips || 0} Clips
+                  </span>
+                </div>
               </div>
             )}
+
+            <div className="flex items-center gap-3 rounded-full bg-black/40 border border-white/10 px-4 py-2 backdrop-blur-md shadow-2xl h-10">
+              {isConnected ? (
+                <>
+                  <span className="relative flex h-3 w-3">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
+                  </span>
+                  <span className="text-sm font-semibold tracking-wide text-white uppercase leading-none">Live</span>
+                </>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <div className="h-2 w-2 rounded-full bg-zinc-600" />
+                  <span className="text-sm font-medium text-white/50 uppercase tracking-widest leading-none">{connectionLabel}</span>
+                </div>
+              )}
+            </div>
           </div>
 
           <Dialog>

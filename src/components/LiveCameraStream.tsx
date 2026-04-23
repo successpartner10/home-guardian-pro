@@ -13,6 +13,10 @@ interface Device {
     status: string;
     type: string;
     user_id: string;
+    battery_level?: number;
+    is_charging?: boolean;
+    unread_alerts?: number;
+    total_clips?: number;
 }
 
 interface LiveCameraStreamProps {
@@ -133,8 +137,25 @@ export const LiveCameraStream: React.FC<LiveCameraStreamProps> = ({ device, onFu
         if (remoteVideoRef.current && remoteStream) {
             remoteVideoRef.current.srcObject = remoteStream;
             remoteVideoRef.current.play().catch(() => {});
+            
+            // Reset unread alerts on connection
+            if (device.unread_alerts && device.unread_alerts > 0) {
+              const { db } = require("@/lib/firebase");
+              const { doc, updateDoc } = require("firebase/firestore");
+              updateDoc(doc(db, "devices", device.id), { unread_alerts: 0 }).catch(() => {});
+            }
         }
-    }, [remoteStream, isConnected]);
+    }, [remoteStream, isConnected, device.id, device.unread_alerts]);
+
+    const handleRename = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        const newName = prompt("Enter new camera name:", device.name);
+        if (newName && newName !== device.name) {
+          const { db } = require("@/lib/firebase");
+          const { doc, updateDoc } = require("firebase/firestore");
+          await updateDoc(doc(db, "devices", device.id), { name: newName });
+        }
+    };
 
     const isOnline = device.status === "online" || device.status === "recording";
 
@@ -258,10 +279,35 @@ export const LiveCameraStream: React.FC<LiveCameraStreamProps> = ({ device, onFu
                            )}
                         </div>
                         <span className="text-[10px] font-bold text-white uppercase tracking-widest">{isConnected ? "Live" : connectionLabel}</span>
+                        {device.battery_level !== undefined && (
+                          <>
+                            <div className="h-2 w-[1px] bg-white/10" />
+                            <span className={cn(
+                              "text-[9px] font-black tracking-widest",
+                              device.is_charging ? "text-green-400" : (device.battery_level < 20 ? "text-red-500" : "text-white/60")
+                            )}>
+                              {device.battery_level}%{device.is_charging ? "⚡" : ""}
+                            </span>
+                          </>
+                        )}
                     </div>
-                    <h3 className="text-sm font-bold text-white tracking-tight px-1 drop-shadow-lg truncate max-w-[180px]">
-                        {device.name}
-                    </h3>
+                    <div className="flex flex-col gap-1 px-1">
+                      <button 
+                        onClick={handleRename}
+                        className="text-sm font-bold text-white tracking-tight drop-shadow-lg truncate max-w-[180px] hover:text-primary transition-colors text-left"
+                      >
+                          {device.name}
+                      </button>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[8px] font-black uppercase tracking-[0.2em] text-primary">
+                          {device.unread_alerts || 0} New
+                        </span>
+                        <div className="h-1 w-1 rounded-full bg-white/10" />
+                        <span className="text-[8px] font-black uppercase tracking-[0.2em] text-white/30">
+                          {device.total_clips || 0} Clips
+                        </span>
+                      </div>
+                    </div>
                 </div>
             </div>
 

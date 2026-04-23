@@ -13,7 +13,8 @@ import {
   deleteDoc,
   limit,
   serverTimestamp,
-  deleteField
+  deleteField,
+  increment
 } from "firebase/firestore";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCamera } from "@/hooks/useCamera";
@@ -73,6 +74,8 @@ const ActionBar = React.memo(({
   isCharging,
   isPowerSaveMode,
   togglePowerSave,
+  deviceName,
+  handleRename
 }: any) => {
   return (
     <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-40 w-full max-w-sm px-4 flex flex-col items-center gap-4">
@@ -85,6 +88,16 @@ const ActionBar = React.memo(({
             className="h-2 w-2 rounded-full bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.8)]"
           />
           <span className="text-[10px] font-black text-white uppercase tracking-[0.2em]">Live</span>
+        </div>
+
+        <div className="flex items-center gap-4">
+          <Button
+            onClick={handleRename}
+            variant="ghost"
+            className="px-4 py-1 h-auto text-[10px] font-black text-white/40 hover:text-white uppercase tracking-widest bg-white/5 rounded-full border border-white/10"
+          >
+            {deviceName || "Unnamed Camera"}
+          </Button>
         </div>
 
         {/* Action Buttons Group */}
@@ -150,6 +163,14 @@ const CameraMode = () => {
   const { toast } = useToast();
 
   const [resolvedDeviceId, setResolvedDeviceId] = useState<string | null>(deviceId || null);
+  const resolvedDeviceIdRef = useRef(resolvedDeviceId);
+  const userRef = useRef(user);
+  const isOnlineRef = useRef(true);
+  const showNarrativeRef = useRef(false);
+  const referenceImageRef = useRef<string | null>(null);
+  const isPowerSaveModeRef = useRef(false);
+  const profileDataRef = useRef(profileData);
+
   const [nightVision, setNightVision] = useState(false);
   const [autoNightVision, setAutoNightVision] = useState(true);
   const [sirenActive, setSirenActive] = useState(false);
@@ -180,9 +201,27 @@ const CameraMode = () => {
   const [ignoreZones, setIgnoreZones] = useState<any[]>([]);
   const [monitoringSeconds, setMonitoringSeconds] = useState(0);
   const [isPowerSaveMode, setIsPowerSaveMode] = useState(false);
+  const [deviceName, setDeviceName] = useState("");
   const isRecordingRef = useRef(false);
   // Shared ref so audio events can extend an active video recording
   const activeRecorderRef = useRef<{ extend: () => void } | null>(null);
+
+  const handleRename = () => {
+    const newName = prompt("Enter new camera name:", deviceName);
+    if (newName && resolvedDeviceId) {
+      updateDoc(doc(db, "devices", resolvedDeviceId), { name: newName });
+    }
+  };
+
+  useEffect(() => {
+    resolvedDeviceIdRef.current = resolvedDeviceId;
+    userRef.current = user;
+    isOnlineRef.current = isOnline;
+    showNarrativeRef.current = showNarrative;
+    referenceImageRef.current = referenceImage;
+    isPowerSaveModeRef.current = isPowerSaveMode;
+    profileDataRef.current = profileData;
+  }, [resolvedDeviceId, user, isOnline, showNarrative, referenceImage, isPowerSaveMode, profileData]);
 
   // Sync devices for naming
   useEffect(() => {
@@ -344,7 +383,9 @@ const CameraMode = () => {
         await updateDoc(doc(db, "devices", resolvedDeviceId), {
           status: 'online',
           last_seen: serverTimestamp(),
-          updated_at: serverTimestamp()
+          updated_at: serverTimestamp(),
+          battery_level: battery.level,
+          is_charging: battery.isCharging
         });
         console.log("[CameraMode] Heartbeat sent.");
       } catch (error) {
@@ -353,7 +394,7 @@ const CameraMode = () => {
     }, 10000); // Aggressive 10s heartbeat
 
     return () => clearInterval(heartbeat);
-  }, [resolvedDeviceId]);
+  }, [resolvedDeviceId, battery]);
 
 
   const triggerWebhook = useCallback(async (alertData: any) => {
@@ -391,6 +432,12 @@ const CameraMode = () => {
   const handleMotion = useCallback(async (_imageData: string) => {
     wakeUp();
     if (!userRef.current || !resolvedDeviceIdRef.current) return;
+    
+    // Increment unread alerts counter
+    updateDoc(doc(db, "devices", resolvedDeviceIdRef.current), {
+      unread_alerts: increment(1)
+    }).catch(() => {});
+
     if (isRecordingRef.current) return;
 
     const snapshot = _imageData;
@@ -485,9 +532,17 @@ const CameraMode = () => {
             if (videoBlob) {
               const filename = `hguard_${Date.now()}.webm`;
               await googleDrive.ensureFolder("camera files", providerToken);
-              if (await googleDrive.saveFile(filename, videoBlob, providerToken)) {
+              const fileId = await googleDrive.saveFile(filename, videoBlob, providerToken);
+              if (fileId) {
+                console.log("[CameraMode] Video clip saved to Google Drive:", fileId);
+                // Increment total clips counter
+                if (resolvedDeviceIdRef.current) {
+                  updateDoc(doc(db, "devices", resolvedDeviceIdRef.current), {
+                    total_clips: increment(1)
+                  }).catch(() => {});
+                }
+                toast({ title: "Recording Saved", description: "Video clip uploaded to Google Drive." });
                 videoUrl = filename;
-                console.log(`[CameraMode] Clip saved to Drive: ${filename}`);
               }
             }
           } catch (e) {
@@ -540,6 +595,11 @@ const CameraMode = () => {
   const handleSound = useCallback(async (soundClass: string) => {
     wakeUp();
     if (!userRef.current || !resolvedDeviceIdRef.current) return;
+
+    // Increment unread alerts counter
+    updateDoc(doc(db, "devices", resolvedDeviceIdRef.current), {
+      unread_alerts: increment(1)
+    }).catch(() => {});
 
     // If a video clip is already recording, extend it due to audio event
     if (activeRecorderRef.current) {
@@ -647,6 +707,7 @@ const CameraMode = () => {
       if (snap.exists()) {
         const data = snap.data();
         setIgnoreZones(data.settings?.ignore_zones || []);
+        setDeviceName(data.name || "");
         if (data.settings?.ai_mode) aiOrchestrator.setMode(data.settings.ai_mode);
         
         // Handle fallback remote commands from Firestore
@@ -702,7 +763,30 @@ const CameraMode = () => {
   const isPowerSaveModeRef = useRef(isPowerSaveMode);
   useEffect(() => { isPowerSaveModeRef.current = isPowerSaveMode; }, [isPowerSaveMode]);
 
-  // AI Polling Interval
+  // Battery & Status Sync to Firestore
+  useEffect(() => {
+    if (!resolvedDeviceId || !battery.supported) return;
+    
+    const syncStatus = async () => {
+      await updateDoc(doc(db, "devices", resolvedDeviceId), {
+        battery_level: battery.level,
+        is_charging: battery.isCharging,
+        last_seen: serverTimestamp()
+      }).catch(() => {});
+    };
+
+    // Sync every 5 minutes or on significant battery change
+    syncStatus();
+    const interval = setInterval(syncStatus, 300000);
+    return () => clearInterval(interval);
+  }, [resolvedDeviceId, battery.level, battery.isCharging]);
+
+  const handleRename = async () => {
+    const newName = prompt("Enter new camera name:", deviceName);
+    if (newName && newName !== deviceName && resolvedDeviceId) {
+      await updateDoc(doc(db, "devices", resolvedDeviceId), { name: newName });
+    }
+  };
 
 
 

@@ -87,6 +87,8 @@
 - **Smart Wake Logic** — Instant return to live feed on motion/sound detection
 - **Remote Viewer Wake** — Auto-restores camera feed when a remote viewer connects
 - **Command Wake** — Wakes device instantly upon receiving any remote command
+- **Camera Health HUD** — Real-time battery %, unread alert count, and total clip stats
+- **Bidirectional Naming** — Rename cameras from either the camera node or any viewer
 
 ---
 
