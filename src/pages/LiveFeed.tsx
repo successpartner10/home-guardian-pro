@@ -359,17 +359,31 @@ const LiveFeed = () => {
                 ref={remoteVideoRef}
                 className={cn(
                   "h-full w-full object-contain transition-all duration-700 ease-out",
-                  isNightVision ? "contrast-[1.2] brightness-[1.8] sepia-[1] hue-rotate-[70deg] saturate-[2]" : "",
+                  isNightVision ? "brightness-[1.8] contrast-[1.4] sepia-[1] hue-rotate-[70deg] saturate-[2.5] invert-[0.05] drop-shadow-[0_0_15px_rgba(34,197,94,0.3)]" : "",
                   zoomLevel > 1.5 && "brightness-[1.05] contrast-[1.1] saturate-[1.05]"
                 )}
                 style={{ 
                   transformOrigin: `${zoomCenter.x}% ${zoomCenter.y}%`,
-                  imageRendering: zoomLevel > 2 ? 'crisp-edges' : 'auto'
+                  imageRendering: zoomLevel > 2 ? 'crisp-edges' : 'auto',
+                  filter: isNightVision ? 'url(#noiseFilter) brightness(1.8) contrast(1.4) sepia(1) hue-rotate(70deg) saturate(2.5)' : 'none'
                 }}
                 autoPlay
                 playsInline
                 muted={muted}
               />
+
+              {/* Movie-style Film Grain / Noise Filter for Night Vision */}
+              <svg className="hidden">
+                <filter id="noiseFilter">
+                  <feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch" />
+                  <feComponentTransfer>
+                    <feFuncR type="linear" slope="0.1" />
+                    <feFuncG type="linear" slope="0.1" />
+                    <feFuncB type="linear" slope="0.1" />
+                  </feComponentTransfer>
+                  <feBlend in="SourceGraphic" mode="overlay" />
+                </filter>
+              </svg>
               {/* Stream AI Analysis Full HUD */}
               {aiAnalysis ? (
                 <AIOverlays isMonitoring={true} analysis={aiAnalysis} />
@@ -646,11 +660,8 @@ const LiveFeed = () => {
               label="Talk"
               active={isTalking}
               activeClass="bg-red-500 text-white border-red-400 shadow-[0_0_20px_rgba(239,68,68,0.4)]"
-              onPointerDown={startTalking}
-              onPointerUp={stopTalking}
-              onPointerLeave={stopTalking}
+              onClick={() => isTalking ? stopTalking() : startTalking()}
               disabled={!isConnected}
-              isTouch
             />
 
             <ControlBtn

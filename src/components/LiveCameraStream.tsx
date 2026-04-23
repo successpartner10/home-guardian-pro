@@ -343,11 +343,8 @@ export const LiveCameraStream: React.FC<LiveCameraStreamProps> = ({ device, onFu
                                 label="Talk"
                                 active={isTalkActive}
                                 activeClass="bg-red-500 text-white border-red-400 shadow-[0_0_20px_rgba(239,68,68,0.4)]"
-                                onPointerDown={startTalk}
-                                onPointerUp={endTalk}
-                                onPointerLeave={endTalk}
+                                onClick={() => isTalkActive ? endTalk({ stopPropagation: () => {} } as any) : startTalk({ stopPropagation: () => {} } as any)}
                                 disabled={!isConnected}
-                                isTouch
                             />
                             <ControlBtn
                                 icon={isFlashOn ? <Flashlight className="h-4 w-4" /> : <FlashlightOff className="h-4 w-4" />}

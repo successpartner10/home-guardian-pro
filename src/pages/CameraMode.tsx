@@ -203,8 +203,8 @@ const CameraMode = () => {
   const [isPowerSaveMode, setIsPowerSaveMode] = useState(false);
   const [deviceName, setDeviceName] = useState("");
   const isRecordingRef = useRef(false);
-  // Shared ref so audio events can extend an active video recording
   const activeRecorderRef = useRef<{ extend: () => void } | null>(null);
+  const [ambientBrightness, setAmbientBrightness] = useState(100);
 
   const handleRename = () => {
     const newName = prompt("Enter new camera name:", deviceName);
@@ -247,6 +247,52 @@ const CameraMode = () => {
   };
 
   const aiFrequency = isCoolingMode ? 60 : (battery.level < 15 && !battery.isCharging ? 30 : 10);
+
+  // Auto-Night Vision: Light Level Detection Loop
+  useEffect(() => {
+    if (!cameraStarted || !videoRef.current) return;
+    
+    const checkLightLevel = () => {
+      if (!videoRef.current || !canvasRef.current) return;
+      const canvas = canvasRef.current;
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      if (!ctx) return;
+
+      // Draw a tiny version to calculate average brightness
+      canvas.width = 40;
+      canvas.height = 30;
+      ctx.drawImage(videoRef.current, 0, 0, 40, 30);
+      
+      try {
+        const imageData = ctx.getImageData(0, 0, 40, 30);
+        const data = imageData.data;
+        let totalBrightness = 0;
+        for (let i = 0; i < data.length; i += 4) {
+          totalBrightness += (data[i] + data[i+1] + data[i+2]) / 3;
+        }
+        const avgBrightness = totalBrightness / (data.length / 4);
+        const normalized = (avgBrightness / 255) * 100;
+        
+        setAmbientBrightness(normalized);
+
+        if (autoNightVision) {
+          // Thresholds: Low light < 20, Restore > 35 (hysteresis to prevent flickering)
+          if (normalized < 20 && !nightVision) {
+            console.log("[CameraMode] Low light detected. Activating Night Vision.");
+            setNightVision(true);
+          } else if (normalized > 35 && nightVision) {
+            console.log("[CameraMode] Light restored. Deactivating Night Vision.");
+            setNightVision(false);
+          }
+        }
+      } catch (e) {
+        // Fallback for security errors
+      }
+    };
+
+    const interval = setInterval(checkLightLevel, 5000); // Check every 5 seconds
+    return () => clearInterval(interval);
+  }, [cameraStarted, autoNightVision, nightVision]);
 
   const toggleSiren = async () => {
     if (sirenActive) {
@@ -906,12 +952,12 @@ const CameraMode = () => {
           isFlashOn: flashOn,
           isSirenOn: sirenActive,
           isNightVision: nightVision,
-          ambientBrightness: brightness,
+          ambientBrightness: ambientBrightness,
           isAiActive: showNarrative
         }
       });
     }
-  }, [zoomLevel, zoomCenter, viewerConnected, sendData, flashOn, sirenActive, nightVision, brightness]);
+  }, [zoomLevel, zoomCenter, viewerConnected, sendData, flashOn, sirenActive, nightVision, ambientBrightness]);
 
   // Stream AI Analysis to Viewers
   useEffect(() => {
@@ -922,6 +968,10 @@ const CameraMode = () => {
       });
     }
   }, [analysis, viewerConnected, sendData]);
+
+  useEffect(() => {
+    (window as any).hguard_night_vision = nightVision;
+  }, [nightVision]);
 
   const handleSnapshot = () => {
     if (takeSnapshot()) toast({ title: "Snapshot Captured", description: "Saved to your device." });
@@ -934,9 +984,13 @@ const CameraMode = () => {
         ref={videoRef}
         className={cn(
           "absolute inset-0 h-full w-full object-cover transition-all duration-[2000ms] z-0 opacity-100",
-          nightVision ? "brightness-[1.8] contrast-[1.3] sepia-[1] hue-rotate-[70deg] saturate-[2] invert-[0.05]" : ""
+          nightVision ? "brightness-[1.8] contrast-[1.4] sepia-[1] hue-rotate-[70deg] saturate-[2.5] invert-[0.05] drop-shadow-[0_0_15px_rgba(34,197,94,0.3)]" : ""
         )}
-        style={{ transformOrigin: `${zoomCenter.x}% ${zoomCenter.y}%`, transform: `scale(${zoomLevel})` }}
+        style={{ 
+          transformOrigin: `${zoomCenter.x}% ${zoomCenter.y}%`, 
+          transform: `scale(${zoomLevel})`,
+          filter: nightVision ? 'url(#noiseFilter) brightness(1.8) contrast(1.4) sepia(1) hue-rotate(70deg) saturate(2.5)' : 'none'
+        }}
         autoPlay
         playsInline
         muted
@@ -983,6 +1037,19 @@ const CameraMode = () => {
         analysis={analysis} 
         canvasRef={canvasRef}
       />
+
+      {/* Movie-style Film Grain / Noise Filter for Night Vision */}
+      <svg className="hidden">
+        <filter id="noiseFilter">
+          <feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch" />
+          <feComponentTransfer>
+            <feFuncR type="linear" slope="0.1" />
+            <feFuncG type="linear" slope="0.1" />
+            <feFuncB type="linear" slope="0.1" />
+          </feComponentTransfer>
+          <feBlend in="SourceGraphic" mode="overlay" />
+        </filter>
+      </svg>
 
       <canvas ref={canvasRef} className="hidden" />
 

@@ -285,14 +285,12 @@ const MultiLiveFeed = () => {
             {cameras.length > 0 && (
                 <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center justify-center pointer-events-auto select-none touch-none">
                     <Button
-                        onPointerDown={startIntercom}
-                        onPointerUp={stopIntercom}
-                        onPointerLeave={stopIntercom}
+                        onClick={() => isBroadcasting ? stopIntercom() : startIntercom()}
                         className={`h-20 w-20 rounded-full shadow-[0_0_30px_rgba(0,0,0,0.5)] border-4 transition-all duration-300 flex flex-col items-center justify-center -ml-0 ${isBroadcasting
                             ? 'bg-primary border-primary/50 text-white scale-110 shadow-[0_0_50px_hsl(var(--primary))]'
                             : 'bg-black/80 border-white/20 text-white backdrop-blur-md hover:bg-black hover:border-white/40'
                             }`}
-                        title="Hold to broadcast to all cameras"
+                        title={isBroadcasting ? "Tap to Stop" : "Tap to Broadcast to All"}
                     >
                         {isBroadcasting ? <Mic className="h-8 w-8 animate-pulse text-white fill-white" /> : <MicOff className="h-8 w-8 opacity-50" />}
                     </Button>

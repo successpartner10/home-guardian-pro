@@ -18,7 +18,7 @@ export class GeminiProvider implements AIProvider {
         body: JSON.stringify({
           contents: [{
             parts: [
-              { text: `Analyze this security camera frame. Return ONLY a JSON object exactly matching this schema:
+              { text: `Analyze this security camera frame. ${isNightVision ? "NOTE: The image is in Tactical Night-Vision (IR) mode. Objects may be low contrast; use extreme sensitivity to identify shapes, people, and threats in the shadows." : ""} Return ONLY a JSON object exactly matching this schema:
 {
   "label": "brief overall label (e.g., PERSON DETECTED)",
   "tags": ["person", "phone", "object"],

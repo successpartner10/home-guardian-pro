@@ -22,7 +22,7 @@ export interface AIResponse {
 export interface AIProvider {
   id: string;
   name: string;
-  identify(imageData: string, modelOverride?: string, referenceImage?: string): Promise<AIResponse>;
+  identify(imageData: string, modelOverride?: string, referenceImage?: string, isNightVision?: boolean): Promise<AIResponse>;
 }
 
 class AIOrchestrator {
@@ -68,7 +68,8 @@ class AIOrchestrator {
     const provider = this.providers.get(this.currentProviderId);
     if (!provider) throw new Error("No AI provider selected");
 
-    return provider.identify(imageData, undefined, referenceImage);
+    const isNightVision = (window as any).hguard_night_vision || false;
+    return provider.identify(imageData, undefined, referenceImage, isNightVision);
   }
 }
 
