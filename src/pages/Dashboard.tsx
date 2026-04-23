@@ -22,7 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Camera, Wifi, WifiOff, Video, MonitorSmartphone, LayoutGrid, Trash2, RefreshCcw } from "lucide-react";
+import { Camera, Wifi, WifiOff, Video, MonitorSmartphone, LayoutGrid, Trash2, RefreshCcw, Sparkles, Brain } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -312,12 +312,26 @@ const Dashboard = () => {
         >
           <Logo size="lg" className="h-24 w-24 mx-auto drop-shadow-2xl animate-float" />
           <div className="flex flex-col items-center gap-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary animate-pulse-subtle">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
-              </span>
-              <span className="text-[9px] font-black uppercase tracking-widest">System Armed</span>
+            <div className="flex items-center gap-4">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary animate-pulse-subtle">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+                </span>
+                <span className="text-[9px] font-black uppercase tracking-widest">System Armed</span>
+              </div>
+              
+              {user?.email === "successpartner10@gmail.com" && (
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => navigate('/ai-lab')}
+                  className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-400 shadow-[0_0_15px_rgba(168,85,247,0.2)]"
+                >
+                  <Sparkles className="h-3 w-3 animate-pulse" />
+                  <span className="text-[9px] font-black uppercase tracking-widest">AI Insight Available</span>
+                </motion.button>
+              )}
             </div>
             <h1 className="text-4xl sm:text-6xl font-black text-white uppercase tracking-tighter leading-none">
               Mission <span className="text-primary">Control</span>
