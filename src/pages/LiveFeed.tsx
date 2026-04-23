@@ -8,6 +8,10 @@ import {
   onSnapshot,
   collection,
   addDoc,
+  getDocs,
+  query,
+  where,
+  deleteDoc,
   serverTimestamp
 } from "firebase/firestore";
 import { useWebRTC } from "@/hooks/useWebRTC";
@@ -159,6 +163,20 @@ const LiveFeed = () => {
     }
     setIsTalking(false);
   };
+
+  const repairConnection = useCallback(async () => {
+    toast({ title: "Repairing Connection", description: "Cleaning signaling channel and restarting handshake..." });
+    disconnect();
+    
+    try {
+      const q = query(collection(db, "signaling_v2"), where("deviceId", "==", deviceId));
+      const snap = await getDocs(q);
+      const batchPromises = snap.docs.map(d => deleteDoc(d.ref));
+      await Promise.all(batchPromises);
+    } catch (e) { console.error("Signaling purge failed:", e); }
+
+    setTimeout(() => connect(), 1500);
+  }, [deviceId, disconnect, connect, toast]);
 
   const [shareLoading, setShareLoading] = useState(false);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
@@ -649,6 +667,16 @@ const LiveFeed = () => {
                       )}
                     >
                       <Brain className="h-6 w-6" />
+                    </Button>
+
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={repairConnection}
+                      className="h-12 w-12 rounded-2xl bg-white/5 border border-white/10 text-muted-foreground hover:bg-white/10 hover:text-white transition-all"
+                      title="Repair Connection"
+                    >
+                      <RefreshCw className="h-6 w-6" />
                     </Button>
 
           <Button variant="ghost" size="icon" onClick={toggleFullscreen} className="h-12 w-12 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white hover:bg-white/20 shadow-2xl mt-2">

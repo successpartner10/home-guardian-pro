@@ -437,7 +437,7 @@ const CameraMode = () => {
   }, [toggleFlash, toggleSiren, takeSnapshot, nightVision, showNarrative, wakeUp]);
 
   const { isConnected: viewerConnected, sendData, isReceivingAudio } = useWebRTC({
-    deviceId: resolvedDeviceId || "",
+    deviceId: resolvedDeviceId || "awaiting-resolution",
     role: "camera",
     localStream: stream,
     onDataMessage: handleRemoteCommand
@@ -494,7 +494,20 @@ const CameraMode = () => {
         style={{ transformOrigin: `${zoomCenter.x}% ${zoomCenter.y}%`, transform: `scale(${zoomLevel})` }}
         autoPlay playsInline muted
       />
-      <canvas ref={canvasRef} className="hidden" />
+      {/* Header HUD */}
+      <div className="absolute top-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-4">
+        <div className="px-4 py-2 rounded-2xl bg-black/40 backdrop-blur-3xl border border-white/10 flex items-center gap-3 shadow-2xl">
+          <div className={cn(
+            "h-2 w-2 rounded-full animate-pulse",
+            !resolvedDeviceId ? "bg-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.8)]" : 
+            viewerConnected ? "bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.8)]" :
+            "bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.8)]"
+          )} />
+          <span className="text-[9px] font-black uppercase tracking-[0.2em] text-white/80">
+            {!resolvedDeviceId ? "Resolving Node..." : viewerConnected ? "Active Link" : "Mesh Ready"}
+          </span>
+        </div>
+      </div>
 
       {/* Source Selection Controls */}
       <div className="absolute top-20 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-4 w-full max-w-xs">

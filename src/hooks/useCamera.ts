@@ -165,6 +165,11 @@ export const useCamera = ({
         });
       } catch (videoOnlyErr: any) {
         console.error("[useCamera] All capture attempts failed:", videoOnlyErr);
+        toast({
+          title: "Camera Hardware Error",
+          description: "Could not access any camera hardware. Please check your browser permissions and refresh.",
+          variant: "destructive"
+        });
         setError(videoOnlyErr.message || "Camera access denied. Check permissions in browser settings.");
       }
     }
