@@ -148,9 +148,11 @@ const LiveCameraStream: React.FC<LiveCameraStreamProps> = ({ device, onFullscree
             
             // Reset unread alerts on connection
             if (device.unread_alerts && device.unread_alerts > 0) {
-              const { db } = require("@/lib/firebase");
-              const { doc, updateDoc } = require("firebase/firestore");
-              updateDoc(doc(db, "devices", device.id), { unread_alerts: 0 }).catch(() => {});
+              import("@/lib/firebase").then(({ db }) => {
+                import("firebase/firestore").then(({ doc, updateDoc }) => {
+                  updateDoc(doc(db, "devices", device.id), { unread_alerts: 0 }).catch(() => {});
+                });
+              });
             }
         }
     }, [remoteStream, isConnected, device.id, device.unread_alerts]);
@@ -159,8 +161,8 @@ const LiveCameraStream: React.FC<LiveCameraStreamProps> = ({ device, onFullscree
         e.stopPropagation();
         const newName = prompt("Enter new camera name:", device.name);
         if (newName && newName !== device.name) {
-          const { db } = require("@/lib/firebase");
-          const { doc, updateDoc } = require("firebase/firestore");
+          const { db } = await import("@/lib/firebase");
+          const { doc, updateDoc } = await import("firebase/firestore");
           await updateDoc(doc(db, "devices", device.id), { name: newName });
         }
     };

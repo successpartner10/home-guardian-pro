@@ -79,8 +79,9 @@ const MultiLiveFeed = () => {
             
             // Only show cameras active in the last 30 seconds
             const filtered = merged.filter(d => {
-                const lastSeen = d.updated_at?.toDate ? d.updated_at.toDate().getTime() : 
-                               d.updated_at?.seconds ? d.updated_at.seconds * 1000 : 0;
+                const ts = d.last_seen || d.updated_at;
+                const lastSeen = ts?.toDate ? ts.toDate().getTime() : 
+                               ts?.seconds ? ts.seconds * 1000 : 0;
                 return (now - lastSeen) < onlineThreshold;
             });
 

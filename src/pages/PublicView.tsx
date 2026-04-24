@@ -116,8 +116,12 @@ const PublicView = () => {
     }, [token]);
 
     useEffect(() => {
-        if (device && isChannelReady && connectionState === "new") {
-            connect();
+        if (!device || !isChannelReady) return;
+        const shouldConnect = connectionState === "new" || connectionState === "closed" || connectionState === "failed" || connectionState === "disconnected";
+        if (shouldConnect) {
+            const delay = connectionState === "new" ? 300 : 2000;
+            const timer = setTimeout(() => connect(), delay);
+            return () => clearTimeout(timer);
         }
     }, [device, isChannelReady, connectionState, connect]);
 

@@ -18,7 +18,7 @@ import {
 } from "firebase/firestore";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCamera } from "@/hooks/useCamera";
-import { useWebRTC } from "@/hooks/useWebRTC";
+import { useWebRTC, purgeStaleSignals } from "@/hooks/useWebRTC";
 import { useBattery } from "@/hooks/useBattery";
 import { useNetwork } from "@/hooks/useNetwork";
 import { Button } from "@/components/ui/button";
@@ -436,12 +436,21 @@ const CameraMode = () => {
     }
   }, [toggleFlash, toggleSiren, takeSnapshot, nightVision, showNarrative, wakeUp]);
 
+  const webRTCDeviceId = resolvedDeviceId || "";
+
   const { isConnected: viewerConnected, sendData, isReceivingAudio } = useWebRTC({
-    deviceId: resolvedDeviceId || "awaiting-resolution",
+    deviceId: webRTCDeviceId,
     role: "camera",
-    localStream: stream,
+    localStream: webRTCDeviceId ? stream : null,
     onDataMessage: handleRemoteCommand
   });
+
+  // Purge stale signaling docs when camera device ID resolves
+  useEffect(() => {
+    if (resolvedDeviceId && resolvedDeviceId !== "awaiting-resolution") {
+      purgeStaleSignals(resolvedDeviceId);
+    }
+  }, [resolvedDeviceId]);
 
   useEffect(() => {
     if (!resolvedDeviceId) return;

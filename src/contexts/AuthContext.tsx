@@ -11,7 +11,10 @@ import {
   sendPasswordResetEmail,
   GoogleAuthProvider,
   setPersistence,
-  browserLocalPersistence
+  browserLocalPersistence,
+  sendSignInLinkToEmail,
+  isSignInWithEmailLink,
+  signInWithEmailLink
 } from "firebase/auth";
 import { auth, db, googleProvider } from "@/lib/firebase";
 import { 
@@ -44,6 +47,7 @@ interface AuthContextType {
   signUp: (email: string, password: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   forceLogoutAllDevices: () => Promise<void>;
+  sendLoginLink: (email: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
@@ -98,6 +102,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const credential = GoogleAuthProvider.credentialFromResult(result);
           handleCredential(credential);
         }
+
+        // 3. Handle incoming Email Magic Link
+        if (isSignInWithEmailLink(auth, window.location.href)) {
+          console.log("[Auth] Detected Email Magic Link in URL.");
+          let email = window.localStorage.getItem('emailForSignIn');
+          if (!email) {
+            // If they opened the link on a different device, prompt them (we'll just use a basic prompt for simplicity here)
+            email = window.prompt('Please provide your email for confirmation');
+          }
+          if (email) {
+            try {
+              const linkResult = await signInWithEmailLink(auth, email, window.location.href);
+              console.log("[Auth] Successfully signed in with magic link:", linkResult.user.email);
+              window.localStorage.removeItem('emailForSignIn');
+              // Clear the URL params so it doesn't try to sign in again on refresh
+              window.history.replaceState(null, '', window.location.pathname);
+            } catch (err) {
+              console.error("[Auth] Error signing in with magic link:", err);
+            }
+          }
+        }
+
       } catch (error: any) {
         console.error("[Auth] Initialization error:", error.code, error.message);
       }

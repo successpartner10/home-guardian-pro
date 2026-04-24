@@ -8,6 +8,7 @@ import {
   where,
   serverTimestamp,
   deleteDoc,
+  getDocs,
 } from "firebase/firestore";
 
 // Free public STUN + TURN servers (open-relay.metered.ca provides free TURN)
@@ -68,6 +69,8 @@ export const useWebRTC = ({
   const [isReceivingAudio, setIsReceivingAudio] = useState(false);
   const pendingCandidatesRef = useRef<Map<string, RTCIceCandidateInit[]>>(new Map());
   const retryTimeoutRef = useRef<number | null>(null);
+  const retryCountRef = useRef(0);
+  const MAX_RETRIES = 3;
   const isNegotiatingRef = useRef<Map<string, boolean>>(new Map());
 
   const callbacksRef = useRef({ onRemoteStream, onConnectionStateChange, onDataMessage });
@@ -475,7 +478,7 @@ export const useWebRTC = ({
       retryTimeoutRef.current = null;
     }
 
-    console.log(`[WebRTC] Initiating viewer connection → device: ${deviceId}`);
+    console.log(`[WebRTC] Initiating viewer connection → device: ${deviceId} (attempt ${retryCountRef.current + 1}/${MAX_RETRIES})`);
     setConnectionState("connecting");
     setIsConnected(false);
 
@@ -497,7 +500,10 @@ export const useWebRTC = ({
       const dc = pc.createDataChannel("hguard-channel", { ordered: true });
       dataChannelsRef.current.set("camera", dc);
 
-      dc.onopen = () => console.log("[WebRTC] Data channel OPEN");
+      dc.onopen = () => {
+        console.log("[WebRTC] Data channel OPEN");
+        retryCountRef.current = 0; // Reset retry counter on successful connection
+      };
       dc.onclose = () => console.warn("[WebRTC] Data channel CLOSED");
       dc.onerror = (e) => console.error("[WebRTC] Data channel ERROR:", e);
       dc.onmessage = (e) => {
@@ -509,20 +515,23 @@ export const useWebRTC = ({
         }
       };
 
-      // onnegotiationneeded will fire and create the offer automatically
-      // But we also manually create one to ensure it fires
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-      console.log(`[Signaling] → offer (broadcast to camera role)`);
-      sendSignal({ type: "offer", payload: offer, from: myId });
+      // onnegotiationneeded will fire automatically from addTransceiver above
+      // and handle offer creation via the Perfect Negotiation pattern.
+      // Do NOT manually create an offer here — it would cause dual-offer glare.
 
-      // Auto-retry if no connection in 20 seconds
+      // Auto-retry if no connection in 20 seconds (with max retry limit)
       retryTimeoutRef.current = window.setTimeout(() => {
         const anyConnected = Array.from(pcsRef.current.values()).some(
           (p) => p.connectionState === "connected"
         );
         if (!anyConnected) {
-          console.warn("[WebRTC] No connection after 20s — retrying...");
+          retryCountRef.current += 1;
+          if (retryCountRef.current >= MAX_RETRIES) {
+            console.error(`[WebRTC] Max retries (${MAX_RETRIES}) reached — giving up.`);
+            setConnectionState("failed");
+            return;
+          }
+          console.warn(`[WebRTC] No connection after 20s — retry ${retryCountRef.current}/${MAX_RETRIES}...`);
           connect();
         }
       }, 20000);
@@ -537,6 +546,7 @@ export const useWebRTC = ({
       window.clearTimeout(retryTimeoutRef.current);
       retryTimeoutRef.current = null;
     }
+    retryCountRef.current = 0;
     sendSignal({ type: "hangup", payload: null, from: myId });
     pcsRef.current.forEach((pc) => pc.close());
     pcsRef.current.clear();
@@ -606,4 +616,20 @@ export const useWebRTC = ({
     sendData,
     isReceivingAudio,
   };
+};
+
+/**
+ * Purge all stale signaling documents for a given deviceId.
+ * Call this on camera mount to clear leftover signals from previous sessions.
+ */
+export const purgeStaleSignals = async (deviceId: string) => {
+  try {
+    const q = query(collection(db, "signaling"), where("deviceId", "==", deviceId));
+    const snap = await getDocs(q);
+    const deletes = snap.docs.map((d) => deleteDoc(d.ref));
+    await Promise.all(deletes);
+    console.log(`[Signaling] Purged ${snap.size} stale signals for device ${deviceId}`);
+  } catch (e) {
+    console.error("[Signaling] Purge failed:", e);
+  }
 };

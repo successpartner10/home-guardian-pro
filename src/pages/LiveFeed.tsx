@@ -277,8 +277,10 @@ const LiveFeed = () => {
   // Auto-connect: wait for both device online + signaling channel ready
   useEffect(() => {
     const isOnline = device?.status === "online" || device?.status === "recording";
-    if (isOnline && isChannelReady && (connectionState === "new" || connectionState === "closed")) {
-      const timer = setTimeout(() => connect(), 300);
+    const shouldConnect = connectionState === "new" || connectionState === "closed" || connectionState === "failed" || connectionState === "disconnected";
+    if (isOnline && isChannelReady && shouldConnect) {
+      const delay = connectionState === "new" ? 300 : 2000; // Longer delay for retries
+      const timer = setTimeout(() => connect(), delay);
       return () => clearTimeout(timer);
     }
   }, [device?.status, connectionState, connect, isChannelReady]);
