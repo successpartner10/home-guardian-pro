@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useWebRTC } from "@/hooks/useWebRTC";
-import { Wifi, WifiOff, Maximize, RefreshCw, Maximize2, Flashlight, FlashlightOff, AlertTriangle, Mic, Moon, Sun, Camera, Brain } from "lucide-react";
+import { Wifi, WifiOff, Maximize, RefreshCw, Maximize2, Flashlight, FlashlightOff, AlertTriangle, Mic, Moon, Sun, Camera, Brain, Thermometer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";

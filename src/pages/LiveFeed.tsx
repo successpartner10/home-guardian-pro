@@ -169,7 +169,7 @@ const LiveFeed = () => {
     disconnect();
     
     try {
-      const q = query(collection(db, "signaling_v2"), where("deviceId", "==", deviceId));
+      const q = query(collection(db, "signaling"), where("deviceId", "==", deviceId));
       const snap = await getDocs(q);
       const batchPromises = snap.docs.map(d => deleteDoc(d.ref));
       await Promise.all(batchPromises);

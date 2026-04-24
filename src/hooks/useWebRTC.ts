@@ -86,7 +86,7 @@ export const useWebRTC = ({
 
   const sendSignal = useCallback(async (message: SignalMessage) => {
     try {
-      await addDoc(collection(db, "signaling_v2"), {
+      await addDoc(collection(db, "signaling"), {
         ...message,
         deviceId,
         created_at: serverTimestamp(),
@@ -415,7 +415,7 @@ export const useWebRTC = ({
     if (!deviceId) return;
 
     const signalingQuery = query(
-      collection(db, "signaling_v2"),
+      collection(db, "signaling"),
       where("deviceId", "==", deviceId)
     );
 
