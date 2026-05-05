@@ -311,7 +311,7 @@ const CameraMode = () => {
             pairing_code: Math.random().toString(36).substring(2, 8).toUpperCase(),
             created_at: serverTimestamp(),
             updated_at: serverTimestamp(),
-            version: '2.5.0'
+            version: '2.5.2'
           });
           deviceIdLiteral = docRef.id;
         } else {
@@ -321,7 +321,7 @@ const CameraMode = () => {
             status: 'online',
             persistent_id: persistentId,
             updated_at: serverTimestamp(),
-            version: '2.5.0'
+            version: '2.5.2'
           });
           deviceIdLiteral = existingDoc.id;
         }
@@ -385,6 +385,12 @@ const CameraMode = () => {
               googleDrive.enforceQuota(providerToken, limitGB * 1024 * 1024 * 1024).catch(() => {});
               updateDoc(doc(db, "devices", resolvedDeviceIdRef.current), { total_clips: increment(1) }).catch(() => {});
               videoUrl = filename;
+            } else {
+              toast({
+                title: "Storage Error",
+                description: "Google Drive upload failed. Please re-sign in to refresh storage access.",
+                variant: "destructive"
+              });
             }
           }
           isRecordingRef.current = false;
@@ -430,11 +436,11 @@ const CameraMode = () => {
     if (msg.type === 'COMMAND') {
       if (msg.action === 'TOGGLE_FLASH') toggleFlash();
       if (msg.action === 'TOGGLE_SIREN') toggleSiren();
-      if (msg.action === 'TOGGLE_NIGHT_VISION') { setAutoNightVision(false); setNightVision(!nightVision); }
+      if (msg.action === 'TOGGLE_NIGHT_VISION') { setAutoNightVision(false); setNightVision(prev => !prev); }
       if (msg.action === 'TAKE_SNAPSHOT') takeSnapshot();
-      if (msg.action === 'TOGGLE_AI') setShowNarrative(!showNarrative);
+      if (msg.action === 'TOGGLE_AI') setShowNarrative(prev => !prev);
     }
-  }, [toggleFlash, toggleSiren, takeSnapshot, nightVision, showNarrative, wakeUp]);
+  }, [toggleFlash, toggleSiren, takeSnapshot, wakeUp]);
 
   const webRTCDeviceId = resolvedDeviceId || "";
 
@@ -483,6 +489,60 @@ const CameraMode = () => {
     }
   }, [zoomLevel, zoomCenter, viewerConnected, sendData, flashOn, sirenActive, nightVision, ambientBrightness, showNarrative]);
 
+  // AI Analysis Loop
+  const aiErrorCountRef = useRef(0);
+  useEffect(() => {
+    let mounted = true;
+    let timeout: any;
+
+    const analyze = async () => {
+      if (!showNarrative || !isActive || isPowerSaveMode) return;
+      
+      try {
+        setIsAnalyzing(true);
+        const snapshot = takeSnapshot();
+        if (snapshot) {
+          const result = await aiOrchestrator.identify(snapshot, referenceImage || undefined);
+          if (mounted) {
+            setAnalysis(result);
+            // Treat rate limit returns as errors for backoff purposes
+            if (result.tags?.includes("RATE_LIMIT")) {
+              aiErrorCountRef.current += 1;
+            } else {
+              aiErrorCountRef.current = 0; // Reset error count on actual success
+            }
+            if (viewerConnected) {
+              sendData({ type: 'AI_ANALYSIS', data: result });
+            }
+          }
+        }
+      } catch (e) {
+        console.error("AI Analysis failed", e);
+        if (mounted) aiErrorCountRef.current += 1;
+      } finally {
+        if (mounted) {
+          setIsAnalyzing(false);
+          // Calculate interval: Base 10s + exponential backoff if errors occur
+          const interval = Math.min(60000, 10000 + (aiErrorCountRef.current * 10000));
+          timeout = setTimeout(analyze, interval);
+        }
+      }
+    };
+
+    if (showNarrative && isActive && !isPowerSaveMode) {
+      analyze();
+    } else {
+      setAnalysis(null);
+      setIsAnalyzing(false);
+      aiErrorCountRef.current = 0;
+    }
+
+    return () => {
+      mounted = false;
+      clearTimeout(timeout);
+    };
+  }, [showNarrative, isActive, isPowerSaveMode, takeSnapshot, viewerConnected, referenceImage, sendData]);
+
   useEffect(() => {
     (window as any).hguard_night_vision = nightVision;
   }, [nightVision]);
@@ -503,6 +563,15 @@ const CameraMode = () => {
         style={{ transformOrigin: `${zoomCenter.x}% ${zoomCenter.y}%`, transform: `scale(${zoomLevel})` }}
         autoPlay playsInline muted
       />
+      <canvas ref={canvasRef} className="hidden" />
+      {/* Broadcast Status */}
+      {isReceivingAudio && (
+        <div className="absolute top-6 right-6 z-50 flex items-center gap-3 px-4 py-2 bg-red-600/90 backdrop-blur-md rounded-2xl animate-pulse shadow-[0_0_20px_rgba(220,38,38,0.4)] border border-red-500/50">
+          <Mic className="h-4 w-4 text-white" />
+          <span className="text-[10px] font-black uppercase tracking-widest text-white">Broadcast Live</span>
+        </div>
+      )}
+
       {/* Header HUD */}
       <div className="absolute top-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-4">
         <div className="px-4 py-2 rounded-2xl bg-black/40 backdrop-blur-3xl border border-white/10 flex items-center gap-3 shadow-2xl">

@@ -17,7 +17,9 @@ import { ArrowLeft, LayoutGrid, Maximize, Mic, MicOff, Share2, Trash2 } from "lu
 import LiveCameraStream from "@/components/LiveCameraStream";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/Logo";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, ChevronRight, Flashlight, AlertTriangle, Moon, Sun, Brain, Thermometer, Camera } from "lucide-react";
+import { DrawerSection, DrawerBtn } from "@/components/CameraControls";
+import { updateDoc, serverTimestamp } from "firebase/firestore";
 
 interface Device {
     id: string;
@@ -38,6 +40,27 @@ const MultiLiveFeed = () => {
     const [micStream, setMicStream] = useState<MediaStream | null>(null);
     const [isBroadcasting, setIsBroadcasting] = useState(false);
     const [gridSize, setGridSize] = useState<number | null>(null);
+    const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+
+    const sendGlobalCommand = async (action: string) => {
+        if (cameras.length === 0) return;
+        
+        console.log(`[MultiLiveFeed] Broadcasting ${action} to ${cameras.length} cameras`);
+        const promises = cameras.map(cam => 
+            updateDoc(doc(db, "devices", cam.id), {
+                last_command: {
+                    action,
+                    timestamp: serverTimestamp()
+                }
+            })
+        );
+        
+        try {
+            await Promise.all(promises);
+        } catch (e) {
+            console.error("Global broadcast failed:", e);
+        }
+    };
 
     useEffect(() => {
         if (!user || !user.email) return;
@@ -45,23 +68,23 @@ const MultiLiveFeed = () => {
         // Query owned devices
         const qOwned = query(
             collection(db, "devices"),
-            where("user_id", "==", user.uid),
-            where("type", "==", "camera")
+            where("user_id", "==", user.uid)
         );
 
         // Query shared devices
         const qShared = query(
             collection(db, "devices"),
-            where("shared_with", "array-contains", user.email),
-            where("type", "==", "camera")
+            where("shared_with", "array-contains", user.email)
         );
 
         const processDocs = (snapshot: any, isShared: boolean) => {
-            return snapshot.docs.map((doc: any) => ({
-                id: doc.id,
-                ...doc.data(),
-                isShared
-            })) as Device[];
+            return snapshot.docs
+                .map((doc: any) => ({
+                    id: doc.id,
+                    ...doc.data(),
+                    isShared
+                }))
+                .filter((d: any) => d.type === "camera") as Device[];
         };
 
         let owned: Device[] = [];
@@ -282,9 +305,74 @@ const MultiLiveFeed = () => {
                 )}
             </div>
 
+            {/* Global Broadcast Tactical Drawer */}
+            <div
+              className="absolute right-0 top-1/2 -translate-y-1/2 z-50 flex items-center"
+              onClick={e => e.stopPropagation()}
+            >
+              <AnimatePresence>
+                {isDrawerOpen && (
+                  <motion.div
+                    key="global-drawer"
+                    initial={{ opacity: 0, x: 24 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 24 }}
+                    className="bg-black/85 backdrop-blur-2xl border border-white/10 rounded-2xl p-2 flex flex-col gap-0.5 shadow-2xl w-48 max-h-[75vh] overflow-y-auto mr-1"
+                  >
+                    <motion.div 
+                        initial={{ opacity: 0 }} 
+                        animate={{ opacity: 1 }} 
+                        className="px-2 py-2 mb-1"
+                    >
+                        <span className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Global Broadcast</span>
+                        <p className="text-[7px] text-white/30 uppercase font-bold">Commands all {cameras.length} nodes</p>
+                    </motion.div>
+
+                    <DrawerSection label="Tactical">
+                      <DrawerBtn icon={<Flashlight className="h-4 w-4" />} label="All Flashlights" onClick={() => sendGlobalCommand('TOGGLE_FLASH')} />
+                      <DrawerBtn icon={<Moon className="h-4 w-4" />} label="All Night Mode" onClick={() => sendGlobalCommand('TOGGLE_NIGHT_VISION')} />
+                      <DrawerBtn icon={<AlertTriangle className="h-4 w-4" />} label="All Sirens" onClick={() => sendGlobalCommand('TOGGLE_SIREN')} />
+                    </DrawerSection>
+
+                    <DrawerSection label="Vision">
+                      <DrawerBtn icon={<Brain className="h-4 w-4" />} label="All AI Detection" onClick={() => sendGlobalCommand('TOGGLE_AI')} />
+                      <DrawerBtn icon={<Camera className="h-4 w-4" />} label="Take All Snapshots" onClick={() => sendGlobalCommand('TAKE_SNAPSHOT')} />
+                    </DrawerSection>
+
+                    <DrawerSection label="Mesh" isLast>
+                      <DrawerBtn icon={<RefreshCw className="h-4 w-4" />} label="Force Sync Mesh" onClick={() => window.location.reload()} />
+                    </DrawerSection>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              <button
+                onClick={() => setIsDrawerOpen(p => !p)}
+                className="h-24 w-8 bg-black/60 backdrop-blur-md border border-white/10 border-r-0 rounded-l-2xl flex flex-col items-center justify-center gap-2 text-white/40 hover:bg-white/10 hover:text-white/80 transition-all shadow-2xl"
+              >
+                <ChevronRight className={cn("h-4 w-4 transition-transform duration-300", isDrawerOpen && "rotate-180")} />
+                <span
+                  className="text-[7px] uppercase tracking-widest font-bold"
+                  style={{ writingMode: 'vertical-rl' }}
+                >Matrix</span>
+              </button>
+            </div>
+
             {/* Walkie Talkie floating UI */}
             {cameras.length > 0 && (
-                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center justify-center pointer-events-auto select-none touch-none">
+                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-3 pointer-events-auto select-none touch-none">
+                    <AnimatePresence>
+                        {isBroadcasting && (
+                            <motion.div
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: 10 }}
+                                className="px-4 py-1.5 bg-red-500 rounded-full shadow-2xl border border-red-400"
+                            >
+                                <span className="text-[10px] font-black text-white uppercase tracking-[0.3em] animate-pulse">Broadcasting to Mesh</span>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
                     <Button
                         onClick={() => isBroadcasting ? stopIntercom() : startIntercom()}
                         className={`h-20 w-20 rounded-full shadow-[0_0_30px_rgba(0,0,0,0.5)] border-4 transition-all duration-300 flex flex-col items-center justify-center -ml-0 ${isBroadcasting

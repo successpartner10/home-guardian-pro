@@ -152,7 +152,7 @@ const Login = () => {
           </Button>
           <div className="flex items-center justify-center gap-2">
             <div className="h-1 w-1 rounded-full bg-green-500 animate-pulse" />
-            <p className="text-[8px] font-bold text-white/10 uppercase tracking-[0.5em]">HGUARD ELITE PROTOCOL v2.5.1</p>
+            <p className="text-[8px] font-bold text-white/10 uppercase tracking-[0.5em]">HGUARD ELITE PROTOCOL v2.5.2</p>
           </div>
         </div>
       </motion.div>

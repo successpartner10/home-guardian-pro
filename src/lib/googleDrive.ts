@@ -56,7 +56,7 @@ export class GoogleDriveStorage {
       return null;
     }
 
-    async saveFile(name: string, blob: Blob, accessToken: string): Promise<boolean> {
+    async saveFile(name: string, blob: Blob, accessToken: string): Promise<string | null> {
         try {
             const metadata = {
                 name: name,
@@ -75,16 +75,21 @@ export class GoogleDriveStorage {
                 body: form,
             });
 
+            if (response.status === 401) {
+                console.error("[Drive] Access token expired or invalid.");
+                return null;
+            }
+
             if (!response.ok) {
                 throw new Error(`Google Drive upload failed: ${response.statusText}`);
             }
 
             const data = await response.json();
             console.log('Saved to Google Drive:', data);
-            return true;
+            return data.id || "success";
         } catch (e) {
             console.error('Save to Google Drive Error:', e);
-            return false;
+            return null;
         }
     }
 

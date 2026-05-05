@@ -8,7 +8,6 @@ import {
   doc,
   updateDoc,
   deleteDoc,
-  orderBy,
   onSnapshot
 } from "firebase/firestore";
 import { updateProfile } from "firebase/auth";
@@ -137,10 +136,17 @@ const SettingsPage = () => {
   useEffect(() => {
     if (!user) return;
 
-    // Fetch devices
-    const q = query(collection(db, "devices"), where("user_id", "==", user.uid), orderBy("created_at", "asc"));
+    // Note: no orderBy here — avoids composite index while it builds; sorting client-side.
+    const q = query(collection(db, "devices"), where("user_id", "==", user.uid));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      setDevices(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Device)));
+      const sorted = snapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() } as Device))
+        .sort((a, b) => {
+          const aMs = a.created_at?.toMillis?.() ?? 0;
+          const bMs = b.created_at?.toMillis?.() ?? 0;
+          return aMs - bMs;
+        });
+      setDevices(sorted);
     });
 
     return () => unsubscribe();

@@ -4,7 +4,7 @@ export class GeminiProvider implements AIProvider {
   id = "gemini";
   name = "Gemini 2.5 Flash (Cloud)";
 
-  async identify(base64Image: string, modelOverride?: string, _referenceImage?: string): Promise<AIResponse> {
+  async identify(base64Image: string, modelOverride?: string, _referenceImage?: string, isNightVision?: boolean): Promise<AIResponse> {
     const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
     if (!apiKey) throw new Error("Gemini API key not configured");
 
@@ -61,7 +61,13 @@ IMPORTANT: ALL detected objects (people, animals, notable items) MUST have a box
 
       const data = await response.json();
       const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
-      const cleanedJson = text.replace(/```json\n?|```\n?/g, "").trim();
+      const cleaned = text.replace(/```json\n?|```\n?/g, "").trim();
+      let cleanedJson = "{}";
+      const startIdx = cleaned.indexOf('{');
+      const endIdx = cleaned.lastIndexOf('}');
+      if (startIdx !== -1 && endIdx !== -1) {
+        cleanedJson = cleaned.substring(startIdx, endIdx + 1);
+      }
       const result = JSON.parse(cleanedJson);
 
       return {

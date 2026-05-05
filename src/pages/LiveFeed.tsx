@@ -50,6 +50,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/Logo";
 import { AIOverlays } from "@/components/AIOverlays";
+import { DrawerSection, DrawerBtn } from "@/components/CameraControls";
 
 interface Device {
   id: string;
@@ -78,6 +79,7 @@ const LiveFeed = () => {
   const [isAiActive, setIsAiActive] = useState(false);
   const [isThermal, setIsThermal] = useState(false);
   const [aiAnalysis, setAiAnalysis] = useState<any>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const { toast } = useToast();
 
   const handleRemoteStream = useCallback((stream: MediaStream) => {
@@ -165,17 +167,30 @@ const LiveFeed = () => {
   };
 
   const repairConnection = useCallback(async () => {
-    toast({ title: "Repairing Connection", description: "Cleaning signaling channel and restarting handshake..." });
+    toast({ 
+      title: "Repairing Connection", 
+      description: "Cleaning signaling channel and restarting handshake...",
+      duration: 5000
+    });
+    
     disconnect();
     
     try {
+      // Clear all signaling data for this device to ensure a clean slate
       const q = query(collection(db, "signaling"), where("deviceId", "==", deviceId));
       const snap = await getDocs(q);
       const batchPromises = snap.docs.map(d => deleteDoc(d.ref));
       await Promise.all(batchPromises);
-    } catch (e) { console.error("Signaling purge failed:", e); }
+      console.log(`[LiveFeed] Purged ${snap.size} signaling documents for repair.`);
+    } catch (e) { 
+      console.error("Signaling purge failed during repair:", e); 
+    }
 
-    setTimeout(() => connect(), 1500);
+    // Small delay to allow Firestore to propagate the deletions
+    setTimeout(() => {
+      console.log("[LiveFeed] Restarting connection after repair...");
+      connect();
+    }, 2000);
   }, [deviceId, disconnect, connect, toast]);
 
   const [shareLoading, setShareLoading] = useState(false);
@@ -355,12 +370,12 @@ const LiveFeed = () => {
   const isOnline = device?.status === "online" || device?.status === "recording";
 
   const connectionLabel = {
-    new: "Waiting...",
+    new: "Starting up...",
     connecting: "Connecting...",
     connected: "Live",
-    disconnected: "Disconnected",
-    failed: "Connection failed",
-    closed: "Closed",
+    disconnected: "Reconnecting...",
+    failed: "Could not connect",
+    closed: "Disconnected",
   }[connectionState] || connectionState;
 
   return (
@@ -422,7 +437,7 @@ const LiveFeed = () => {
                         <div className="h-20 w-20 rounded-full bg-white/10 border border-white/20 flex items-center justify-center backdrop-blur-2xl shadow-2xl animate-pulse">
                             <Maximize2 className="h-8 w-8 text-white" />
                         </div>
-                        <span className="absolute bottom-32 text-[10px] font-bold text-white/50 uppercase tracking-[0.4em]">Tap To View Stream</span>
+                        <span className="absolute bottom-32 text-[10px] font-bold text-white/50 uppercase tracking-[0.4em]">Tap to watch</span>
                     </motion.div>
                 )}
             </AnimatePresence>
@@ -430,17 +445,25 @@ const LiveFeed = () => {
         ) : isOnline ? (
           <div className="flex h-full items-center justify-center w-full absolute inset-0 text-center space-y-3 z-10">
             {connectionState === "failed" ? (
-              <div className="flex flex-col items-center">
-                <p className="text-sm text-destructive font-medium mb-2">Connection failed</p>
-                <Button onClick={() => { disconnect(); setTimeout(connect, 500); }} variant="outline" className="gap-2 bg-background/50 backdrop-blur-md border-border/50">
-                  <RefreshCw className="h-4 w-4" /> Retry
+              <div className="flex flex-col items-center gap-3 p-8 bg-black/50 backdrop-blur-md rounded-3xl border border-white/5">
+                <p className="text-base font-bold text-white">Couldn't connect</p>
+                <p className="text-xs text-white/50 max-w-[200px]">Make sure the camera app is open and online, then try again.</p>
+                <Button onClick={() => { disconnect(); setTimeout(connect, 500); }} variant="outline" className="gap-2 bg-background/50 backdrop-blur-md border-border/50 mt-1">
+                  <RefreshCw className="h-4 w-4" /> Try again
                 </Button>
               </div>
             ) : (
-              <div className="flex flex-col items-center">
-                <div className="h-8 w-8 mx-auto animate-spin rounded-full border-2 border-primary border-t-transparent mb-3" />
-                <p className="text-sm text-muted-foreground">Connecting... {connectionLabel}</p>
-                <span className="text-[10px] uppercase tracking-widest text-white/30">{device?.name}</span>
+              <div className="flex flex-col items-center gap-4 p-8 bg-black/50 backdrop-blur-md rounded-3xl border border-white/5">
+                <div className="h-8 w-8 mx-auto animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                <div className="flex flex-col items-center gap-1">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-primary">
+                    {connectionState === "new" ? "Step 1 of 3 — Finding camera" : "Step 2 of 3 — Setting up link"}
+                  </p>
+                  <p className="text-sm text-white/70">
+                    {connectionState === "new" ? "Looking for your camera..." : "Almost there, hang on..."}
+                  </p>
+                  <span className="text-[10px] uppercase tracking-widest text-white/30 mt-1">{device?.name}</span>
+                </div>
               </div>
             )}
           </div>
@@ -616,167 +639,82 @@ const LiveFeed = () => {
 
         </div>
 
-        {/* Zoom Controls */}
-        {isConnected && (
-          <div className="absolute right-4 top-1/2 -translate-y-1/2 flex flex-col gap-3 z-40">
-            <div className="flex flex-col items-center gap-1 bg-black/40 backdrop-blur-md border border-white/10 rounded-full p-1.5 shadow-2xl">
-              <Button variant="ghost" size="icon" onClick={handleZoomIn} disabled={zoomLevel >= 4} className="h-10 w-10 rounded-full text-white hover:bg-white/20 disabled:opacity-30">
-                <span className="text-xl leading-none">+</span>
-              </Button>
-              <span className="text-[10px] font-bold text-white/70 py-1">{zoomLevel.toFixed(1)}x</span>
-              <Button variant="ghost" size="icon" onClick={handleZoomOut} disabled={zoomLevel <= 1} className="h-10 w-10 rounded-full text-white hover:bg-white/20 disabled:opacity-30">
-                <span className="text-xl leading-none">-</span>
-              </Button>
-            </div>
-            <div className="flex flex-col items-center gap-1 bg-black/40 backdrop-blur-md border border-white/10 rounded-full p-1.5 shadow-2xl mt-2">
-              <Button variant="ghost" size="icon" onClick={togglePiP} className="h-10 w-10 rounded-full text-white hover:bg-white/20">
-                <Maximize2 className="h-4 w-4" />
-              </Button>
-            </div>
-            <Button
-            variant="ghost"
-            size="icon"
-            onPointerDown={startTalking}
-            onPointerUp={stopTalking}
-            onPointerLeave={stopTalking}
-            className={cn(
-              "h-16 w-16 rounded-full transition-all border-2",
-              isTalking ? "bg-primary text-black border-primary scale-110 shadow-[0_0_30px_rgba(var(--primary),0.6)]" : "bg-black/60 border-white/20 text-white hover:bg-white/10"
+        {/* Slide-out Controls Drawer */}
+        <div
+          className="absolute right-0 top-1/2 -translate-y-1/2 z-50 flex items-center"
+          onClick={e => e.stopPropagation()}
+        >
+          {/* Sliding Panel */}
+          <AnimatePresence>
+            {isDrawerOpen && (
+              <motion.div
+                key="drawer-panel"
+                initial={{ opacity: 0, x: 24 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 24 }}
+                transition={{ type: "spring", damping: 26, stiffness: 320 }}
+                className="bg-black/85 backdrop-blur-2xl border border-white/10 rounded-2xl p-2 flex flex-col gap-0.5 shadow-2xl w-52 max-h-[78vh] overflow-y-auto mr-1"
+              >
+                <DrawerSection label="View">
+                  <div className="flex items-center justify-between px-2 py-1">
+                    <button onClick={handleZoomOut} disabled={zoomLevel <= 1} className="h-8 w-8 rounded-xl bg-white/10 text-white hover:bg-white/25 disabled:opacity-25 transition-all flex items-center justify-center font-bold text-lg">−</button>
+                    <span className="text-xs font-black text-white/60">{zoomLevel.toFixed(1)}×</span>
+                    <button onClick={handleZoomIn} disabled={zoomLevel >= 4} className="h-8 w-8 rounded-xl bg-white/10 text-white hover:bg-white/25 disabled:opacity-25 transition-all flex items-center justify-center font-bold text-lg">+</button>
+                  </div>
+                  <DrawerBtn icon={<Maximize className="h-4 w-4" />} label="Fullscreen" onClick={toggleFullscreen} />
+                  <DrawerBtn icon={<Maximize2 className="h-4 w-4" />} label="Picture-in-Picture" onClick={togglePiP} />
+                </DrawerSection>
+
+                <DrawerSection label="Camera">
+                  <DrawerBtn icon={isFlashOn ? <Flashlight className="h-4 w-4" /> : <FlashlightOff className="h-4 w-4" />} label="Flashlight" active={isFlashOn} activeClass="bg-yellow-400/20 text-yellow-300 border border-yellow-400/30" onClick={() => sendCommand('TOGGLE_FLASH')} disabled={!isConnected} />
+                  <DrawerBtn icon={isNightVision ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />} label="Night Mode" active={isNightVision} activeClass="bg-green-500/20 text-green-400 border border-green-400/30" onClick={() => sendCommand('TOGGLE_NIGHT_VISION')} disabled={!isConnected} />
+                  <DrawerBtn icon={<Camera className="h-4 w-4" />} label="Take Snapshot" onClick={() => sendData({ type: 'COMMAND', action: 'TAKE_SNAPSHOT' })} disabled={!isConnected} />
+                </DrawerSection>
+
+                <DrawerSection label="Audio">
+                  <DrawerBtn icon={muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />} label={muted ? "Tap to Unmute" : "Mute Audio"} active={!muted} activeClass="bg-blue-500/20 text-blue-300 border border-blue-400/30" onClick={toggleMute} />
+                  <DrawerBtn
+                    icon={<Mic className={cn("h-4 w-4", isTalking && "animate-pulse")} />}
+                    label={isTalking ? "Talking — release" : "Hold to Talk"}
+                    active={isTalking}
+                    activeClass="bg-red-500/20 text-red-400 border border-red-400/30"
+                    onPointerDown={startTalking}
+                    onPointerUp={stopTalking}
+                    onPointerLeave={stopTalking}
+                    disabled={!isConnected}
+                  />
+                </DrawerSection>
+
+                <DrawerSection label="AI & Detection">
+                  <DrawerBtn icon={<Brain className={cn("h-4 w-4", isAiActive && "animate-pulse")} />} label="AI Detection" active={isAiActive} activeClass="bg-purple-500/20 text-purple-400 border border-purple-400/30" onClick={() => sendCommand('TOGGLE_AI')} disabled={!isConnected} />
+                  <DrawerBtn icon={<Thermometer className="h-4 w-4" />} label="Thermal View" active={isThermal} activeClass="bg-orange-500/20 text-orange-400 border border-orange-400/30" onClick={() => setIsThermal(!isThermal)} />
+                  <DrawerBtn icon={<AlertTriangle className="h-4 w-4" />} label="Alarm" active={isSirenOn} activeClass="bg-red-500/20 text-red-400 border border-red-400/30 animate-pulse" onClick={() => sendCommand('TOGGLE_SIREN')} disabled={!isConnected} />
+                </DrawerSection>
+
+                <DrawerSection label="Connection" isLast>
+                  <DrawerBtn icon={<RefreshCw className="h-4 w-4" />} label="Fix Connection" onClick={repairConnection} />
+                </DrawerSection>
+              </motion.div>
             )}
+          </AnimatePresence>
+
+          {/* Pull Tab */}
+          <button
+            onClick={() => setIsDrawerOpen(p => !p)}
+            className="h-32 w-9 bg-black/60 backdrop-blur-md border border-white/10 border-r-0 rounded-l-2xl flex flex-col items-center justify-center gap-2 text-white/40 hover:bg-white/10 hover:text-white/80 transition-all shadow-2xl"
           >
-            <Mic className={cn("h-6 w-6", isTalking ? "animate-pulse" : "")} />
-          </Button>
-
-          <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setIsThermal(!isThermal)}
-                      className={cn(
-                        "h-12 w-12 rounded-2xl transition-all border",
-                        isThermal ? "bg-orange-500 border-orange-400 text-white shadow-[0_0_20px_rgba(249,115,22,0.4)]" : "bg-white/5 border-white/10 text-muted-foreground hover:bg-white/10 hover:text-white"
-                      )}
-                    >
-                      <Thermometer className="h-6 w-6" />
-                    </Button>
-
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => sendCommand('TOGGLE_AI')}
-                      className={cn(
-                        "h-12 w-12 rounded-2xl transition-all border",
-                        isAiActive ? "bg-primary border-primary text-black shadow-[0_0_20px_rgba(var(--primary-rgb),0.4)]" : "bg-white/5 border-white/10 text-muted-foreground hover:bg-white/10 hover:text-white"
-                      )}
-                    >
-                      <Brain className="h-6 w-6" />
-                    </Button>
-
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={repairConnection}
-                      className="h-12 w-12 rounded-2xl bg-white/5 border border-white/10 text-muted-foreground hover:bg-white/10 hover:text-white transition-all"
-                      title="Repair Connection"
-                    >
-                      <RefreshCw className="h-6 w-6" />
-                    </Button>
-
-          <Button variant="ghost" size="icon" onClick={toggleFullscreen} className="h-12 w-12 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white hover:bg-white/20 shadow-2xl mt-2">
-              <Maximize className="h-5 w-5" />
-            </Button>
-          </div>
-        )}
-      </div>
-
-      {/* Bottom Action Bar: Responsive 3x2 Grid on Mobile, 6-col on Laptop */}
-      <div className="relative z-40 flex items-end justify-center pb-8 pt-20 bg-gradient-to-t from-black via-black/80 to-transparent">
-        <div className="bg-black/60 backdrop-blur-3xl border border-white/5 rounded-[2.5rem] p-3 shadow-2xl max-w-lg w-full mx-4">
-          <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
-            <ControlBtn
-              icon={<Brain className={cn("h-5 w-5", isAiActive && "animate-pulse")} />}
-              label="AI"
-              active={isAiActive}
-              activeClass="bg-purple-500/10 text-purple-400 border-purple-400/30 shadow-[0_0_20px_rgba(168,85,247,0.2)]"
-              onClick={() => sendCommand('TOGGLE_AI')}
-              disabled={!isConnected}
-            />
-
-            <ControlBtn
-              icon={<Mic className={cn("h-5 w-5", isTalking && "animate-pulse")} />}
-              label="Talk"
-              active={isTalking}
-              activeClass="bg-red-500 text-white border-red-400 shadow-[0_0_20px_rgba(239,68,68,0.4)]"
-              onClick={() => isTalking ? stopTalking() : startTalking()}
-              disabled={!isConnected}
-            />
-
-            <ControlBtn
-              icon={isFlashOn ? <Flashlight className="h-5 w-5" /> : <FlashlightOff className="h-5 w-5" />}
-              label="Light"
-              active={isFlashOn}
-              activeClass="bg-yellow-400 text-black border-yellow-300 shadow-[0_0_20px_rgba(250,204,21,0.3)]"
-              onClick={() => sendCommand('TOGGLE_FLASH')}
-              disabled={!isConnected}
-            />
-
-            <ControlBtn
-              icon={isNightVision ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-              label="Night"
-              active={isNightVision}
-              activeClass="bg-green-500/10 text-green-400 border-green-400/30 shadow-[0_0_20px_rgba(34,197,94,0.2)]"
-              onClick={() => sendCommand('TOGGLE_NIGHT_VISION')}
-              disabled={!isConnected}
-            />
-
-            <ControlBtn
-              icon={<AlertTriangle className="h-5 w-5" />}
-              label="Alarm"
-              active={isSirenOn}
-              activeClass="bg-red-500 text-white border-red-400 animate-pulse shadow-[0_0_25px_rgba(220,38,38,0.5)]"
-              onClick={() => sendCommand('TOGGLE_SIREN')}
-              disabled={!isConnected}
-            />
-
-            <ControlBtn
-              icon={<Camera className="h-5 w-5" />}
-              label="Snap"
-              active={false}
-              onClick={() => sendData({ type: 'COMMAND', action: 'TAKE_SNAPSHOT' })}
-              disabled={!isConnected}
-            />
-          </div>
+            <ChevronRight className={cn("h-4 w-4 transition-transform duration-300", isDrawerOpen && "rotate-180")} />
+            <span
+              className="text-[8px] uppercase tracking-widest font-bold"
+              style={{ writingMode: 'vertical-rl' }}
+            >Controls</span>
+          </button>
         </div>
       </div>
+
+
     </div>
   );
 };
-
-const ControlBtn = ({ 
-  icon, 
-  label, 
-  active, 
-  activeClass, 
-  onClick, 
-  onPointerDown, 
-  onPointerUp, 
-  onPointerLeave, 
-  disabled, 
-  isTouch = false 
-}: any) => (
-  <button
-      onClick={(e) => { e.stopPropagation(); !isTouch && onClick && onClick(); }}
-      onPointerDown={onPointerDown}
-      onPointerUp={onPointerUp}
-      onPointerLeave={onPointerLeave}
-      disabled={disabled}
-      className={cn(
-          "cam-ctrl-btn",
-          active ? activeClass : "cam-ctrl-btn-off"
-      )}
-  >
-      {icon}
-      <span className="text-[9px] font-bold text-inherit uppercase">{label}</span>
-  </button>
-);
 
 export default LiveFeed;

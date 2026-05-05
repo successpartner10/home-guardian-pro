@@ -1,11 +1,12 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useWebRTC } from "@/hooks/useWebRTC";
-import { Wifi, WifiOff, Maximize, RefreshCw, Maximize2, Flashlight, FlashlightOff, AlertTriangle, Mic, Moon, Sun, Camera, Brain, Thermometer } from "lucide-react";
+import { Wifi, WifiOff, Maximize, RefreshCw, Maximize2, Flashlight, FlashlightOff, AlertTriangle, Mic, Moon, Sun, Camera, Brain, Thermometer, ChevronRight, Volume2, VolumeX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { AIOverlays } from "@/components/AIOverlays";
 import { useToast } from "@/hooks/use-toast";
+import { DrawerSection, DrawerBtn } from "@/components/CameraControls";
 
 interface Device {
     id: string;
@@ -44,6 +45,8 @@ const LiveCameraStream: React.FC<LiveCameraStreamProps> = ({ device, onFullscree
     const [isNightVision, setIsNightVision] = useState(false);
     const [isSirenOn, setIsSirenOn] = useState(false);
     const [isAiActive, setIsAiActive] = useState(false);
+    const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+    const [muted, setMuted] = useState(true);
     // ────────────────────────────────────────────────────────────────────────────
 
     const handleRemoteStream = useCallback((stream: MediaStream) => {
@@ -267,13 +270,16 @@ const LiveCameraStream: React.FC<LiveCameraStreamProps> = ({ device, onFullscree
                             </Button>
                         </div>
                     ) : (
-                        <div className="flex flex-col items-center gap-4">
-                            <div className="relative">
-                                <div className="h-10 w-10 border-2 border-primary/20 rounded-full animate-ping absolute inset-0" />
-                                <div className="h-10 w-10 border-2 border-primary rounded-full border-t-transparent animate-spin" />
-                            </div>
-                            <div className="text-center">
-                                <p className="text-[10px] text-muted-foreground uppercase tracking-[0.3em] font-bold">{connectionLabel}</p>
+                        <div className="flex flex-col items-center gap-4 p-6 bg-black/40 backdrop-blur-md rounded-3xl border border-white/5">
+                            <div className="h-8 w-8 mx-auto animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                            <div className="flex flex-col items-center gap-1 text-center">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-primary">
+                                    {connectionState === "new" ? "Step 1 of 3 — Finding camera" : "Step 2 of 3 — Setting up link"}
+                                </p>
+                                <p className="text-sm text-white/70">
+                                    {connectionState === "new" ? "Looking for your camera..." : "Almost there, hang on..."}
+                                </p>
+                                <span className="text-[10px] uppercase tracking-widest text-white/30 mt-1">{device.name}</span>
                             </div>
                         </div>
                     )}
@@ -338,63 +344,74 @@ const LiveCameraStream: React.FC<LiveCameraStreamProps> = ({ device, onFullscree
                 </div>
             </div>
 
-            {/* Bottom Bar: Clean Controls */}
-            {isOnline && (
-                <div className="absolute bottom-0 left-0 right-0 p-4 z-30 transition-transform duration-500 translate-y-2 group-hover:translate-y-0">
-                    <div className="bg-black/60 backdrop-blur-3xl border border-white/5 rounded-3xl p-2.5 shadow-2xl">
-                        <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
-                            <ControlBtn
-                                icon={<Brain className={cn("h-4 w-4", isAiActive && "animate-pulse")} />}
-                                label="AI"
-                                active={isAiActive}
-                                activeClass="bg-purple-500/10 text-purple-400 border-purple-400/30 shadow-[0_0_20px_rgba(168,85,247,0.2)]"
-                                onClick={() => sendCommand('TOGGLE_AI')}
-                                disabled={!isConnected}
-                            />
-                            <ControlBtn
-                                icon={<Mic className={cn("h-4 w-4", isTalkActive && "animate-pulse")} />}
-                                label="Talk"
-                                active={isTalkActive}
-                                activeClass="bg-red-500 text-white border-red-400 shadow-[0_0_20px_rgba(239,68,68,0.4)]"
-                                onClick={() => isTalkActive ? endTalk({ stopPropagation: () => {} } as any) : startTalk({ stopPropagation: () => {} } as any)}
-                                disabled={!isConnected}
-                            />
-                            <ControlBtn
-                                icon={isFlashOn ? <Flashlight className="h-4 w-4" /> : <FlashlightOff className="h-4 w-4" />}
-                                label="Light"
-                                active={isFlashOn}
-                                activeClass="bg-yellow-400 text-black border-yellow-300 shadow-[0_0_20px_rgba(250,204,21,0.3)]"
-                                onClick={() => sendCommand('TOGGLE_FLASH')}
-                                disabled={!isConnected}
-                            />
-                            <ControlBtn
-                                icon={isNightVision ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-                                label="Night"
-                                active={isNightVision}
-                                activeClass="bg-green-500/10 text-green-400 border-green-400/30 shadow-[0_0_20px_rgba(34,197,94,0.2)]"
-                                onClick={() => sendCommand('TOGGLE_NIGHT_VISION')}
-                                disabled={!isConnected}
-                            />
-                            <ControlBtn
-                                icon={<AlertTriangle className="h-4 w-4" />}
-                                label="Alarm"
-                                active={isSirenOn}
-                                activeClass="bg-destructive text-white border-destructive hover:bg-destructive/90 animate-pulse"
-                                onClick={() => sendCommand('TOGGLE_SIREN')}
-                                disabled={!isConnected}
-                            />
-                            <ControlBtn
-                                icon={<Thermometer className="h-4 w-4" />}
-                                label="Heat"
-                                active={isThermal}
-                                activeClass="bg-orange-500 text-white"
-                                onClick={() => setIsThermal(!isThermal)}
-                                disabled={!isConnected}
-                            />
-                        </div>
-                    </div>
-                </div>
-            )}
+            {/* Slide-out Controls Drawer */}
+            <div
+              className="absolute right-0 top-1/2 -translate-y-1/2 z-50 flex items-center"
+              onClick={e => e.stopPropagation()}
+            >
+              <AnimatePresence>
+                {isDrawerOpen && (
+                  <motion.div
+                    key="drawer-panel"
+                    initial={{ opacity: 0, x: 24 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 24 }}
+                    transition={{ type: "spring", damping: 26, stiffness: 320 }}
+                    className="bg-black/85 backdrop-blur-2xl border border-white/10 rounded-2xl p-2 flex flex-col gap-0.5 shadow-2xl w-48 max-h-[75vh] overflow-y-auto mr-1"
+                  >
+                    <DrawerSection label="View">
+                      <div className="flex items-center justify-between px-2 py-1">
+                        <button onClick={(e) => { e.stopPropagation(); setZoomLevel(prev => Math.max(prev - 0.5, 1)); }} disabled={zoomLevel <= 1} className="h-8 w-8 rounded-xl bg-white/10 text-white hover:bg-white/25 disabled:opacity-25 transition-all flex items-center justify-center font-bold text-lg">−</button>
+                        <span className="text-xs font-black text-white/60">{zoomLevel.toFixed(1)}×</span>
+                        <button onClick={(e) => { e.stopPropagation(); setZoomLevel(prev => Math.min(prev + 0.5, 4)); }} disabled={zoomLevel >= 4} className="h-8 w-8 rounded-xl bg-white/10 text-white hover:bg-white/25 disabled:opacity-25 transition-all flex items-center justify-center font-bold text-lg">+</button>
+                      </div>
+                      <DrawerBtn icon={<Maximize className="h-4 w-4" />} label="Fullscreen" onClick={handleFullscreenInternal} />
+                    </DrawerSection>
+
+                    <DrawerSection label="Camera">
+                      <DrawerBtn icon={isFlashOn ? <Flashlight className="h-4 w-4" /> : <FlashlightOff className="h-4 w-4" />} label="Flashlight" active={isFlashOn} activeClass="bg-yellow-400/20 text-yellow-300 border border-yellow-400/30" onClick={() => sendCommand('TOGGLE_FLASH')} disabled={!isConnected} />
+                      <DrawerBtn icon={isNightVision ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />} label="Night Mode" active={isNightVision} activeClass="bg-green-500/20 text-green-400 border border-green-400/30" onClick={() => sendCommand('TOGGLE_NIGHT_VISION')} disabled={!isConnected} />
+                      <DrawerBtn icon={<Camera className="h-4 w-4" />} label="Take Snapshot" onClick={() => sendData({ type: 'COMMAND', action: 'TAKE_SNAPSHOT' })} disabled={!isConnected} />
+                    </DrawerSection>
+
+                    <DrawerSection label="Audio">
+                      <DrawerBtn icon={muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />} label={muted ? "Tap to Unmute" : "Mute Audio"} active={!muted} activeClass="bg-blue-500/20 text-blue-300 border border-blue-400/30" onClick={() => setMuted(!muted)} />
+                      <DrawerBtn
+                        icon={<Mic className={cn("h-4 w-4", isTalkActive && "animate-pulse")} />}
+                        label={isTalkActive ? "Talking..." : "Hold to Talk"}
+                        active={isTalkActive}
+                        activeClass="bg-red-500/20 text-red-400 border border-red-400/30"
+                        onPointerDown={startTalk}
+                        onPointerUp={endTalk}
+                        onPointerLeave={endTalk}
+                        disabled={!isConnected}
+                      />
+                    </DrawerSection>
+
+                    <DrawerSection label="AI & Detection">
+                      <DrawerBtn icon={<Brain className={cn("h-4 w-4", isAiActive && "animate-pulse")} />} label="AI Detection" active={isAiActive} activeClass="bg-purple-500/20 text-purple-400 border border-purple-400/30" onClick={() => sendCommand('TOGGLE_AI')} disabled={!isConnected} />
+                      <DrawerBtn icon={<Thermometer className="h-4 w-4" />} label="Thermal View" active={isThermal} activeClass="bg-orange-500/20 text-orange-400 border border-orange-400/30" onClick={() => setIsThermal(!isThermal)} />
+                      <DrawerBtn icon={<AlertTriangle className="h-4 w-4" />} label="Alarm" active={isSirenOn} activeClass="bg-red-500/20 text-red-400 border border-red-400/30 animate-pulse" onClick={() => sendCommand('TOGGLE_SIREN')} disabled={!isConnected} />
+                    </DrawerSection>
+
+                    <DrawerSection label="Connection" isLast>
+                      <DrawerBtn icon={<RefreshCw className="h-4 w-4" />} label="Fix Connection" onClick={() => { disconnect(); setTimeout(connect, 500); }} />
+                    </DrawerSection>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              <button
+                onClick={(e) => { e.stopPropagation(); setIsDrawerOpen(p => !p); }}
+                className="h-24 w-8 bg-black/60 backdrop-blur-md border border-white/10 border-r-0 rounded-l-2xl flex flex-col items-center justify-center gap-2 text-white/40 hover:bg-white/10 hover:text-white/80 transition-all shadow-2xl"
+              >
+                <ChevronRight className={cn("h-4 w-4 transition-transform duration-300", isDrawerOpen && "rotate-180")} />
+                <span
+                  className="text-[7px] uppercase tracking-widest font-bold"
+                  style={{ writingMode: 'vertical-rl' }}
+                >Controls</span>
+              </button>
+            </div>
 
             {/* Fullscreen Button */}
             <div className="absolute top-5 right-5 opacity-0 group-hover:opacity-100 transition-opacity z-40">
@@ -411,31 +428,4 @@ const LiveCameraStream: React.FC<LiveCameraStreamProps> = ({ device, onFullscree
     );
 };
 
-const ControlBtn = ({ 
-    icon, 
-    label, 
-    active, 
-    activeClass, 
-    onClick, 
-    onPointerDown, 
-    onPointerUp, 
-    onPointerLeave, 
-    disabled, 
-    isTouch = false 
-}: any) => (
-    <button
-        onClick={(e) => { e.stopPropagation(); !isTouch && onClick && onClick(); }}
-        onPointerDown={onPointerDown}
-        onPointerUp={onPointerUp}
-        onPointerLeave={onPointerLeave}
-        disabled={disabled}
-        className={cn(
-            "cam-ctrl-btn",
-            active ? activeClass : "cam-ctrl-btn-off"
-        )}
-    >
-        {icon}
-        <span className="text-[9px] font-bold text-inherit">{label}</span>
-    </button>
-);
 export default React.memo(LiveCameraStream);

@@ -5,7 +5,6 @@ import {
     query,
     where,
     onSnapshot,
-    orderBy,
     limit,
     Timestamp
 } from "firebase/firestore";
@@ -53,17 +52,29 @@ export const useGlobalAlerts = () => {
             }
         };
 
+        // Note: no orderBy here — avoids composite index requirement while index builds.
+        // We grab the last 20 docs and sort client-side to find the most recent.
         const q = query(
             collection(db, "alerts"),
             where("user_id", "==", user.uid),
-            orderBy("created_at", "desc"),
-            limit(1)
+            limit(20)
         );
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
             if (snapshot.empty) return;
 
-            const newAlert = snapshot.docs[0].data();
+            // Sort client-side to get the most recent alert
+            const sorted = snapshot.docs
+                .map(d => d.data())
+                .filter(d => d.created_at)
+                .sort((a, b) => {
+                    const aMs = (a.created_at as Timestamp).toMillis?.() ?? 0;
+                    const bMs = (b.created_at as Timestamp).toMillis?.() ?? 0;
+                    return bMs - aMs;
+                });
+
+            const newAlert = sorted[0];
+            if (!newAlert) return;
             const createdAt = newAlert.created_at as Timestamp;
 
             // Only notify for alerts created after we started listening

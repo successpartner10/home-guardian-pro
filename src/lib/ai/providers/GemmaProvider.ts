@@ -3,7 +3,7 @@ import { AIProvider, AIResponse } from "../aiOrchestrator";
 export class GemmaProvider implements AIProvider {
   id = "gemma";
   name = "Gemini 2.5 Flash (Pro Vision)";
-  async identify(base64Image: string, modelOverride?: string, referenceImage?: string): Promise<AIResponse> {
+  async identify(base64Image: string, modelOverride?: string, referenceImage?: string, isNightVision?: boolean): Promise<AIResponse> {
     const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
     if (!apiKey) throw new Error("API key not configured");
 

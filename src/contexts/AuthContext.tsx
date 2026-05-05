@@ -201,11 +201,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 aiOrchestrator.setProvider(data.ai_provider);
               }
 
-              // Monthly reset logic...
-              const currentMonth = new Date().getMonth();
+                            const currentMonth = new Date().getMonth();
               if (data.ai_reset_month !== currentMonth) {
-                const { updateDoc: updateDocFn } = await import('firebase/firestore');
-                await updateDocFn(docRef, { ai_events_this_month: 0, ai_reset_month: currentMonth }).catch(() => {});
+                await updateDoc(docRef, { ai_events_this_month: 0, ai_reset_month: currentMonth }).catch(() => {});
                 setAiEventsThisMonth(0);
               } else {
                 setAiEventsThisMonth(data.ai_events_this_month || 0);

@@ -28,7 +28,7 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
         </Link>
         <div className="flex items-center gap-4">
           <span className="text-[8px] font-black text-primary/40 uppercase tracking-widest hidden sm:block">
-            { (window as any).hGuard_Version || "v2.5.1" }
+            { (window as any).hGuard_Version || "v2.5.2" }
           </span>
           <button onClick={signOut} className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/5 text-muted-foreground hover:bg-white/10 hover:text-white transition-all border border-white/5">
             <LogOut className="h-6 w-6" />

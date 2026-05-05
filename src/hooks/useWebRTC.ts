@@ -9,6 +9,7 @@ import {
   serverTimestamp,
   deleteDoc,
   getDocs,
+  Timestamp,
 } from "firebase/firestore";
 
 // Free public STUN + TURN servers (open-relay.metered.ca provides free TURN)
@@ -17,8 +18,9 @@ const ICE_SERVERS: RTCConfiguration = {
     { urls: "stun:stun.l.google.com:19302" },
     { urls: "stun:stun1.l.google.com:19302" },
     { urls: "stun:stun2.l.google.com:19302" },
+    { urls: "stun:stun3.l.google.com:19302" },
+    { urls: "stun:stun4.l.google.com:19302" },
     { urls: "stun:stun.cloudflare.com:3478" },
-    // Free TURN relay — critical for mobile / symmetric NAT
     {
       urls: "turn:openrelay.metered.ca:80",
       username: "openrelayproject",
@@ -36,6 +38,8 @@ const ICE_SERVERS: RTCConfiguration = {
     },
   ],
   iceCandidatePoolSize: 10,
+  iceTransportPolicy: 'all',
+  bundlePolicy: 'max-bundle',
 };
 
 type SignalMessage = {
@@ -72,6 +76,8 @@ export const useWebRTC = ({
   const retryCountRef = useRef(0);
   const MAX_RETRIES = 3;
   const isNegotiatingRef = useRef<Map<string, boolean>>(new Map());
+  const processedSignalsRef = useRef<Set<string>>(new Set());
+  const startTimeRef = useRef<Timestamp>(Timestamp.now());
 
   const callbacksRef = useRef({ onRemoteStream, onConnectionStateChange, onDataMessage });
   const localStreamRef = useRef(localStream);
@@ -132,34 +138,54 @@ export const useWebRTC = ({
 
     pc.ontrack = (event) => {
       console.log(`[WebRTC] ontrack: kind=${event.track.kind}, streams=${event.streams.length}`);
-      if (event.streams && event.streams[0]) {
-        callbacksRef.current.onRemoteStream?.(event.streams[0]);
+      
+      // Ensure we have a stream to work with
+      const stream = (event.streams && event.streams[0]) || new MediaStream([event.track]);
 
-        if (role === "camera" && event.track.kind === "audio") {
-          setIsReceivingAudio(true);
-          let audioEl = document.getElementById(`audio-${remotePeerId}`) as HTMLAudioElement;
-          if (!audioEl) {
-            audioEl = document.createElement("audio");
-            audioEl.id = `audio-${remotePeerId}`;
-            audioEl.autoplay = true;
-            (audioEl as any).playsInline = true;
-            audioEl.style.display = "none";
-            document.body.appendChild(audioEl);
-          }
-          audioEl.srcObject = event.streams[0];
-          audioEl.play().catch((e) => console.warn("[WebRTC] Audio autoplay blocked:", e));
+      if (event.track.kind === "video") {
+        callbacksRef.current.onRemoteStream?.(stream);
+      }
 
-          event.track.onended = () => setIsReceivingAudio(false);
-          event.track.onmute = () => setIsReceivingAudio(false);
-          event.track.onunmute = () => setIsReceivingAudio(true);
+      // Camera role: play incoming audio from viewer (Talk/Broadcast)
+      if (role === "camera" && event.track.kind === "audio") {
+        console.log(`[WebRTC] Camera detected incoming audio track from ${remotePeerId}`);
+        setIsReceivingAudio(true);
+        
+        let audioEl = document.getElementById(`audio-${remotePeerId}`) as HTMLAudioElement;
+        if (!audioEl) {
+          console.log(`[WebRTC] Creating new audio element for talk feature`);
+          audioEl = document.createElement("audio");
+          audioEl.id = `audio-${remotePeerId}`;
+          audioEl.autoplay = true;
+          (audioEl as any).playsInline = true;
+          audioEl.style.display = "none";
+          document.body.appendChild(audioEl);
         }
+        
+        audioEl.srcObject = stream;
+        audioEl.play().catch((e) => {
+          console.error("[WebRTC] Audio playback failed. This may require user interaction on the camera device:", e);
+        });
+
+        event.track.onunmute = () => {
+          console.log("[WebRTC] Audio track unmuted (Viewer is talking)");
+          setIsReceivingAudio(true);
+        };
+        event.track.onmute = () => {
+          console.log("[WebRTC] Audio track muted (Viewer stopped talking)");
+          setIsReceivingAudio(false);
+        };
+        event.track.onended = () => {
+          console.log("[WebRTC] Audio track ended");
+          setIsReceivingAudio(false);
+        };
       }
     };
 
     pc.oniceconnectionstatechange = () => {
       console.log(`[WebRTC] ICE connection state → ${pc.iceConnectionState} (peer: ${remotePeerId})`);
-      if (pc.iceConnectionState === "failed") {
-        console.warn("[WebRTC] ICE failed — attempting ICE restart...");
+      if (pc.iceConnectionState === "failed" || pc.iceConnectionState === "disconnected") {
+        console.warn(`[WebRTC] ICE ${pc.iceConnectionState} — attempting ICE restart...`);
         if (role === "viewer" && pc.signalingState === "stable") {
           pc.restartIce();
           pc.createOffer({ iceRestart: true })
@@ -200,25 +226,27 @@ export const useWebRTC = ({
     };
 
     // Perfect Negotiation pattern — prevents glare/collision
-    pc.onnegotiationneeded = async () => {
-      // Only the viewer initiates offers
-      if (role !== "viewer") return;
-      // Guard against re-entrant negotiation
-      if (isNegotiatingRef.current.get(remotePeerId)) return;
-      if (pc.signalingState !== "stable") return;
+    let negotiationTimeout: any = null;
+    pc.onnegotiationneeded = () => {
+      if (negotiationTimeout) clearTimeout(negotiationTimeout);
+      negotiationTimeout = setTimeout(async () => {
+        // Guard against re-entrant negotiation
+        if (isNegotiatingRef.current.get(remotePeerId)) return;
+        if (pc.signalingState !== "stable") return;
 
-      isNegotiatingRef.current.set(remotePeerId, true);
-      try {
-        console.log(`[WebRTC] Negotiation needed → creating offer for ${remotePeerId}`);
-        const offer = await pc.createOffer();
-        if (pc.signalingState !== "stable") return; // Check again after async
-        await pc.setLocalDescription(offer);
-        sendSignal({ type: "offer", payload: offer, from: myId, to: remotePeerId });
-      } catch (e) {
-        console.error("[WebRTC] onnegotiationneeded failed:", e);
-      } finally {
-        isNegotiatingRef.current.set(remotePeerId, false);
-      }
+        isNegotiatingRef.current.set(remotePeerId, true);
+        try {
+          console.log(`[WebRTC] Negotiation needed → creating offer for ${remotePeerId}`);
+          const offer = await pc.createOffer();
+          if (pc.signalingState !== "stable") return; // Check again after async
+          await pc.setLocalDescription(offer);
+          sendSignal({ type: "offer", payload: offer, from: myId, to: remotePeerId });
+        } catch (e) {
+          console.error("[WebRTC] onnegotiationneeded failed:", e);
+        } finally {
+          isNegotiatingRef.current.set(remotePeerId, false);
+        }
+      }, 100);
     };
 
     // Camera side: receive data channel created by viewer
@@ -230,6 +258,7 @@ export const useWebRTC = ({
         dc.onmessage = (e) => {
           try {
             const data = JSON.parse(e.data);
+            if (data.type === "HEARTBEAT") return; // Skip heartbeat messages
             callbacksRef.current.onDataMessage?.(data);
           } catch (err) {
             console.error("[WebRTC] Error parsing data channel message:", err);
@@ -259,7 +288,8 @@ export const useWebRTC = ({
       // Filter out signals not addressed to us
       // Camera accepts signals with no `to` (broadcast offers from viewers)
       // Viewer accepts signals to its specific myId
-      if (message.to && message.to !== myId) return;
+      // We also accept signals addressed to our generic role (e.g. "camera")
+      if (message.to && message.to !== myId && message.to !== role) return;
 
       console.log(`[Signaling] ← ${message.type} from ${message.from}`);
       let pc = pcsRef.current.get(message.from);
@@ -284,6 +314,7 @@ export const useWebRTC = ({
 
       switch (message.type) {
         case "offer": {
+          console.log(`[Signaling] Received offer from ${message.from}`);
           // Perfect negotiation: camera is the "polite" peer
           const isPolite = role === "camera";
           const offerCollision =
@@ -350,6 +381,7 @@ export const useWebRTC = ({
         }
 
         case "answer": {
+          console.log(`[Signaling] Received answer from ${message.from}`);
           if (!pc) {
             console.warn("[WebRTC] Received answer but no PC found for", message.from);
             return;
@@ -377,6 +409,7 @@ export const useWebRTC = ({
         }
 
         case "ice-candidate": {
+          console.log(`[Signaling] Received ice-candidate from ${message.from}`);
           if (!message.payload || !message.payload.candidate) break;
           try {
             if (!pc || !pc.remoteDescription) {
@@ -394,6 +427,7 @@ export const useWebRTC = ({
         }
 
         case "hangup": {
+          console.log(`[Signaling] Received hangup from ${message.from}`);
           if (pc) {
             pc.close();
             pcsRef.current.delete(message.from);
@@ -422,7 +456,6 @@ export const useWebRTC = ({
       where("deviceId", "==", deviceId)
     );
 
-    const processedSignals = new Set<string>();
     const mountTime = Date.now();
 
     const unsubscribe = onSnapshot(
@@ -432,26 +465,25 @@ export const useWebRTC = ({
         snapshot.docChanges().forEach((change) => {
           if (change.type !== "added") return;
           const signalId = change.doc.id;
-          if (processedSignals.has(signalId)) return;
+          if (processedSignalsRef.current.has(signalId)) return;
 
           const data = change.doc.data() as SignalMessage & { created_at?: any };
 
           // Skip our own signals
           if (data.from === myId) return;
 
-          // Stale signal guard — reject signals older than 10 minutes
-          // (very generous window to handle Firestore clock drift)
-          const signalTime = data.created_at?.toDate?.()?.getTime();
-          if (signalTime && signalTime < mountTime - 600000) {
+          // Stale signal guard — reject signals older than 2 minutes
+          const signalTime = data.created_at?.toDate?.()?.getTime() || mountTime;
+          if (signalTime < mountTime - 120000) {
             console.log(`[Signaling] Ignoring stale ${data.type} from ${data.from}`);
             return;
           }
 
-          processedSignals.add(signalId);
+          processedSignalsRef.current.add(signalId);
           handleSignal(data);
 
-          // Cleanup processed signals directed at us
-          if (data.to === myId || (role === "camera" && !data.to)) {
+          // Cleanup processed signals directed at us or our role
+          if (data.to === myId || data.to === role || (role === "camera" && !data.to)) {
             deleteDoc(change.doc.ref).catch(() => {});
           }
         });
@@ -509,6 +541,7 @@ export const useWebRTC = ({
       dc.onmessage = (e) => {
         try {
           const data = JSON.parse(e.data);
+          if (data.type === "HEARTBEAT") return; // Skip heartbeat messages
           callbacksRef.current.onDataMessage?.(data);
         } catch (err) {
           console.error("[WebRTC] Error parsing data channel message:", err);
@@ -564,22 +597,46 @@ export const useWebRTC = ({
       const audioTrack = localStream?.getAudioTracks()[0];
       const videoTrack = localStream?.getVideoTracks()[0];
 
-      pc.getTransceivers().forEach((transceiver) => {
-        if (!transceiver.sender) return;
-        const kind = transceiver.sender.track?.kind || transceiver.receiver.track?.kind;
-        const newTrack = kind === "audio" ? audioTrack : videoTrack;
+      let needsNegotiation = false;
 
-        if (newTrack && transceiver.sender.track !== newTrack) {
-          console.log(`[WebRTC] Hot-swapping ${kind} track (${remotePeerId})`);
-          transceiver.sender.replaceTrack(newTrack).catch((e) =>
-            console.warn(`[WebRTC] replaceTrack failed:`, e)
-          );
-        } else if (!newTrack && role === "viewer" && kind === "audio" && transceiver.sender.track) {
-          transceiver.sender.replaceTrack(null).catch(() => {});
+      pc.getTransceivers().forEach((transceiver) => {
+        const kind = transceiver.sender.track?.kind || transceiver.receiver.track?.kind;
+        
+        if (kind === "audio") {
+          if (audioTrack && transceiver.sender.track !== audioTrack) {
+            console.log(`[WebRTC] Adding audio track for talk feature (${remotePeerId})`);
+            if (transceiver.direction === "recvonly") {
+              transceiver.direction = "sendrecv";
+              needsNegotiation = true;
+            }
+            transceiver.sender.replaceTrack(audioTrack).catch(e => console.warn(e));
+          } else if (!audioTrack && transceiver.sender.track) {
+            console.log(`[WebRTC] Removing audio track (talk ended)`);
+            if (transceiver.direction === "sendrecv") {
+              transceiver.direction = "recvonly";
+              needsNegotiation = true;
+            }
+            transceiver.sender.replaceTrack(null).catch(e => console.warn(e));
+          }
+        } else if (kind === "video") {
+          if (videoTrack && transceiver.sender.track !== videoTrack) {
+            transceiver.sender.replaceTrack(videoTrack).catch(e => console.warn(e));
+          }
         }
       });
+      
+      if (needsNegotiation && role === 'viewer') {
+         console.log(`[WebRTC] Explicitly triggering renegotiation for ${remotePeerId}...`);
+         // We must directly call the logic because dispatchEvent may not trigger the onnegotiationneeded property
+         pc.createOffer().then(offer => {
+           return pc.setLocalDescription(offer).then(() => {
+             sendSignal({ type: "offer", payload: offer, from: myId, to: remotePeerId });
+           });
+         }).catch(e => console.error("[WebRTC] Manual negotiation failed:", e));
+      }
     });
-  }, [localStream, role]);
+  }, [localStream, role, myId, sendSignal]);
+
 
   // ── Cleanup on unmount ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -606,6 +663,25 @@ export const useWebRTC = ({
       console.warn("[WebRTC] sendData dropped — no open channels.", data);
     }
   }, []);
+
+  // ── Data Channel Heartbeat ───────────────────────────────────────────────
+  useEffect(() => {
+    if (!isConnected) return;
+
+    const interval = setInterval(() => {
+      dataChannelsRef.current.forEach((dc) => {
+        if (dc.readyState === "open") {
+          try {
+            dc.send(JSON.stringify({ type: "HEARTBEAT", timestamp: Date.now() }));
+          } catch (e) {
+            console.warn("[WebRTC] Heartbeat send failed:", e);
+          }
+        }
+      });
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, [isConnected]);
 
   return {
     connectionState,
