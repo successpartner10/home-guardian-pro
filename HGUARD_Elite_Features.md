@@ -17,15 +17,15 @@ HGUARD Elite is a professional-grade, web-native security platform that transfor
 - **Bridge Mode** — Import Ring, Nest, Arlo, and Zoom feeds via secure browser-tab bridging.
 - **Tactical AI Night Vision** — Automatic low-light switching with "High Sensitivity" AI awareness.
 - **Hardware Source Selector** — Hot-swap between phone lenses, USB webcams, and virtual camera inputs.
-- **AI Zoom Enhance** — Intelligent digital sharpening and contrast boosting during live magnification.
-- **Detection Zones** — Define custom motion ignore-zones to prevent false alerts from trees or traffic.
+- **AI Zoom** — Keep the picture sharp even when you zoom in deep.
+- **Privacy Zones** — Tell HGUARD to ignore movement in certain areas (like trees or a busy street).
 
 ---
 
 ## ☁️ Elite Storage & Playback
 - **Elite Archive** — Review and play back recorded clips directly within the app via Google Drive blob streaming.
 - **Drive Quota Control** — User-defined GB limits for FIFO (First-In, First-Out) buffer management.
-- **AI-Gated Saves** — Smart recording logic that discards irrelevant footage and preserves meaningful security events.
+- **Smart Recording** — HGUARD only saves important movement, ignoring the rest to save space.
 - **Direct Downloads** — Download high-quality .webm security clips directly from the archive.
 
 ---
@@ -34,7 +34,7 @@ HGUARD Elite is a professional-grade, web-native security platform that transfor
 - **HGUARD Academy** — Built-in search and feature guide system for mastering the ecosystem.
 - **AI Intelligence Lab** — Exclusive Admin portal for tracking upcoming AI advances and feature proposals.
 - **Audio Clarity+** — Real-time noise isolation and speech enhancement for crystal-clear two-way talk.
-- **Toggle Talk** — Ergonomic one-tap microphone toggle for hands-free remote communication.
+- **Walkie-Talkie** — Talk to anyone through your cameras with one tap.
 - **Smart Wake Logic** — Cameras automatically wake from Deep Sleep when a viewer connects or motion is detected.
 - **Global Broadcast** — Command the entire mesh at once. Toggle all flashlights, sirens, or night vision modes with a single click from the Matrix view.
 

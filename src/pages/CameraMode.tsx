@@ -138,7 +138,7 @@ const ActionBar = React.memo(({
 
 const CameraMode = () => {
   const { deviceId } = useParams<{ deviceId: string }>();
-  const { user, profileData } = useAuth();
+  const { user, profileData, relinkGoogle } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -617,7 +617,7 @@ const CameraMode = () => {
             className="px-4 py-2 rounded-xl bg-blue-500/20 border border-blue-500/30 text-center"
           >
             <p className="text-[8px] font-bold text-blue-300 uppercase tracking-widest leading-tight">
-              Select your Ring/Zoom tab<br/>to start the bridge
+              Select your other camera tab<br/>to start the bridge
             </p>
           </motion.div>
         )}
@@ -649,9 +649,17 @@ const CameraMode = () => {
         togglePowerSave={() => setIsPowerSaveMode(!isPowerSaveMode)} deviceName={deviceName} handleRename={handleRename}
       />
 
-      <div className="absolute top-6 left-6 z-50">
+      <div className="absolute top-6 left-6 z-50 flex items-center gap-3">
         <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")} className="h-12 w-12 rounded-2xl bg-white/10 backdrop-blur-3xl border border-white/20 text-white">
           <ArrowLeft className="h-5 w-5" />
+        </Button>
+        <Button 
+          variant="ghost" 
+          onClick={relinkGoogle}
+          className="h-12 px-4 rounded-2xl bg-blue-500/10 backdrop-blur-3xl border border-blue-500/20 text-blue-400 text-[9px] font-black uppercase tracking-widest"
+        >
+          <RefreshCw className="h-3 w-3 mr-2" />
+          Reconnect Storage
         </Button>
       </div>
     </div>

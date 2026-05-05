@@ -214,7 +214,7 @@ const LiveCameraStream: React.FC<LiveCameraStreamProps> = ({ device, onFullscree
                         ref={remoteVideoRef}
                         className={cn(
                           "absolute inset-0 h-full w-full object-cover transition-all duration-700 gpu-accelerated",
-                          device?.isNightVision ? "brightness-[1.8] contrast-[1.4] sepia-[1] hue-rotate-[70deg] saturate-[2.5] invert-[0.05]" : "",
+                          (device as any)?.isNightVision ? "brightness-[1.8] contrast-[1.4] sepia-[1] hue-rotate-[70deg] saturate-[2.5] invert-[0.05]" : "",
                           zoomLevel > 1.5 && "brightness-[1.05] contrast-[1.1] saturate-[1.05]"
                         )}
                         style={{ 

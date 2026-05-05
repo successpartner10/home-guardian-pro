@@ -48,6 +48,7 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<void>;
   forceLogoutAllDevices: () => Promise<void>;
   sendLoginLink: (email: string) => Promise<void>;
+  relinkGoogle: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
@@ -143,16 +144,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const isPrimaryAdmin = currentUser.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
           const docRef = doc(db, "profiles", currentUser.uid);
  
-          // Fast-track admin approval state for UI
           if (isPrimaryAdmin) setIsApproved(true);
 
-          const docSnap = await getDoc(docRef).catch(err => {
-            console.error("[Auth] Profile getDoc failed:", err);
+          // Get profile with timeout
+          const docSnap = await Promise.race([
+            getDoc(docRef),
+            new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 8000))
+          ]).catch(err => {
+            console.error("[Auth] Profile fetch failed/timed out:", err);
             return null;
-          });
+          }) as any;
  
           if (docSnap && !docSnap.exists()) {
-            console.log("[Auth] Profile missing. Creating...");
             await setDoc(docRef, {
               email: currentUser.email,
               display_name: currentUser.displayName || "",
@@ -164,94 +167,77 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
  
           unsubscribeProfile = onSnapshot(docRef, async (snap) => {
-            const isPrimaryAdmin = currentUser.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
-            if (isPrimaryAdmin) setIsApproved(true);
-            
             if (snap.exists()) {
               const data = snap.data();
-              console.log("[Auth] Profile snapshot update received.");
-
+              
               // ── Force Reauth Check ──────────────────────────────────────────
-              // If another device (or admin) triggered a global logout after this
-              // session started, sign out, clear all local caches, and reload.
               const forceReauthAt: number | undefined = data.force_reauth_at?.toMillis
                 ? data.force_reauth_at.toMillis()
                 : typeof data.force_reauth_at === 'number'
                   ? data.force_reauth_at
                   : undefined;
+                  
               if (forceReauthAt && forceReauthAt > sessionStartTime) {
-                console.warn("[Auth] Force reauth detected — clearing session and signing out.");
                 await firebaseSignOut(auth);
-                // Nuke all local storage & caches
                 localStorage.clear();
                 sessionStorage.clear();
-                if ('caches' in window) {
-                  const keys = await caches.keys();
-                  await Promise.all(keys.map(k => caches.delete(k)));
-                }
                 window.location.href = "/login";
                 return;
               }
               // ───────────────────────────────────────────────────────────────
 
               setProfileData(data);
-              setIsApproved(data.is_approved || isPrimaryAdmin);
+              setIsApproved(data.is_approved || (currentUser.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase()));
               
-              if (data.ai_provider) {
-                aiOrchestrator.setProvider(data.ai_provider);
-              }
-
-                            const currentMonth = new Date().getMonth();
+              if (data.ai_provider) aiOrchestrator.setProvider(data.ai_provider);
+              
+              const currentMonth = new Date().getMonth();
               if (data.ai_reset_month !== currentMonth) {
-                await updateDoc(docRef, { ai_events_this_month: 0, ai_reset_month: currentMonth }).catch(() => {});
+                updateDoc(docRef, { ai_events_this_month: 0, ai_reset_month: currentMonth }).catch(() => {});
                 setAiEventsThisMonth(0);
               } else {
                 setAiEventsThisMonth(data.ai_events_this_month || 0);
               }
             }
-          }, (err) => console.error("[Auth] Profile snapshot error:", err));
+            setLoading(false); // Set loading false after profile snapshot
+          }, (err) => {
+            console.error("[Auth] Profile snapshot error:", err);
+            setLoading(false);
+          });
+
           // NUCLEAR CLEANUP: If Admin, purge any 'Ghost' devices older than 5 minutes
-          if (isPrimaryAdmin) {
+          if (currentUser.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
             const cleanupMesh = async () => {
-              console.log("[Auth] Starting Nuclear Mesh Cleanup...");
               const now = Date.now();
-              const twoMinutesAgo = new Date(now - 2 * 60 * 1000);
-              
-              const devicesRef = collection(db, "devices");
-              const q = query(devicesRef, where("user_id", "==", currentUser.uid));
-              const snap = await getDocs(q);
-              
-              let purgeCount = 0;
+              const fiveMinutesAgo = new Date(now - 5 * 60 * 1000);
+              const snap = await getDocs(query(collection(db, "devices"), where("user_id", "==", currentUser.uid)));
               for (const d of snap.docs) {
                 const data = d.data();
                 const updatedAt = data.updated_at?.toDate ? data.updated_at.toDate() : new Date(0);
-                
-                // Nuclear rule: If offline AND older than 2 mins
-                if (updatedAt < twoMinutesAgo) {
-                  console.log(`[Auth] Purging stale ghost device: ${d.id} (${data.name})`);
-                  await deleteDoc(doc(db, "devices", d.id)).catch(() => {});
-                  purgeCount++;
-                }
+                if (updatedAt < fiveMinutesAgo) await deleteDoc(doc(db, "devices", d.id)).catch(() => {});
               }
-              if (purgeCount > 0) console.log(`[Auth] Purged ${purgeCount} stale instances.`);
             };
             cleanupMesh();
           }
 
         } catch (error) {
-          console.error("[Auth] Initialization error:", error);
+          console.error("[Auth] Post-auth error:", error);
+          setLoading(false);
         }
       } else {
         setProfileData(null);
         setIsApproved(false);
         if (unsubscribeProfile) unsubscribeProfile();
         localStorage.removeItem("google_drive_token");
+        setLoading(false);
       }
- 
-      setLoading(false);
     });
 
+    // Final safety timeout — if neither onAuthStateChanged nor its children set loading to false
+    const safetyTimeout = setTimeout(() => setLoading(false), 12000);
+
     return () => {
+      clearTimeout(safetyTimeout);
       unsubscribeAuth();
       if (unsubscribeProfile) unsubscribeProfile();
     };
@@ -299,6 +285,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem("google_drive_token");
   };
 
+  const relinkGoogle = async () => {
+    try {
+      console.log("[Auth] Re-linking Google account for Drive scopes...");
+      googleProvider.setCustomParameters({ prompt: "consent" });
+      const result = await signInWithPopup(auth, googleProvider);
+      const credential = GoogleAuthProvider.credentialFromResult(result);
+      handleCredential(credential);
+      toast({ title: "Google Drive Connected", description: "Storage access has been restored." });
+    } catch (error: any) {
+      console.error("[Auth] Re-link failed:", error);
+      toast({ title: "Connection Failed", description: error.message, variant: "destructive" });
+    }
+  };
+
   // Writes a force_reauth_at timestamp to Firestore.
   // Every device listening via onSnapshot will detect this and sign itself out.
   const forceLogoutAllDevices = async () => {
@@ -309,7 +309,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, profileData, loading, isApproved, isAdmin, aiDegraded, aiEventsThisMonth, signInWithGoogle, signOut, signUp, signIn, forceLogoutAllDevices }}>
+    <AuthContext.Provider value={{ user, profileData, loading, isApproved, isAdmin, aiDegraded, aiEventsThisMonth, signInWithGoogle, signOut, signUp, signIn, forceLogoutAllDevices, relinkGoogle }}>
       {children}
     </AuthContext.Provider>
   );

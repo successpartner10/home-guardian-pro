@@ -60,7 +60,7 @@ const statusConfig = {
 };
 
 const Dashboard = () => {
-  const { user } = useAuth();
+  const { user, relinkGoogle } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [devices, setDevices] = useState<Device[]>([]);
@@ -475,6 +475,12 @@ const Dashboard = () => {
                <div className="flex items-center gap-3 group">
                  <div className="h-2 w-2 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" />
                  <span className="text-[10px] font-bold uppercase tracking-widest text-white/60 group-hover:text-white transition-colors">Drive Sync Enabled</span>
+                 <button 
+                   onClick={relinkGoogle}
+                   className="ml-2 text-[9px] font-black uppercase text-primary hover:underline cursor-pointer"
+                 >
+                   Reconnect
+                 </button>
                </div>
             </div>
           </div>

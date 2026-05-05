@@ -258,10 +258,13 @@ const LiveFeed = () => {
     getDoc(docRef).then(snap => {
       if (snap.exists()) setDevice({ id: snap.id, ...snap.data() } as Device);
       setLoading(false);
-    }).catch((err) => {
-      console.error("LiveFeed fetch error:", err);
+    }).catch(err => {
+      console.error("Failed to load device:", err);
       setLoading(false);
     });
+
+    // Safety timeout: stop spinner after 10 seconds even if Firebase hangs
+    const safetyTimer = setTimeout(() => setLoading(false), 10000);
 
     // Real-time listener
     const unsubscribe = onSnapshot(docRef, (snap) => {
@@ -279,7 +282,10 @@ const LiveFeed = () => {
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+      clearTimeout(safetyTimer);
+    };
   }, [deviceId]);
 
   const handleRename = async () => {
@@ -362,7 +368,20 @@ const LiveFeed = () => {
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-black">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        <div className="flex flex-col items-center gap-6">
+          <div className="h-16 w-16 animate-spin rounded-full border-4 border-primary border-t-transparent shadow-glow" />
+          <div className="space-y-4 text-center">
+            <p className="text-[10px] font-black text-primary uppercase tracking-[0.5em]">Establishing Link...</p>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="text-[8px] uppercase tracking-widest text-white/20 hover:text-white/60"
+              onClick={() => setLoading(false)}
+            >
+              Force Retry
+            </Button>
+          </div>
+        </div>
       </div>
     );
   }

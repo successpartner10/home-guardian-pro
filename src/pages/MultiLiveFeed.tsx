@@ -98,17 +98,15 @@ const MultiLiveFeed = () => {
             });
 
             const now = Date.now();
-            const onlineThreshold = 30 * 1000; // Aggressive 30s display window
+            const onlineThreshold = 300 * 1000; // 5 minutes
             
-            // Only show cameras active in the last 30 seconds
             const filtered = merged.filter(d => {
-                const ts = d.last_seen || d.updated_at;
+                const ts = d.last_seen || d.updated_at || d.created_at;
                 const lastSeen = ts?.toDate ? ts.toDate().getTime() : 
                                ts?.seconds ? ts.seconds * 1000 : 0;
                 return (now - lastSeen) < onlineThreshold;
             });
 
-            // Keep only the most recent ID for each camera name to avoid duplicates
             const unique = Array.from(new Map(filtered.map(d => [d.name, d])).values());
             setCameras(unique);
             setLoading(false);
@@ -185,7 +183,6 @@ const MultiLiveFeed = () => {
         );
     }
 
-    // Determine grid layout based on number of cameras or user preference
     const effectiveGridSize = gridSize || (
         cameras.length === 1 ? 1 :
             cameras.length === 2 ? 2 :
@@ -200,7 +197,6 @@ const MultiLiveFeed = () => {
 
     return (
         <div className="relative flex min-h-screen flex-col bg-black overflow-hidden select-none">
-            {/* Top bar - Premium Glassmorphism */}
             <div className="absolute left-0 right-0 top-0 flex items-center justify-between p-6 z-40 bg-gradient-to-b from-black via-black/40 to-transparent pt-8 pb-16">
                 <div className="flex items-center gap-5">
                     <button

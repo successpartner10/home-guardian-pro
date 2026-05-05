@@ -58,7 +58,7 @@ const Onboarding = () => {
             </div>
           </div>
           <p className="text-[11px] text-white/40 font-black uppercase tracking-[0.2em] max-w-xs mx-auto leading-relaxed">
-            Welcome to HGUARD. How would you like to use this device?
+            Welcome to HGUARD. How will you use this device?
           </p>
         </div>
 
@@ -77,7 +77,7 @@ const Onboarding = () => {
             <div className="space-y-2">
               <h2 className="text-3xl font-black uppercase tracking-tighter text-white">Camera</h2>
               <p className="text-[10px] font-[1000] text-white/30 uppercase tracking-[0.3em]">
-                Use as recording device
+                Make this a camera
               </p>
             </div>
           </motion.button>
@@ -95,7 +95,7 @@ const Onboarding = () => {
             <div className="space-y-2">
               <h2 className="text-3xl font-black uppercase tracking-tighter text-white">Viewer</h2>
               <p className="text-[10px] font-[1000] text-white/30 uppercase tracking-[0.3em]">
-                Watch your cameras
+                Watch your home
               </p>
             </div>
           </motion.button>

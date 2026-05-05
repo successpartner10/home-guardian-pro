@@ -22,7 +22,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     check();
   }, [user]);
 
-  if (loading || (user && deviceCheck === "loading")) {
+  if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">
