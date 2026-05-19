@@ -26,7 +26,7 @@ import {
   Moon, Sun, AlertTriangle, Mic, MicOff, Flashlight, FlashlightOff,
   Camera, ArrowLeft, Users, Zap, Battery as BatteryIcon, WifiOff, Wifi,
   RefreshCcw, Lock as Padlock, Maximize, ChevronRight, RotateCw, Tag,
-  Settings, Terminal, Clock, ShieldAlert, RefreshCw
+  Settings, Terminal, Clock, ShieldAlert, RefreshCw, Shield, Eye, Activity
 } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { useToast } from "@/hooks/use-toast";
@@ -183,6 +183,9 @@ const CameraMode = () => {
   const [selectedCameraId, setSelectedCameraId] = useState<string>(localStorage.getItem("hguard_preferred_camera") || "");
   const [isBridgeMode, setIsBridgeMode] = useState(false);
   const isRecordingRef = useRef(false);
+  const [cameraMode, setCameraMode] = useState<'select' | 'lite' | 'full'>(() => {
+    return (localStorage.getItem("hguard_camera_mode") as 'select' | 'lite' | 'full') || 'select';
+  });
 
   useEffect(() => {
     resolvedDeviceIdRef.current = resolvedDeviceId;
@@ -429,7 +432,14 @@ const CameraMode = () => {
   }, [sirenActive, toggleSiren, wakeUp]);
 
   const { videoRef, canvasRef, isActive, isMuted, flashOn, brightness, zoomLevel, zoomCenter, detectionZone, setDetectionZone, startCamera, stopCamera, restartCamera, toggleMute, toggleFlash, takeSnapshot, stream, error: cameraError } =
-    useCamera({ onMotionDetected: handleMotion, onSoundDetected: handleSound, onFallDetected: handleFall, ignoreZones, deviceId: selectedCameraId, isScreenCapture: isBridgeMode });
+    useCamera({
+      onMotionDetected: cameraMode === 'full' ? handleMotion : undefined,
+      onSoundDetected: cameraMode === 'full' ? handleSound : undefined,
+      onFallDetected: cameraMode === 'full' ? handleFall : undefined,
+      ignoreZones,
+      deviceId: selectedCameraId,
+      isScreenCapture: isBridgeMode
+    });
 
   const handleRemoteCommand = useCallback((msg: any) => {
     wakeUp();
@@ -438,9 +448,18 @@ const CameraMode = () => {
       if (msg.action === 'TOGGLE_SIREN') toggleSiren();
       if (msg.action === 'TOGGLE_NIGHT_VISION') { setAutoNightVision(false); setNightVision(prev => !prev); }
       if (msg.action === 'TAKE_SNAPSHOT') takeSnapshot();
-      if (msg.action === 'TOGGLE_AI') setShowNarrative(prev => !prev);
+      if (msg.action === 'TOGGLE_AI') {
+        if (cameraMode === 'full') {
+          setShowNarrative(prev => !prev);
+        } else {
+          toast({
+            title: "Remote Command Blocked",
+            description: "Gemini AI is disabled on this node (Lite Mode active)."
+          });
+        }
+      }
     }
-  }, [toggleFlash, toggleSiren, takeSnapshot, wakeUp]);
+  }, [toggleFlash, toggleSiren, takeSnapshot, wakeUp, cameraMode, toast]);
 
   const webRTCDeviceId = resolvedDeviceId || "";
 
@@ -479,9 +498,17 @@ const CameraMode = () => {
   }, [resolvedDeviceId, battery]);
 
   useEffect(() => {
-    if (!cameraStarted) { startCamera(); setCameraStarted(true); }
-    return () => stopCamera();
-  }, [startCamera, stopCamera, cameraStarted]);
+    if (cameraMode !== 'select' && !cameraStarted) {
+      startCamera();
+      setCameraStarted(true);
+    }
+    return () => {
+      if (cameraStarted) {
+        stopCamera();
+        setCameraStarted(false);
+      }
+    };
+  }, [startCamera, stopCamera, cameraStarted, cameraMode]);
 
   useEffect(() => {
     if (viewerConnected) {
@@ -496,7 +523,7 @@ const CameraMode = () => {
     let timeout: any;
 
     const analyze = async () => {
-      if (!showNarrative || !isActive || isPowerSaveMode) return;
+      if (cameraMode !== 'full' || !showNarrative || !isActive || isPowerSaveMode) return;
       
       try {
         setIsAnalyzing(true);
@@ -541,7 +568,7 @@ const CameraMode = () => {
       mounted = false;
       clearTimeout(timeout);
     };
-  }, [showNarrative, isActive, isPowerSaveMode, takeSnapshot, viewerConnected, referenceImage, sendData]);
+  }, [showNarrative, isActive, isPowerSaveMode, takeSnapshot, viewerConnected, referenceImage, sendData, cameraMode]);
 
   useEffect(() => {
     (window as any).hguard_night_vision = nightVision;
@@ -573,7 +600,7 @@ const CameraMode = () => {
       )}
 
       {/* Header HUD */}
-      <div className="absolute top-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-4">
+      <div className="absolute top-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2">
         <div className="px-4 py-2 rounded-2xl bg-black/40 backdrop-blur-3xl border border-white/10 flex items-center gap-3 shadow-2xl">
           <div className={cn(
             "h-2 w-2 rounded-full animate-pulse",
@@ -585,6 +612,40 @@ const CameraMode = () => {
             {!resolvedDeviceId ? "Resolving Node..." : viewerConnected ? "Active Link" : "Mesh Ready"}
           </span>
         </div>
+
+        {cameraMode !== 'select' && (
+          <button
+            onClick={() => {
+              const nextMode = cameraMode === 'lite' ? 'full' : 'lite';
+              setCameraMode(nextMode);
+              localStorage.setItem("hguard_camera_mode", nextMode);
+              toast({
+                title: `Switched to ${nextMode === 'lite' ? 'Lite Mode' : 'Elite Security Mode'}`,
+                description: nextMode === 'lite' 
+                  ? "AI analysis and Drive uploads are paused."
+                  : "AI analysis and Cloud recording are active."
+              });
+            }}
+            className={cn(
+              "px-3 py-2 rounded-2xl border backdrop-blur-3xl text-[9px] font-black uppercase tracking-[0.15em] flex items-center gap-1.5 transition-all shadow-2xl",
+              cameraMode === 'lite' 
+                ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20" 
+                : "bg-purple-500/10 border-purple-500/30 text-purple-400 hover:bg-purple-500/20"
+            )}
+          >
+            {cameraMode === 'lite' ? (
+              <>
+                <Eye className="h-3 w-3 animate-pulse" />
+                <span>Lite</span>
+              </>
+            ) : (
+              <>
+                <Shield className="h-3 w-3" />
+                <span>Elite</span>
+              </>
+            )}
+          </button>
+        )}
       </div>
 
       {/* Source Selection Controls */}
@@ -662,6 +723,133 @@ const CameraMode = () => {
           Reconnect Storage
         </Button>
       </div>
+
+      {/* Mode Selection Screen Overlay */}
+      <AnimatePresence>
+        {cameraMode === 'select' && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-3xl px-4"
+          >
+            <div className="w-full max-w-lg flex flex-col items-center gap-8">
+              <div className="flex flex-col items-center gap-2 text-center">
+                <Logo className="h-10 w-auto mb-2 text-primary" />
+                <h1 className="text-2xl font-black tracking-widest text-white uppercase bg-clip-text text-transparent bg-gradient-to-r from-white via-white/80 to-white/50">
+                  Select Camera Mode
+                </h1>
+                <p className="text-xs text-white/40 tracking-wider uppercase font-semibold max-w-xs">
+                  Configure this node's performance, privacy, and tracking footprint
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
+                {/* Lite Mode Option */}
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => {
+                    setCameraMode('lite');
+                    localStorage.setItem("hguard_camera_mode", 'lite');
+                    toast({ title: "Lite Mode Selected", description: "Node started in Stream Only mode." });
+                  }}
+                  className="relative group p-6 rounded-3xl bg-white/5 hover:bg-white/[0.08] border border-white/10 hover:border-emerald-500/30 text-left transition-all duration-300 flex flex-col justify-between h-64 shadow-2xl"
+                >
+                  <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
+                  </div>
+
+                  <div className="flex flex-col gap-4">
+                    <div className="h-12 w-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                      <Eye className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <h3 className="text-md font-black tracking-wider text-white uppercase">Lite Stream</h3>
+                      <p className="text-[11px] text-white/50 mt-1 leading-relaxed">
+                        Optimized for battery, latency, and complete security isolation.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-white/5 pt-4 mt-auto">
+                    <ul className="text-[10px] text-white/40 space-y-1.5 font-medium tracking-wide uppercase">
+                      <li className="flex items-center gap-2">
+                        <span className="h-1 w-1 rounded-full bg-emerald-400" />
+                        Zero Storage Uploads
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <span className="h-1 w-1 rounded-full bg-emerald-400" />
+                        No Gemini AI Scanning
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <span className="h-1 w-1 rounded-full bg-emerald-400" />
+                        Minimal Battery Drain
+                      </li>
+                    </ul>
+                  </div>
+                </motion.button>
+
+                {/* Elite Security Option */}
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => {
+                    setCameraMode('full');
+                    localStorage.setItem("hguard_camera_mode", 'full');
+                    toast({ title: "Elite Security Active", description: "Node started with full AI & Storage." });
+                  }}
+                  className="relative group p-6 rounded-3xl bg-white/5 hover:bg-white/[0.08] border border-white/10 hover:border-purple-500/30 text-left transition-all duration-300 flex flex-col justify-between h-64 shadow-2xl"
+                >
+                  <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="h-2 w-2 rounded-full bg-purple-400 animate-pulse shadow-[0_0_8px_rgba(192,132,252,0.8)]" />
+                  </div>
+
+                  <div className="flex flex-col gap-4">
+                    <div className="h-12 w-12 rounded-2xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
+                      <Shield className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <h3 className="text-md font-black tracking-wider text-white uppercase">Elite Guard</h3>
+                      <p className="text-[11px] text-white/50 mt-1 leading-relaxed">
+                        Full surveillance grid utilizing smart cloud archiving and Gemini orchestrations.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-white/5 pt-4 mt-auto">
+                    <ul className="text-[10px] text-white/40 space-y-1.5 font-medium tracking-wide uppercase">
+                      <li className="flex items-center gap-2">
+                        <span className="h-1 w-1 rounded-full bg-purple-400" />
+                        AI Threat Analysis
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <span className="h-1 w-1 rounded-full bg-purple-400" />
+                        Auto-Save Clips to Drive
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <span className="h-1 w-1 rounded-full bg-purple-400" />
+                        Advanced Audio Classification
+                      </li>
+                    </ul>
+                  </div>
+                </motion.button>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button 
+                  variant="ghost" 
+                  onClick={() => navigate("/dashboard")} 
+                  className="px-6 py-2 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 text-white text-[10px] font-black uppercase tracking-widest"
+                >
+                  <ArrowLeft className="h-3.5 w-3.5 mr-2" />
+                  Back to Dashboard
+                </Button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

@@ -113,6 +113,15 @@ const PublicView = () => {
         };
 
         validateToken();
+
+        const timer = setTimeout(() => {
+            if (loading) {
+                setLoading(false);
+                setError("Link validation timed out. Please refresh or try again.");
+            }
+        }, 10000);
+
+        return () => clearTimeout(timer);
     }, [token]);
 
     useEffect(() => {

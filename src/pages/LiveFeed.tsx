@@ -370,17 +370,17 @@ const LiveFeed = () => {
       <div className="flex min-h-screen items-center justify-center bg-black">
         <div className="flex flex-col items-center gap-6">
           <div className="h-16 w-16 animate-spin rounded-full border-4 border-primary border-t-transparent shadow-glow" />
-          <div className="space-y-4 text-center">
-            <p className="text-[10px] font-black text-primary uppercase tracking-[0.5em]">Establishing Link...</p>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="text-[8px] uppercase tracking-widest text-white/20 hover:text-white/60"
-              onClick={() => setLoading(false)}
-            >
-              Force Retry
-            </Button>
-          </div>
+            <div className="space-y-4 text-center">
+              <p className="text-[10px] font-black text-primary uppercase tracking-[0.5em]">Establishing Link v2.5.2...</p>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="text-[8px] uppercase tracking-widest text-white/20 hover:text-white/60"
+                onClick={() => window.location.reload()}
+              >
+                Force Hard Reload
+              </Button>
+            </div>
         </div>
       </div>
     );
