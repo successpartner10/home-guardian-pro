@@ -29,6 +29,7 @@ const config: CapacitorConfig = {
   server: {
     // Load live app from Firebase Hosting to enable OTA updates without reinstalling APK
     url: 'https://hguard-elite.web.app',
+    allowNavigation: ['hguard-elite.web.app', '*.web.app', '*.firebaseapp.com'],
     cleartext: true,
     androidScheme: 'https',
   },
