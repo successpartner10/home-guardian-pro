@@ -252,14 +252,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       googleProvider.setCustomParameters({ prompt: "select_account" });
 
       // On native Android, use the official native Google Sign-In SDK
-      // We check window.Capacitor directly because the bundled @capacitor/core can initialize as 'web' before the bridge is fully injected on remote URLs.
       const isNative = typeof window !== 'undefined' && (window as any).Capacitor?.isNative;
       
-      if (isNative) {
-        alert("Native bridge detected. Attempting Native Google Sign-In...");
+      // DIAGNOSTIC OVERLAY
+      const debugEl = document.createElement('div');
+      debugEl.style.position = 'fixed';
+      debugEl.style.top = '10px';
+      debugEl.style.left = '10px';
+      debugEl.style.right = '10px';
+      debugEl.style.background = 'red';
+      debugEl.style.color = 'white';
+      debugEl.style.padding = '10px';
+      debugEl.style.zIndex = '9999';
+      debugEl.innerHTML = `isNative: ${isNative}<br/>Capacitor: ${!!(window as any).Capacitor}`;
+      document.body.appendChild(debugEl);
+      setTimeout(() => debugEl.remove(), 5000);
+      
+      if (isNative || Capacitor.isNativePlatform()) {
         try {
           const result = await FirebaseAuthentication.signInWithGoogle();
-          alert("Native Sign-In result received: " + (result?.credential ? "Has Credential" : "No Credential"));
           if (!result.credential) throw new Error("No credential returned from native sign-in");
           
           const credential = GoogleAuthProvider.credential(
@@ -267,14 +278,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             result.credential.accessToken
           );
           
-          alert("Applying credential to Firebase...");
           const authResult = await signInWithCredential(auth, credential);
           handleCredential(credential);
-          alert("Success! Signed in natively.");
           return;
         } catch (e: any) {
-          alert("NATIVE PLUGIN ERROR: " + (e.message || JSON.stringify(e)));
-          throw e;
+          const errStr = e.message || JSON.stringify(e);
+          debugEl.innerHTML += `<br/>ERR: ${errStr}`;
+          throw new Error(`NATIVE_ERR: ${errStr}`);
         }
       }
 
@@ -324,7 +334,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // On native Android, use the official native Google Sign-In SDK
       const isNative = typeof window !== 'undefined' && (window as any).Capacitor?.isNative;
       
-      if (isNative) {
+      if (isNative || Capacitor.isNativePlatform()) {
         const result = await FirebaseAuthentication.signInWithGoogle();
         if (!result.credential) throw new Error("No credential returned from native sign-in");
         const credential = GoogleAuthProvider.credential(
