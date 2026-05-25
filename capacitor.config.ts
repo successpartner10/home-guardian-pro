@@ -26,8 +26,12 @@ const config: CapacitorConfig = {
       backgroundColor: '#000000',
     },
   },
-  // Removed server.url because Capacitor completely blocks the native hardware bridge 
-  // on remote URLs for security reasons, which broke the Google Sign-In SDK.
+  server: {
+    // Load live app from Firebase Hosting for OTA updates
+    url: 'https://hguard-elite.web.app',
+    cleartext: true,
+    androidScheme: 'https',
+  },
 };
 
 export default config;
