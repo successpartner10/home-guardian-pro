@@ -177,8 +177,14 @@ const MultiLiveFeed = () => {
 
     if (loading) {
         return (
-            <div className="flex min-h-screen items-center justify-center bg-black">
-                <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+            <div className="flex min-h-screen items-center justify-center bg-black flex-col">
+                <div className="h-16 w-16 animate-spin rounded-full border-4 border-green-500 border-t-transparent" />
+                <h1 className="text-white mt-8 text-2xl font-bold">LOADING VIEWER...</h1>
+                <p className="text-white/50 mt-4">If this screen never goes away, the database connection is stuck.</p>
+                <div className="mt-8 text-red-500 font-mono text-xs">
+                    User: {user?.email} <br/>
+                    UID: {user?.uid}
+                </div>
             </div>
         );
     }
