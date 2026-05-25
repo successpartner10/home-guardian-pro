@@ -253,19 +253,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       // On native Android, use the official native Google Sign-In SDK
       if (Capacitor.isNativePlatform()) {
-        console.log("[Auth] Native platform detected — using Native Google Sign-In.");
-        const result = await FirebaseAuthentication.signInWithGoogle();
-        if (!result.credential) throw new Error("No credential returned from native sign-in");
-        
-        const credential = GoogleAuthProvider.credential(
-          result.credential.idToken,
-          result.credential.accessToken
-        );
-        
-        const authResult = await signInWithCredential(auth, credential);
-        handleCredential(credential);
-        console.log("[Auth] Native Google Sign-In succeeded.");
-        return;
+        alert("Native platform detected. Attempting Native Google Sign-In...");
+        try {
+          const result = await FirebaseAuthentication.signInWithGoogle();
+          alert("Native Sign-In result received: " + (result?.credential ? "Has Credential" : "No Credential"));
+          if (!result.credential) throw new Error("No credential returned from native sign-in");
+          
+          const credential = GoogleAuthProvider.credential(
+            result.credential.idToken,
+            result.credential.accessToken
+          );
+          
+          alert("Applying credential to Firebase...");
+          const authResult = await signInWithCredential(auth, credential);
+          handleCredential(credential);
+          alert("Success! Signed in natively.");
+          return;
+        } catch (e: any) {
+          alert("NATIVE PLUGIN ERROR: " + (e.message || JSON.stringify(e)));
+          throw e;
+        }
       }
 
       // ALWAYS try popup first — signInWithRedirect is broken by Chrome's COOP policy
