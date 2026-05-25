@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "1057882843675",
+    "project_id": "hguard-elite",
+    "storage_bucket": "hguard-elite.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1057882843675:android:dc40adcc2957912f0c66be",
+        "android_client_info": {
+          "package_name": "com.hguard.elite"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1057882843675-pg4am635mub3ujks9q766aibug49bgap.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.hguard.elite",
+            "certificate_hash": "a12ade8edf8f648561ea41a7049d377f8a171b59"
+          }
+        },
+        {
+          "client_id": "1057882843675-o0fjum3nc3it0n56q71ch4n5kjj0c82i.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDJ6pxiv9oC9BU-Md0XYwrf8HRwdyMFlMk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1057882843675-o0fjum3nc3it0n56q71ch4n5kjj0c82i.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
