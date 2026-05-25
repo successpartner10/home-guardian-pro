@@ -252,8 +252,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       googleProvider.setCustomParameters({ prompt: "select_account" });
 
       // On native Android, use the official native Google Sign-In SDK
-      if (Capacitor.isNativePlatform()) {
-        alert("Native platform detected. Attempting Native Google Sign-In...");
+      // We check window.Capacitor directly because the bundled @capacitor/core can initialize as 'web' before the bridge is fully injected on remote URLs.
+      const isNative = typeof window !== 'undefined' && (window as any).Capacitor?.isNative;
+      
+      if (isNative) {
+        alert("Native bridge detected. Attempting Native Google Sign-In...");
         try {
           const result = await FirebaseAuthentication.signInWithGoogle();
           alert("Native Sign-In result received: " + (result?.credential ? "Has Credential" : "No Credential"));
@@ -319,7 +322,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       googleProvider.setCustomParameters({ prompt: "consent" });
 
       // On native Android, use the official native Google Sign-In SDK
-      if (Capacitor.isNativePlatform()) {
+      const isNative = typeof window !== 'undefined' && (window as any).Capacitor?.isNative;
+      
+      if (isNative) {
         const result = await FirebaseAuthentication.signInWithGoogle();
         if (!result.credential) throw new Error("No credential returned from native sign-in");
         const credential = GoogleAuthProvider.credential(
