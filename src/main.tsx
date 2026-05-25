@@ -10,6 +10,34 @@ console.log(`%c[hGuard] BUILD: ${BUILD_ID}`, "color: #10b981; font-weight: bold;
 // Initialize Capacitor native plugins (no-op on web)
 initCapacitor();
 
+import React from "react";
+
+class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean, error: Error | null}> {
+  constructor(props: any) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ padding: 20, color: 'red', background: 'black', minHeight: '100vh', wordWrap: 'break-word' }}>
+          <h2>Application Crashed</h2>
+          <pre style={{ fontSize: '10px' }}>{this.state.error?.message}</pre>
+          <pre style={{ fontSize: '10px' }}>{this.state.error?.stack}</pre>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 createRoot(document.getElementById("root")!).render(
-  <App />
+  <ErrorBoundary>
+    <App />
+  </ErrorBoundary>
 );
