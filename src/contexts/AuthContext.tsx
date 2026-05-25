@@ -15,7 +15,8 @@ import {
   browserLocalPersistence,
   sendSignInLinkToEmail,
   isSignInWithEmailLink,
-  signInWithEmailLink
+  signInWithEmailLink,
+  browserPopupRedirectResolver
 } from "firebase/auth";
 import { auth, db, googleProvider } from "@/lib/firebase";
 import { 
@@ -98,7 +99,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log("[Auth] Persistence set to Local");
 
         // 2. Handle redirect result BEFORE onAuthStateChanged fires too many updates
-        const result = await getRedirectResult(auth);
+        const result = await getRedirectResult(auth, browserPopupRedirectResolver);
         if (result) {
           console.log("[Auth] Redirect result processed for:", result.user.email);
           const credential = GoogleAuthProvider.credentialFromResult(result);
@@ -249,10 +250,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log("[Auth] signInWithGoogle invoked.");
       googleProvider.setCustomParameters({ prompt: "select_account" });
 
-      // On native Android, popups are blocked — go straight to redirect
+      // On native Android, popups are blocked — go straight to redirect using native browser tabs
       if (Capacitor.isNativePlatform()) {
-        console.log("[Auth] Native platform detected — using Redirect.");
-        await signInWithRedirect(auth, googleProvider);
+        console.log("[Auth] Native platform detected — using Redirect with Custom Tabs.");
+        await signInWithRedirect(auth, googleProvider, browserPopupRedirectResolver);
         return;
       }
 
@@ -298,9 +299,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log("[Auth] Re-linking Google account for Drive scopes...");
       googleProvider.setCustomParameters({ prompt: "consent" });
 
-      // On native Android, popups are blocked — use redirect
+      // On native Android, popups are blocked — use redirect with custom tabs
       if (Capacitor.isNativePlatform()) {
-        await signInWithRedirect(auth, googleProvider);
+        await signInWithRedirect(auth, googleProvider, browserPopupRedirectResolver);
         return;
       }
 
