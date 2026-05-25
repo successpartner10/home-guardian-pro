@@ -14,10 +14,11 @@ import {
   setPersistence,
   browserLocalPersistence,
   sendSignInLinkToEmail,
-  isSignInWithEmailLink,
   signInWithEmailLink,
-  browserPopupRedirectResolver
+  browserPopupRedirectResolver,
+  signInWithCredential
 } from "firebase/auth";
+import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
 import { auth, db, googleProvider } from "@/lib/firebase";
 import { 
   doc, 
@@ -250,10 +251,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log("[Auth] signInWithGoogle invoked.");
       googleProvider.setCustomParameters({ prompt: "select_account" });
 
-      // On native Android, popups are blocked — go straight to redirect using native browser tabs
+      // On native Android, use the official native Google Sign-In SDK
       if (Capacitor.isNativePlatform()) {
-        console.log("[Auth] Native platform detected — using Redirect with Custom Tabs.");
-        await signInWithRedirect(auth, googleProvider, browserPopupRedirectResolver);
+        console.log("[Auth] Native platform detected — using Native Google Sign-In.");
+        const result = await FirebaseAuthentication.signInWithGoogle();
+        if (!result.credential) throw new Error("No credential returned from native sign-in");
+        
+        const credential = GoogleAuthProvider.credential(
+          result.credential.idToken,
+          result.credential.accessToken
+        );
+        
+        const authResult = await signInWithCredential(auth, credential);
+        handleCredential(credential);
+        console.log("[Auth] Native Google Sign-In succeeded.");
         return;
       }
 
@@ -299,9 +310,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log("[Auth] Re-linking Google account for Drive scopes...");
       googleProvider.setCustomParameters({ prompt: "consent" });
 
-      // On native Android, popups are blocked — use redirect with custom tabs
+      // On native Android, use the official native Google Sign-In SDK
       if (Capacitor.isNativePlatform()) {
-        await signInWithRedirect(auth, googleProvider, browserPopupRedirectResolver);
+        const result = await FirebaseAuthentication.signInWithGoogle();
+        if (!result.credential) throw new Error("No credential returned from native sign-in");
+        const credential = GoogleAuthProvider.credential(
+          result.credential.idToken,
+          result.credential.accessToken
+        );
+        await signInWithCredential(auth, credential);
+        handleCredential(credential);
         return;
       }
 
