@@ -26,13 +26,8 @@ const config: CapacitorConfig = {
       backgroundColor: '#000000',
     },
   },
-  server: {
-    // Load live app from Firebase Hosting to enable OTA updates without reinstalling APK
-    url: 'https://hguard-elite.web.app',
-    allowNavigation: ['hguard-elite.web.app', '*.web.app', '*.firebaseapp.com'],
-    cleartext: true,
-    androidScheme: 'https',
-  },
+  // Removed server.url because Capacitor completely blocks the native hardware bridge 
+  // on remote URLs for security reasons, which broke the Google Sign-In SDK.
 };
 
 export default config;
