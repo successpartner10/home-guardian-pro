@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useRef } from "react";
+import { Capacitor } from '@capacitor/core';
 import {
   User,
   onAuthStateChanged,
@@ -248,6 +249,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log("[Auth] signInWithGoogle invoked.");
       googleProvider.setCustomParameters({ prompt: "select_account" });
 
+      // On native Android, popups are blocked — go straight to redirect
+      if (Capacitor.isNativePlatform()) {
+        console.log("[Auth] Native platform detected — using Redirect.");
+        await signInWithRedirect(auth, googleProvider);
+        return;
+      }
+
       // ALWAYS try popup first — signInWithRedirect is broken by Chrome's COOP policy
       try {
         const result = await signInWithPopup(auth, googleProvider);
@@ -289,6 +297,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       console.log("[Auth] Re-linking Google account for Drive scopes...");
       googleProvider.setCustomParameters({ prompt: "consent" });
+
+      // On native Android, popups are blocked — use redirect
+      if (Capacitor.isNativePlatform()) {
+        await signInWithRedirect(auth, googleProvider);
+        return;
+      }
+
       const result = await signInWithPopup(auth, googleProvider);
       const credential = GoogleAuthProvider.credentialFromResult(result);
       handleCredential(credential);
