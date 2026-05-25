@@ -287,8 +287,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
     } catch (error: any) {
-      console.error("[Auth] Google Sign-In failed:", error.code, error.message);
-      throw error;
+      console.error("[Auth] Google Sign-In failed:", error);
+      const errorMessage = error.message || (error.code ? `Error ${error.code}` : JSON.stringify(error, Object.getOwnPropertyNames(error)));
+      throw new Error(`Google Login Failed: ${errorMessage}`);
     }
   };
 
