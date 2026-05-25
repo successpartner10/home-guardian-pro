@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import { db } from "@/lib/firebase";
 import {
     collection,
@@ -63,6 +64,7 @@ const MultiLiveFeed = () => {
     };
 
     useEffect(() => {
+        alert("MULTILIVEFEED MOUNTED");
         if (!user || !user.email) return;
 
         // Query owned devices
