@@ -318,8 +318,8 @@ const CameraMode = () => {
           });
           deviceIdLiteral = docRef.id;
         } else {
+          // Do NOT overwrite name — preserve any custom name the user set
           await updateDoc(doc(db, "devices", existingDoc.id), {
-            name: deviceName,
             type: "camera",
             status: 'online',
             persistent_id: persistentId,

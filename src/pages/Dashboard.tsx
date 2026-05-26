@@ -189,7 +189,7 @@ const Dashboard = () => {
     const querySnapshot = await getDocs(q);
     const matchingDocs = querySnapshot.docs.filter(d => {
       const data = d.data();
-      return data.name === deviceName && data.type === "viewer";
+      return (data.persistent_id === persistentId || data.name === deviceName) && data.type === "viewer";
     });
 
     if (matchingDocs.length > 0) {
@@ -204,6 +204,7 @@ const Dashboard = () => {
     try {
       await addDoc(collection(db, "devices"), {
         user_id: user.uid,
+        persistent_id: persistentId,
         name: deviceName,
         type: "viewer",
         status: "online",
@@ -239,7 +240,7 @@ const Dashboard = () => {
     const querySnapshot = await getDocs(q);
     const matchingDocs = querySnapshot.docs.filter(d => {
       const data = d.data();
-      return data.name === deviceName && data.type === "camera";
+      return (data.persistent_id === persistentId || data.name === deviceName) && data.type === "camera";
     });
 
     if (matchingDocs.length > 0) {
@@ -253,6 +254,7 @@ const Dashboard = () => {
     try {
       const docRef = await addDoc(collection(db, "devices"), {
         user_id: user.uid,
+        persistent_id: persistentId,
         name: deviceName,
         type: "camera",
         status: "online",
