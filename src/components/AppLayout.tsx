@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { LayoutDashboard, Camera, Bell, Settings, LogOut, Shield, Users, HelpCircle } from "lucide-react";
+import { LayoutDashboard, Camera, Bell, Settings, LogOut, Shield, Users, HelpCircle, Brain } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Logo } from "./Logo";
 
@@ -10,6 +10,7 @@ const navItems = [
   { to: "/dashboard", icon: Camera, label: "Cameras" },
   { to: "/archive", icon: Bell, label: "Events" },
   { to: "/users", icon: Users, label: "Users", adminOnly: true },
+  { to: "/ailab", icon: Brain, label: "AI Lab", adminOnly: true },
   { to: "/settings", icon: Settings, label: "Settings" },
   { to: "/help", icon: HelpCircle, label: "Help" },
 ];

@@ -3,7 +3,13 @@ import { Brain, Zap, Sparkles, Target, Eye, Mic, Thermometer, ArrowRight, Shield
 import AppLayout from "@/components/AppLayout";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
+import { db } from "@/lib/firebase";
+import { doc, updateDoc } from "firebase/firestore";
+import { Bell } from "lucide-react";
 
 interface AIProposal {
   id: string;
@@ -59,6 +65,22 @@ const proposals: AIProposal[] = [
 ];
 
 const AILab = () => {
+  const { user, profileData, isAdmin } = useAuth();
+  const { toast } = useToast();
+  
+  const handleToggleNotifications = async (enabled: boolean) => {
+    if (!user) return;
+    try {
+      await updateDoc(doc(db, "profiles", user.uid), { ai_notifications: enabled });
+      toast({
+        title: enabled ? "Notifications Subscribed" : "Notifications Disabled",
+        description: enabled ? "You will be alerted when new AI features enter beta." : "You will no longer receive AI updates."
+      });
+    } catch (e) {
+      toast({ title: "Error", variant: "destructive", description: "Failed to update preferences." });
+    }
+  };
+
   return (
     <AppLayout>
       <div className="p-6 max-w-4xl mx-auto pb-32 space-y-12">
@@ -129,6 +151,25 @@ const AILab = () => {
             </motion.div>
           ))}
         </div>
+
+        {isAdmin && (
+          <div className="p-6 rounded-[2rem] bg-white/5 border border-white/10 flex items-center justify-between gap-6">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-blue-500/10 text-blue-400 rounded-2xl">
+                <Bell className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-xl font-black uppercase tracking-tight">Admin AI Alerts</h3>
+                <p className="text-sm font-bold text-white/50">Get notified immediately when new Lab features go live.</p>
+              </div>
+            </div>
+            <Switch 
+              checked={profileData?.ai_notifications || false} 
+              onCheckedChange={handleToggleNotifications}
+              className="scale-125"
+            />
+          </div>
+        )}
 
         <div className="text-center pt-12">
           <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.5em]">System Intelligence v2.5.5 • Experimental Build</p>
