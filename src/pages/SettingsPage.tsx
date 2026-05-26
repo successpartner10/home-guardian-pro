@@ -418,7 +418,7 @@ const SettingsPage = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3 text-primary">
               <Clock className="w-8 h-8" />
-              <h2 className="text-2xl font-black uppercase tracking-tight">Focus Hours</h2>
+              <h2 className="text-2xl font-black tracking-tight">Motion Schedule</h2>
             </div>
             <Switch
               checked={schedule.enabled}
@@ -464,7 +464,7 @@ const SettingsPage = () => {
           <div className="flex items-center justify-between pt-4">
             <div className="flex items-center gap-3 text-primary">
               <Shield className="w-8 h-8" />
-              <h2 className="text-2xl font-black uppercase tracking-tight">AI Filter</h2>
+              <h2 className="text-2xl font-black tracking-tight">Smart Detection</h2>
             </div>
             <Switch
               checked={ignorePets}
@@ -484,7 +484,7 @@ const SettingsPage = () => {
         <div className="zoomon-card space-y-6">
           <div className="flex items-center gap-3 text-primary">
             <LockIcon className="w-8 h-8" />
-            <h2 className="text-2xl font-black uppercase tracking-tight">Security & PIN</h2>
+            <h2 className="text-2xl font-black tracking-tight">Security & PIN</h2>
           </div>
           <div className="space-y-6">
             <div className="p-6 bg-primary/5 border-2 border-primary/20 rounded-[2.5rem] space-y-4">
@@ -511,7 +511,7 @@ const SettingsPage = () => {
                   className="h-14 font-black text-2xl tracking-[0.5em] text-center rounded-2xl bg-zinc-900/70 border-2"
                 />
                 <Button onClick={savePin} disabled={loading || newPin.length !== 4} size="lg" className="h-14 px-8 rounded-2xl font-black">
-                  {securityPin ? "UPDATE" : "SET"}
+                  {securityPin ? "Update" : "Set"}
                 </Button>
               </div>
             </div>
@@ -535,13 +535,13 @@ const SettingsPage = () => {
         <div className="zoomon-card space-y-6">
           <div className="flex items-center gap-3 text-primary">
             <HardDrive className="w-8 h-8" />
-            <h2 className="text-2xl font-black uppercase tracking-tight">Storage Control</h2>
+            <h2 className="text-2xl font-black tracking-tight">Storage Control</h2>
           </div>
           
           <div className="p-6 bg-primary/5 border-2 border-primary/20 rounded-[2rem] space-y-8">
             <div className="space-y-6">
               <div className="flex justify-between items-center">
-                <p className="text-lg font-black uppercase leading-none">Cloud Snapshot Limit</p>
+                <p className="text-lg font-black leading-none">Storage Limit</p>
                 <div className="flex items-center gap-2">
                   <Input
                     type="number"
@@ -553,7 +553,7 @@ const SettingsPage = () => {
                 </div>
               </div>
               
-              <p className="text-xs font-bold opacity-80 uppercase tracking-tight">Set your FIFO buffer size. Older non-starred clips will be purged.</p>
+              <p className="text-xs font-bold opacity-80 tracking-tight">Set how much Google Drive space to use. Older videos will be automatically deleted when this limit is reached.</p>
 
               <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-[1.5rem]">
                 <div className="flex items-center gap-3">
@@ -574,7 +574,7 @@ const SettingsPage = () => {
               <div className="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-2xl flex items-start gap-4">
                 <AlertTriangle className="h-5 w-5 text-yellow-500 mt-1 shrink-0" />
                 <p className="text-[11px] text-yellow-500/80 leading-relaxed font-medium">
-                  When your Google Drive usage for HGUARD exceeds <span className="font-bold text-yellow-400">{archiveLimit} GB</span>, the oldest recordings will be automatically purged to maintain your safety buffer (FIFO).
+                  When your Google Drive usage for HGUARD exceeds <span className="font-bold text-yellow-400">{archiveLimit} GB</span>, the oldest recordings will be automatically deleted to free up space.
                 </p>
               </div>
             </div>
@@ -626,9 +626,9 @@ const SettingsPage = () => {
             <Button
               variant={localStorage.getItem("google_drive_token") ? "outline" : "default"}
               onClick={signInWithGoogle}
-              className="rounded-xl font-black uppercase tracking-widest text-[10px]"
+              className="rounded-xl font-black tracking-widest text-xs"
             >
-              {localStorage.getItem("google_drive_token") ? "MANAGE ACCESS" : "CONNECT DRIVE"}
+              {localStorage.getItem("google_drive_token") ? "Manage Access" : "Connect Drive"}
             </Button>
           </div>
         </div>
@@ -638,7 +638,7 @@ const SettingsPage = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3 text-primary">
               <Brain className="w-8 h-8" />
-              <h2 className="text-2xl font-black uppercase tracking-tight">AI Intelligence</h2>
+              <h2 className="text-2xl font-black tracking-tight">AI Settings</h2>
             </div>
             <Switch
               checked={autoUpgrade}
@@ -697,7 +697,7 @@ const SettingsPage = () => {
         <div className="zoomon-card border-destructive/20 bg-destructive/5 space-y-6">
           <div className="flex items-center gap-3 text-destructive">
             <Zap className="w-8 h-8" />
-            <h2 className="text-2xl font-black uppercase tracking-tight">Reset cameras</h2>
+            <h2 className="text-2xl font-black tracking-tight">Remove all cameras</h2>
           </div>
           <div className="space-y-4">
             <p className="text-sm font-bold text-destructive/60 uppercase tracking-widest leading-relaxed">
@@ -705,8 +705,8 @@ const SettingsPage = () => {
             </p>
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="destructive" className="w-full h-16 rounded-[2rem] font-black uppercase tracking-widest">
-                  Reset camera list
+                <Button variant="destructive" className="w-full h-16 rounded-[2rem] font-black tracking-wide text-lg">
+                  Remove all cameras
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent className="bg-zinc-950 border-destructive/50">
@@ -717,7 +717,7 @@ const SettingsPage = () => {
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel className="rounded-2xl border-white/10 font-black">CANCEL</AlertDialogCancel>
+                  <AlertDialogCancel className="rounded-2xl border-white/10 font-black">Cancel</AlertDialogCancel>
                   <AlertDialogAction 
                     onClick={async () => {
                       if (!user) return;
@@ -728,7 +728,7 @@ const SettingsPage = () => {
                     }}
                     className="bg-destructive text-white rounded-2xl font-black"
                   >
-                    Reset camera list
+                    Remove all cameras
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
@@ -772,10 +772,10 @@ const SettingsPage = () => {
               <AlertDialogTrigger asChild>
                 <Button
                   variant="outline"
-                  className="w-full h-16 rounded-[2rem] font-black uppercase tracking-widest border-orange-500/40 text-orange-400 hover:bg-orange-500/10 hover:border-orange-400"
+                  className="w-full h-16 rounded-[2rem] font-black tracking-wide border-orange-500/40 text-orange-400 hover:bg-orange-500/10 hover:border-orange-400"
                 >
                   <LockIcon className="h-5 w-5 mr-3" />
-                  FORCE LOGOUT ALL DEVICES
+                  Log out all devices
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent className="bg-zinc-950 border-orange-500/40">
@@ -786,7 +786,7 @@ const SettingsPage = () => {
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel className="rounded-2xl border-white/10 font-black">CANCEL</AlertDialogCancel>
+                  <AlertDialogCancel className="rounded-2xl border-white/10 font-black">Cancel</AlertDialogCancel>
                   <AlertDialogAction
                     onClick={async () => {
                       await forceLogoutAllDevices();

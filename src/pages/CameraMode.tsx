@@ -744,10 +744,10 @@ const CameraMode = () => {
             <div className="w-full max-w-lg flex flex-col items-center gap-8">
               <div className="flex flex-col items-center gap-2 text-center">
                 <Logo className="h-10 w-auto mb-2 text-primary" />
-                <h1 className="text-2xl font-black tracking-widest text-white uppercase bg-clip-text text-transparent bg-gradient-to-r from-white via-white/80 to-white/50">
+                <h1 className="text-2xl font-black text-white bg-clip-text text-transparent bg-gradient-to-r from-white via-white/80 to-white/50">
                   How should this phone work?
                 </h1>
-                <p className="text-xs text-white/40 tracking-wider font-semibold max-w-xs">
+                <p className="text-sm text-white/60 font-semibold max-w-xs">
                   Pick watch-only for battery savings, or full protection for AI and recordings.
                 </p>
               </div>
@@ -774,15 +774,15 @@ const CameraMode = () => {
                       <Eye className="h-6 w-6" />
                     </div>
                     <div>
-                      <h3 className="text-md font-black tracking-wider text-white uppercase">Watch only</h3>
-                      <p className="text-[11px] text-white/50 mt-1 leading-relaxed">
+                      <h3 className="text-lg font-black tracking-wide text-white">Watch only</h3>
+                      <p className="text-sm text-white/60 mt-1 leading-relaxed">
                         Best for battery life. Streams video to your other devices — nothing saved to the cloud.
                       </p>
                     </div>
                   </div>
 
                   <div className="border-t border-white/5 pt-4 mt-auto">
-                    <ul className="text-[10px] text-white/40 space-y-1.5 font-medium tracking-wide uppercase">
+                    <ul className="text-xs text-white/60 space-y-2 font-medium">
                       <li className="flex items-center gap-2">
                         <span className="h-1 w-1 rounded-full bg-emerald-400" />
                         No cloud uploads
@@ -825,15 +825,15 @@ const CameraMode = () => {
                       <Shield className="h-6 w-6" />
                     </div>
                     <div>
-                      <h3 className="text-md font-black tracking-wider text-white uppercase">Full protection</h3>
-                      <p className="text-[11px] text-white/50 mt-1 leading-relaxed">
+                      <h3 className="text-lg font-black tracking-wide text-white">Full protection</h3>
+                      <p className="text-sm text-white/60 mt-1 leading-relaxed">
                         Motion alerts, AI checks, and automatic clips saved to your Google Drive.
                       </p>
                     </div>
                   </div>
 
                   <div className="border-t border-white/5 pt-4 mt-auto">
-                    <ul className="text-[10px] text-white/40 space-y-1.5 font-medium tracking-wide uppercase">
+                    <ul className="text-xs text-white/60 space-y-2 font-medium">
                       <li className="flex items-center gap-2">
                         <span className="h-1 w-1 rounded-full bg-purple-400" />
                         Smart motion & AI alerts
@@ -855,9 +855,9 @@ const CameraMode = () => {
                 <Button 
                   variant="ghost" 
                   onClick={() => navigate("/dashboard")} 
-                  className="px-6 py-2 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 text-white text-[10px] font-black uppercase tracking-widest"
+                  className="px-6 py-2 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 text-white font-bold"
                 >
-                  <ArrowLeft className="h-3.5 w-3.5 mr-2" />
+                  <ArrowLeft className="h-4 w-4 mr-2" />
                   Back to Dashboard
                 </Button>
               </div>
