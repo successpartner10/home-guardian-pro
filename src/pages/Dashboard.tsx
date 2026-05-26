@@ -22,7 +22,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Camera, Wifi, WifiOff, Video, MonitorSmartphone, LayoutGrid, Trash2, RefreshCcw, Sparkles, Brain, Target, HelpCircle } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Camera, Wifi, WifiOff, Video, MonitorSmartphone, LayoutGrid, Trash2, RefreshCcw, Sparkles, Brain, Target, HelpCircle, Settings, Shield } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -166,6 +167,18 @@ const Dashboard = () => {
       return () => clearTimeout(timer);
     }
   }, [devices, isMeshTracking, navigate, toast]);
+
+  const toggleMotionDetection = async (deviceId: string, enabled: boolean) => {
+    try {
+      await updateDoc(doc(db, "devices", deviceId), { "settings.cloud_recording": enabled });
+      toast({ 
+        title: enabled ? "Full Protection ON" : "Watch Only Mode", 
+        description: enabled ? "AI and cloud recording active." : "Motion detection disabled." 
+      });
+    } catch (e) {
+      toast({ title: "Error", variant: "destructive", description: "Failed to update camera setting" });
+    }
+  };
 
   const getOrCreateDeviceId = () => {
     let id = localStorage.getItem("hguard_device_persistent_id");
@@ -382,12 +395,38 @@ const Dashboard = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-12">
             {devices.map((camera) => (
-              <div key={camera.id} className="w-full h-64 rounded-2xl overflow-hidden border border-white/10 shadow-lg relative bg-black/50 group">
-                <LiveCameraStream
-                    device={camera}
-                    localStream={null}
-                    onFullscreen={(id) => navigate(`/live/${id}`)}
-                />
+              <div key={camera.id} className="w-full h-[22rem] flex flex-col rounded-2xl overflow-hidden border border-white/10 shadow-lg relative bg-black/50 group">
+                <div className="flex-1 relative cursor-pointer" onClick={() => navigate(`/live/${camera.id}`)}>
+                  <LiveCameraStream
+                      device={camera}
+                      localStream={null}
+                      onFullscreen={(id) => navigate(`/live/${id}`)}
+                  />
+                  <div className="absolute inset-0 z-10 pointer-events-none hover:bg-white/5 transition-colors" />
+                </div>
+                <div className="h-16 bg-white/[0.02] border-t border-white/10 px-4 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-full bg-primary/10 text-primary">
+                      <Shield className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-white uppercase tracking-widest">Motion Detection</p>
+                      <p className="text-[9px] text-white/50 font-medium">
+                        {(camera.settings as any)?.cloud_recording ? "AI Enabled" : "Live Stream Only"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Switch 
+                      checked={(camera.settings as any)?.cloud_recording || false} 
+                      onCheckedChange={(c) => toggleMotionDetection(camera.id, c)}
+                    />
+                    <div className="w-px h-6 bg-white/10" />
+                    <Button variant="ghost" size="icon" onClick={() => navigate('/settings')} className="text-white/50 hover:text-white hover:bg-white/10 rounded-xl">
+                      <Settings className="w-5 h-5" />
+                    </Button>
+                  </div>
+                </div>
               </div>
             ))}
           </div>
