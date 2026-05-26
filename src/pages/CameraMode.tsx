@@ -184,7 +184,7 @@ const CameraMode = () => {
   const [isBridgeMode, setIsBridgeMode] = useState(false);
   const isRecordingRef = useRef(false);
   const [cameraMode, setCameraMode] = useState<'select' | 'lite' | 'full'>(() => {
-    return (localStorage.getItem("hguard_camera_mode") as 'select' | 'lite' | 'full') || 'select';
+    return (localStorage.getItem("hguard_camera_mode") as 'select' | 'lite' | 'full') || 'full';
   });
 
   useEffect(() => {
@@ -732,135 +732,25 @@ const CameraMode = () => {
         </Button>
       </div>
 
-      {/* Mode Selection Screen Overlay */}
+      {/* Power Save Mode Overlay */}
       <AnimatePresence>
-        {cameraMode === 'select' && (
+        {isPowerSaveMode && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-3xl px-4"
+            className="absolute inset-0 z-[60] bg-black flex flex-col items-center justify-center cursor-pointer"
+            onClick={() => setIsPowerSaveMode(false)}
           >
-            <div className="w-full max-w-lg flex flex-col items-center gap-8">
-              <div className="flex flex-col items-center gap-2 text-center">
-                <Logo className="h-10 w-auto mb-2 text-primary" />
-                <h1 className="text-2xl font-black text-white bg-clip-text text-transparent bg-gradient-to-r from-white via-white/80 to-white/50">
-                  How should this phone work?
-                </h1>
-                <p className="text-sm text-white/60 font-semibold max-w-xs">
-                  Pick watch-only for battery savings, or full protection for AI and recordings.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
-                {/* Lite Mode Option */}
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={async () => {
-                    setCameraMode('lite');
-                    localStorage.setItem("hguard_camera_mode", 'lite');
-                    if (resolvedDeviceId) await updateDoc(doc(db, "devices", resolvedDeviceId), { "settings.cloud_recording": false });
-                    toast({ title: "Watch only", description: "This device will stream live video without AI or cloud saves." });
-                  }}
-                  className="relative group p-6 rounded-3xl bg-white/5 hover:bg-white/[0.08] border border-white/10 hover:border-emerald-500/30 text-left transition-all duration-300 flex flex-col justify-between h-64 shadow-2xl"
-                >
-                  <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <div className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
-                  </div>
-
-                  <div className="flex flex-col gap-4">
-                    <div className="h-12 w-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
-                      <Eye className="h-6 w-6" />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-black tracking-wide text-white">Watch only</h3>
-                      <p className="text-sm text-white/60 mt-1 leading-relaxed">
-                        Best for battery life. Streams video to your other devices — nothing saved to the cloud.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="border-t border-white/5 pt-4 mt-auto">
-                    <ul className="text-xs text-white/60 space-y-2 font-medium">
-                      <li className="flex items-center gap-2">
-                        <span className="h-1 w-1 rounded-full bg-emerald-400" />
-                        No cloud uploads
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <span className="h-1 w-1 rounded-full bg-emerald-400" />
-                        No AI scanning
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <span className="h-1 w-1 rounded-full bg-emerald-400" />
-                        Uses less battery
-                      </li>
-                    </ul>
-                  </div>
-                </motion.button>
-
-                {/* Elite Security Option */}
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={async () => {
-                    const fullCameras = devices.filter(d => d.settings?.cloud_recording === true && d.id !== resolvedDeviceId);
-                    if (fullCameras.length >= 4) {
-                      toast({ title: "Limit Reached", description: "Maximum of 4 cameras can save to Google Drive simultaneously.", variant: "destructive" });
-                      return;
-                    }
-                    setCameraMode('full');
-                    localStorage.setItem("hguard_camera_mode", 'full');
-                    if (resolvedDeviceId) await updateDoc(doc(db, "devices", resolvedDeviceId), { "settings.cloud_recording": true });
-                    toast({ title: "Full protection on", description: "AI alerts and Google Drive recording are enabled." });
-                  }}
-                  className="relative group p-6 rounded-3xl bg-white/5 hover:bg-white/[0.08] border border-white/10 hover:border-purple-500/30 text-left transition-all duration-300 flex flex-col justify-between h-64 shadow-2xl"
-                >
-                  <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <div className="h-2 w-2 rounded-full bg-purple-400 animate-pulse shadow-[0_0_8px_rgba(192,132,252,0.8)]" />
-                  </div>
-
-                  <div className="flex flex-col gap-4">
-                    <div className="h-12 w-12 rounded-2xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
-                      <Shield className="h-6 w-6" />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-black tracking-wide text-white">Full protection</h3>
-                      <p className="text-sm text-white/60 mt-1 leading-relaxed">
-                        Motion alerts, AI checks, and automatic clips saved to your Google Drive.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="border-t border-white/5 pt-4 mt-auto">
-                    <ul className="text-xs text-white/60 space-y-2 font-medium">
-                      <li className="flex items-center gap-2">
-                        <span className="h-1 w-1 rounded-full bg-purple-400" />
-                        Smart motion & AI alerts
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <span className="h-1 w-1 rounded-full bg-purple-400" />
-                        Saves clips to Google Drive
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <span className="h-1 w-1 rounded-full bg-purple-400" />
-                        Detects sounds (glass, alarm, etc.)
-                      </li>
-                    </ul>
-                  </div>
-                </motion.button>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Button 
-                  variant="ghost" 
-                  onClick={() => navigate("/dashboard")} 
-                  className="px-6 py-2 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 text-white font-bold"
-                >
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Back to Dashboard
-                </Button>
-              </div>
+            <div className="flex flex-col items-center gap-6 opacity-40">
+              <Padlock className="h-12 w-12 text-white" />
+              <p className="text-white text-sm font-bold tracking-widest uppercase">Power-Saving Mode</p>
+              <p className="text-white/50 text-xs">Tap anywhere to unlock</p>
+            </div>
+            
+            <div className="absolute bottom-12 flex items-center gap-2 opacity-30">
+              <BatteryIcon className={cn("h-4 w-4", battery.isCharging ? "text-green-400" : "text-white")} />
+              <span className="text-xs font-bold text-white">{battery.level}%</span>
             </div>
           </motion.div>
         )}

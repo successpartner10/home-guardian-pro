@@ -13,8 +13,10 @@ import {
   Calendar,
   ChevronLeft,
   Loader2,
-  ExternalLink
+  ExternalLink,
+  RefreshCcw
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
@@ -116,32 +118,17 @@ const ArchivePage = () => {
   return (
     <AppLayout>
       <div className="p-6 max-w-6xl mx-auto space-y-8">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={() => navigate("/dashboard")}
-              className="rounded-full bg-white/5 border border-white/10"
-            >
-              <ChevronLeft className="h-5 w-5" />
-            </Button>
-            <div>
-              <h1 className="text-3xl font-black tracking-tight text-white">Recordings</h1>
-              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.3em]">Surveillance Repository</p>
-            </div>
-          </div>
-          <Button onClick={fetchArchive} variant="outline" className="rounded-full border-white/10 h-10 px-6 font-bold uppercase tracking-widest text-[10px]">
-            Refresh
+        <div className="flex items-center justify-between pb-2 border-b border-white/10">
+          <h1 className="text-2xl font-bold tracking-tight text-white">Events</h1>
+          <Button onClick={fetchArchive} variant="ghost" size="icon" className="rounded-full text-white/70 hover:text-white hover:bg-white/10">
+            <RefreshCcw className="h-5 w-5" />
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          {/* List Section */}
-          <div className="lg:col-span-4 space-y-4">
-            <Card className="bg-black/40 border-white/10 backdrop-blur-xl rounded-[2rem] overflow-hidden">
-              <CardContent className="p-0">
-                <div className="p-6 border-b border-white/5 bg-white/[0.02]">
+        <div className="space-y-4">
+          <div className="bg-black/40 border border-white/10 backdrop-blur-xl rounded-[2rem] overflow-hidden">
+            <div className="p-0">
+              <div className="p-6 border-b border-white/5 bg-white/[0.02]">
                   <div className="flex items-center gap-2">
                     <Video className="h-4 w-4 text-primary" />
                     <span className="text-[10px] font-black uppercase tracking-widest text-white/60">Recent Clips</span>
@@ -162,113 +149,53 @@ const ArchivePage = () => {
                   ) : (
                     <div className="divide-y divide-white/5">
                       {recordings.map((rec) => (
-                        <button
-                          key={rec.id}
-                          onClick={() => playVideo(rec.id)}
-                          className={cn(
-                            "w-full p-4 flex items-center gap-4 transition-all hover:bg-white/5 text-left group",
-                            selectedVideo?.id === rec.id ? "bg-primary/10 border-l-4 border-primary" : "border-l-4 border-transparent"
-                          )}
-                        >
-                          <div className="h-12 w-12 rounded-xl bg-white/5 flex items-center justify-center group-hover:scale-110 transition-transform">
-                            <Play className={cn("h-5 w-5", selectedVideo?.id === rec.id ? "text-primary fill-primary" : "text-white/40")} />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm font-bold text-white truncate">{rec.name}</p>
-                            <div className="flex items-center gap-3 mt-1">
-                              <span className="text-[9px] font-black text-white/30 uppercase flex items-center gap-1">
-                                <Clock className="h-3 w-3" /> {formatDate(rec.createdTime)}
-                              </span>
-                              <span className="text-[9px] font-black text-white/30 uppercase">
-                                {formatSize(rec.size)}
-                              </span>
+                        <div key={rec.id} className="flex flex-col gap-2 p-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors">
+                          <button
+                            onClick={() => playVideo(rec.id)}
+                            className="flex items-start gap-4 text-left group w-full"
+                          >
+                            <div className="relative h-20 w-32 bg-black/50 rounded-lg overflow-hidden border border-white/10 flex-shrink-0 group-hover:border-primary/50 transition-colors">
+                              <div className="absolute inset-0 flex items-center justify-center">
+                                <Play className="h-8 w-8 text-white/50 group-hover:text-primary transition-colors" />
+                              </div>
                             </div>
-                          </div>
-                        </button>
+                            <div className="flex-1 min-w-0 py-1">
+                              <h3 className="text-sm font-semibold text-white truncate">{rec.name.replace('.webm', '').replace('hguard_', 'Event ')}</h3>
+                              <p className="text-xs text-white/50 mt-1">{formatDate(rec.createdTime)}</p>
+                              <div className="flex items-center gap-2 mt-2">
+                                <Badge variant="outline" className="text-[9px] border-white/10 text-white/40">{formatSize(rec.size)}</Badge>
+                                <Badge variant="outline" className="text-[9px] border-primary/20 text-primary/80 bg-primary/5">Motion</Badge>
+                              </div>
+                            </div>
+                          </button>
+                          
+                          {/* Expanded Player */}
+                          <AnimatePresence>
+                            {selectedVideo?.id === rec.id && (
+                              <motion.div
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: 'auto' }}
+                                exit={{ opacity: 0, height: 0 }}
+                                className="w-full mt-2 rounded-xl overflow-hidden bg-black border border-white/10 relative"
+                              >
+                                <video src={selectedVideo.url} controls autoPlay className="w-full aspect-video" />
+                                <div className="p-3 bg-white/[0.02] flex items-center justify-between border-t border-white/5">
+                                  <a href={selectedVideo.url} download={rec.name} className="flex items-center gap-2 text-xs text-primary hover:underline">
+                                    <Download className="h-4 w-4" /> Save to device
+                                  </a>
+                                  <Button size="sm" variant="ghost" onClick={() => deleteVideo(rec.id)} className="text-red-400 hover:text-red-300 hover:bg-red-400/10 h-8 px-3">
+                                    <Trash2 className="h-4 w-4 mr-2" /> Delete
+                                  </Button>
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
                       ))}
                     </div>
                   )}
                 </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Player Section */}
-          <div className="lg:col-span-8">
-            <div className="relative aspect-video rounded-[3rem] overflow-hidden bg-black border-4 border-white/5 shadow-2xl group">
-              <AnimatePresence mode="wait">
-                {selectedVideo ? (
-                  <motion.div
-                    key={selectedVideo.id}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="h-full w-full"
-                  >
-                    <video
-                      src={selectedVideo.url}
-                      controls
-                      autoPlay
-                      className="h-full w-full object-contain"
-                    />
-                    <div className="absolute top-6 right-6 flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button 
-                        size="icon" 
-                        variant="destructive" 
-                        onClick={() => deleteVideo(selectedVideo.id)}
-                        className="rounded-full shadow-2xl"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </motion.div>
-                ) : (
-                  <div className="h-full w-full flex flex-col items-center justify-center gap-6 bg-zinc-900/50">
-                    <div className="h-24 w-24 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white/10">
-                      <Video className="h-10 w-10" />
-                    </div>
-                    <div className="text-center space-y-2">
-                      <h3 className="text-xl font-black text-white/40 uppercase tracking-widest">Select a Recording</h3>
-                      <p className="text-[10px] font-bold text-white/20 uppercase tracking-[0.4em]">Choose a file from the list to preview</p>
-                    </div>
-                  </div>
-                )}
-              </AnimatePresence>
-
-              {buffering && (
-                <div className="absolute inset-0 bg-black/60 backdrop-blur-md flex flex-col items-center justify-center gap-4 z-50">
-                  <Loader2 className="h-10 w-10 animate-spin text-primary" />
-                  <span className="text-[10px] font-black text-primary uppercase tracking-[0.5em]">Buffering Stream...</span>
-                </div>
-              )}
             </div>
-
-            {selectedVideo && (
-              <div className="mt-8 flex items-center justify-between p-6 bg-white/[0.03] border border-white/10 rounded-[2rem]">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 rounded-2xl bg-primary/10 text-primary">
-                    <Calendar className="h-6 w-6" />
-                  </div>
-                  <div>
-                    <h4 className="text-lg font-black text-white uppercase tracking-tight">
-                      {recordings.find(r => r.id === selectedVideo.id)?.name || "Recording"}
-                    </h4>
-                    <p className="text-xs font-bold text-white/40 uppercase tracking-widest">
-                      Recorded on {formatDate(recordings.find(r => r.id === selectedVideo.id)?.createdTime || "")}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                   <a 
-                    href={selectedVideo.url} 
-                    download={recordings.find(r => r.id === selectedVideo.id)?.name}
-                    className="flex h-12 px-6 items-center gap-2 rounded-2xl bg-white/5 border border-white/10 text-white/60 hover:bg-white/10 hover:text-white transition-all text-[10px] font-black uppercase tracking-widest"
-                   >
-                     <Download className="h-4 w-4" /> Download
-                   </a>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </div>

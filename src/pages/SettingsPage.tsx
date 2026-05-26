@@ -370,7 +370,7 @@ const SettingsPage = () => {
         </div>
 
         {/* My Cameras & Viewers — Rename Section */}
-        <div className="zoomon-card space-y-5">
+        <div className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-4">
           <div className="flex items-center gap-3 text-primary">
             <CameraIcon className="w-8 h-8" />
             <div>
@@ -444,7 +444,7 @@ const SettingsPage = () => {
         </div>
 
         {/* Alert Preferences */}
-        <div className="zoomon-card space-y-6">
+        <div className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-4">
           <div className="flex items-center gap-3 text-primary">
             <Bell className="w-8 h-8" />
             <h2 className="text-2xl font-black uppercase tracking-tight">Alert Preferences</h2>
@@ -490,7 +490,7 @@ const SettingsPage = () => {
         </div>
 
         {/* Detection Schedule */}
-        <div className="zoomon-card space-y-6">
+        <div className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3 text-primary">
               <Clock className="w-8 h-8" />
@@ -557,7 +557,7 @@ const SettingsPage = () => {
         </div>
 
         {/* Access Control & PIN */}
-        <div className="zoomon-card space-y-6">
+        <div className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-4">
           <div className="flex items-center gap-3 text-primary">
             <LockIcon className="w-8 h-8" />
             <h2 className="text-2xl font-black tracking-tight">Security & PIN</h2>
@@ -608,7 +608,7 @@ const SettingsPage = () => {
         </div>
 
         {/* Storage Limits Dashboard */}
-        <div className="zoomon-card space-y-6">
+        <div className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-4">
           <div className="flex items-center gap-3 text-primary">
             <HardDrive className="w-8 h-8" />
             <h2 className="text-2xl font-black tracking-tight">Storage Control</h2>
@@ -681,7 +681,7 @@ const SettingsPage = () => {
         </div>
 
         {/* Google Drive Connection */}
-        <div className="zoomon-card space-y-6">
+        <div className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-4">
           <div className="flex items-center gap-3 text-primary">
             <ShieldCheck className="w-8 h-8" />
             <h2 className="text-2xl font-black uppercase tracking-tight">Account Sync</h2>
@@ -710,7 +710,7 @@ const SettingsPage = () => {
         </div>
 
         {/* AI Intelligence Brain */}
-        <div className="zoomon-card space-y-6">
+        <div className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3 text-primary">
               <Brain className="w-8 h-8" />
@@ -770,7 +770,7 @@ const SettingsPage = () => {
 
         {/* Nuclear Mesh Reset Card */}
 
-        <div className="zoomon-card border-destructive/20 bg-destructive/5 space-y-6">
+        <div className="bg-destructive/5 border border-destructive/20 rounded-2xl p-4 space-y-4">
           <div className="flex items-center gap-3 text-destructive">
             <Zap className="w-8 h-8" />
             <h2 className="text-2xl font-black tracking-tight">Remove all cameras</h2>
@@ -813,7 +813,7 @@ const SettingsPage = () => {
         </div>
 
         {/* Webhooks & Automation */}
-        <div className="zoomon-card space-y-6">
+        <div className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-4">
           <div className="flex items-center gap-3 text-primary">
             <Zap className="h-8 w-8" />
             <h2 className="text-2xl font-black uppercase tracking-tight">Automation</h2>
@@ -835,7 +835,7 @@ const SettingsPage = () => {
         </div>
 
         {/* Force Logout All Devices */}
-        <div className="zoomon-card border-orange-500/20 bg-orange-500/5 space-y-6">
+        <div className="bg-orange-500/5 border border-orange-500/20 rounded-2xl p-4 space-y-4">
           <div className="flex items-center gap-3 text-orange-400">
             <LockIcon className="w-8 h-8" />
             <h2 className="text-2xl font-black uppercase tracking-tight">Session Control</h2>
