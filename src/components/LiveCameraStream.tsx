@@ -185,12 +185,12 @@ const LiveCameraStream: React.FC<LiveCameraStreamProps> = ({ device, onFullscree
     };
 
     const connectionLabel = {
-        new: "Waiting...",
-        connecting: "Connecting...",
+        new: "Starting…",
+        connecting: "Connecting…",
         connected: "Live",
-        disconnected: "Disconnected",
-        failed: "Failed",
-        closed: "Closed",
+        disconnected: "Reconnecting…",
+        failed: "Couldn't connect",
+        closed: "Offline",
     }[connectionState] || connectionState;
 
     const [playAttempted, setPlayAttempted] = useState(false);
@@ -233,7 +233,7 @@ const LiveCameraStream: React.FC<LiveCameraStreamProps> = ({ device, onFullscree
                     {aiAnalysis?.detected_objects?.some((obj: any) => obj.label?.toLowerCase().includes('person')) && (
                       <div className="absolute top-5 left-5 z-40 animate-pulse pointer-events-none">
                         <div className="bg-red-600 border border-red-400 text-white text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-[10px] shadow-[0_0_20px_rgba(220,38,38,0.6)]">
-                          Mesh Priority: Human Locked
+                          Person detected
                         </div>
                       </div>
                     )}
@@ -249,7 +249,7 @@ const LiveCameraStream: React.FC<LiveCameraStreamProps> = ({ device, onFullscree
                                 <div className="h-20 w-20 rounded-full bg-white/10 border border-white/20 flex items-center justify-center backdrop-blur-2xl shadow-2xl animate-pulse">
                                     <Maximize2 className="h-8 w-8 text-white" />
                                 </div>
-                                <span className="absolute bottom-12 text-[10px] font-bold text-white/50 uppercase tracking-[0.4em]">Initialize Stream</span>
+                                <span className="absolute bottom-12 text-[10px] font-bold text-white/50 tracking-wide">Tap to watch</span>
                             </motion.div>
                         )}
                     </AnimatePresence>
@@ -262,8 +262,8 @@ const LiveCameraStream: React.FC<LiveCameraStreamProps> = ({ device, onFullscree
                                 <AlertTriangle className="h-6 w-6" />
                             </div>
                             <div className="text-center">
-                                <p className="text-sm font-semibold text-white">Connection Interrupted</p>
-                                <p className="text-[10px] text-muted-foreground uppercase tracking-widest mt-1">Retry protocol required</p>
+                                <p className="text-sm font-semibold text-white">Connection lost</p>
+                                <p className="text-[10px] text-muted-foreground mt-1">Make sure the camera app is open, then tap Reconnect.</p>
                             </div>
                             <Button onClick={() => { disconnect(); setTimeout(connect, 500); }} variant="outline" size="sm" className="bg-white/5 border-white/10 rounded-xl h-9 px-6 text-[10px] uppercase font-bold tracking-widest hover:bg-white/10">
                                 <RefreshCw className="h-3 w-3 mr-2" /> Reconnect
@@ -274,10 +274,10 @@ const LiveCameraStream: React.FC<LiveCameraStreamProps> = ({ device, onFullscree
                             <div className="h-8 w-8 mx-auto animate-spin rounded-full border-2 border-primary border-t-transparent" />
                             <div className="flex flex-col items-center gap-1 text-center">
                                 <p className="text-[10px] font-black uppercase tracking-widest text-primary">
-                                    {connectionState === "new" ? "Step 1 of 3 — Finding camera" : "Step 2 of 3 — Setting up link"}
+                                    {connectionState === "new" ? "Finding camera…" : "Connecting…"}
                                 </p>
                                 <p className="text-sm text-white/70">
-                                    {connectionState === "new" ? "Looking for your camera..." : "Almost there, hang on..."}
+                                    {connectionState === "new" ? "Looking for your camera on the network." : "Almost ready — video should appear soon."}
                                 </p>
                                 <span className="text-[10px] uppercase tracking-widest text-white/30 mt-1">{device.name}</span>
                             </div>
@@ -289,7 +289,7 @@ const LiveCameraStream: React.FC<LiveCameraStreamProps> = ({ device, onFullscree
                     <div className="p-4 bg-white/5 rounded-3xl border border-white/5 mb-4">
                         <WifiOff className="h-8 w-8 text-white/20" />
                     </div>
-                    <p className="text-[10px] text-white/30 uppercase font-black tracking-[0.4em]">Signal Lost</p>
+                    <p className="text-[10px] text-white/50 font-semibold tracking-wide">Camera is offline</p>
                 </div>
             )}
 
@@ -395,7 +395,7 @@ const LiveCameraStream: React.FC<LiveCameraStreamProps> = ({ device, onFullscree
                     </DrawerSection>
 
                     <DrawerSection label="Connection" isLast>
-                      <DrawerBtn icon={<RefreshCw className="h-4 w-4" />} label="Fix Connection" onClick={() => { disconnect(); setTimeout(connect, 500); }} />
+                      <DrawerBtn icon={<RefreshCw className="h-4 w-4" />} label="Reconnect" onClick={() => { disconnect(); setTimeout(connect, 500); }} />
                     </DrawerSection>
                   </motion.div>
                 )}

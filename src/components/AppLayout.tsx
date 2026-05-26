@@ -10,7 +10,7 @@ const navItems = [
   { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
   { to: "/users", icon: Users, label: "Users", adminOnly: true },
   { to: "/settings", icon: Settings, label: "Settings" },
-  { to: "/help", icon: HelpCircle, label: "Academy" },
+  { to: "/help", icon: HelpCircle, label: "Help" },
 ];
 
 const AppLayout = ({ children }: { children: React.ReactNode }) => {
@@ -51,7 +51,8 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
             "Camera": "Live",
             "Events": "Alerts",
             "Users": "Admin",
-            "Settings": "Setup"
+            "Settings": "Setup",
+            "Help": "Help"
           }[label] || label;
 
           return (

@@ -63,7 +63,7 @@ const Login = () => {
       if (signInError.code === 'auth/user-not-found' || signInError.code === 'auth/invalid-credential') {
         try {
           await signUp(email, password);
-          toast({ title: "Account Created", description: "Welcome to HGUARD Elite!" });
+          toast({ title: "Account created", description: "Welcome to HGUARD!" });
         } catch (signUpError: any) {
           toast({
             title: "Login Failed",
@@ -97,15 +97,15 @@ const Login = () => {
         <div className="flex flex-col items-center gap-6">
           <Logo size="xl" className="h-48 drop-shadow-[0_20px_50px_rgba(0,0,0,0.5)] animate-float" />
           <div className="text-center space-y-1">
-            <h1 className="text-4xl font-extrabold tracking-tight text-white uppercase">HGUARD <span className="text-primary">ELITE</span></h1>
-            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.4em]">Elite Mesh Intelligence</p>
+            <h1 className="text-4xl font-extrabold tracking-tight text-white">HGUARD</h1>
+            <p className="text-sm text-muted-foreground">Turn old phones into home security cameras</p>
           </div>
         </div>
 
         <Card className="border-white/5 bg-white/[0.02] backdrop-blur-2xl shadow-2xl relative overflow-hidden rounded-[2.5rem] p-4">
           <CardHeader className="space-y-1 text-center pb-6 pt-6">
             <CardTitle className="text-xl font-bold tracking-tight text-white">Welcome Back</CardTitle>
-            <CardDescription className="text-[10px] font-bold text-primary uppercase tracking-widest">Protocol Authentication Required</CardDescription>
+            <CardDescription className="text-sm text-muted-foreground">Sign in to watch and manage your cameras</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4 pb-8 flex flex-col items-center px-6">
             {/* Google Login */}
@@ -206,8 +206,8 @@ const Login = () => {
         </Card>
 
         <div className="grid grid-cols-2 gap-3">
-          <FeatureCard icon={<Zap className="w-4 h-4 text-primary" />} title="Mesh P2P" desc="Direct zero-latency stream" />
-          <FeatureCard icon={<Cloud className="w-4 h-4 text-blue-400" />} title="Sync" desc="Saves to your own Drive" />
+          <FeatureCard icon={<Zap className="w-4 h-4 text-primary" />} title="Live video" desc="Watch from anywhere" />
+          <FeatureCard icon={<Cloud className="w-4 h-4 text-blue-400" />} title="Cloud clips" desc="Saved to your Google Drive" />
         </div>
 
         <div className="text-center space-y-6">
@@ -216,11 +216,11 @@ const Login = () => {
             onClick={handleHardReset}
             className="text-[9px] font-bold text-white/20 hover:text-white/40 uppercase tracking-widest transition-colors"
           >
-            Encryption Reset Hook
+            Stuck signing in? Reset app data
           </Button>
           <div className="flex items-center justify-center gap-2">
             <div className="h-1 w-1 rounded-full bg-green-500 animate-pulse" />
-            <p className="text-[8px] font-bold text-white/10 uppercase tracking-[0.5em]">HGUARD ELITE PROTOCOL v2.5.2</p>
+            <p className="text-[8px] font-bold text-white/10 tracking-wide">HGUARD v2.5.2</p>
           </div>
         </div>
       </motion.div>

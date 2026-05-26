@@ -294,7 +294,7 @@ const PublicView = () => {
                          />
                     </div>
                     <div className="px-6 py-2 rounded-full bg-black/60 border border-white/10 backdrop-blur-xl">
-                        <p className="text-[9px] font-black text-white/40 uppercase tracking-[0.2em]">Secure End-to-End Encryption Active</p>
+                        <p className="text-[9px] font-black text-white/40 uppercase tracking-[0.2em]">Private connection is on</p>
                     </div>
                 </div>
             </div>

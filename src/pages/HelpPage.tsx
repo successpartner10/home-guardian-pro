@@ -18,15 +18,15 @@ interface FeatureHelp {
 const features: FeatureHelp[] = [
   {
     id: "bridge-mode",
-    title: "Bridge Mode (Other Cameras)",
+    title: "Screen share (other cameras)",
     icon: Radio,
     category: "Vision",
-    description: "Connect cameras from Ring, Nest, Arlo, or Zoom to your HGUARD screen.",
-    howItWorks: "Open your other camera's website in a new tab. In HGUARD, turn on 'BRIDGE' and select that tab. HGUARD will then pull that video into your dashboard."
+    description: "Show video from Ring, Nest, Arlo, or a browser tab on your HGUARD screen.",
+    howItWorks: "Open the other camera in a browser tab. On the camera phone, choose Screen share and pick that tab. Your viewer will see the same picture."
   },
   {
     id: "tactical-night-vision",
-    title: "Night Vision",
+    title: "Night vision",
     icon: Moon,
     category: "Vision",
     description: "Clear monitoring in the dark using smart light boosting.",
@@ -34,7 +34,7 @@ const features: FeatureHelp[] = [
   },
   {
     id: "elite-archive",
-    title: "Video Library",
+    title: "Recordings",
     icon: Video,
     category: "Storage",
     description: "Watch your recorded security videos anytime.",
@@ -98,9 +98,9 @@ const HelpPage = () => {
         <div className="space-y-4 text-center sm:text-left">
           <div className="flex items-center justify-center sm:justify-start gap-4 text-primary">
             <HelpCircle className="w-10 h-10" />
-            <h1 className="text-4xl font-black uppercase tracking-tight">HGUARD Academy</h1>
+            <h1 className="text-4xl font-black tracking-tight">Help & tips</h1>
           </div>
-          <p className="text-lg text-muted-foreground font-medium">Master the elite surveillance ecosystem.</p>
+          <p className="text-lg text-muted-foreground font-medium">Simple guides for every feature.</p>
         </div>
 
         {/* Search Bar */}
@@ -111,7 +111,7 @@ const HelpPage = () => {
             <Input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search features (e.g., 'Bridge', 'Night Vision')..."
+              placeholder="Search (e.g. night vision, walkie-talkie)…"
               className="h-16 pl-16 pr-8 bg-black/40 border-2 border-white/5 rounded-[2rem] text-lg font-bold placeholder:text-white/20 focus:border-primary/50 focus:ring-0 transition-all"
             />
           </div>

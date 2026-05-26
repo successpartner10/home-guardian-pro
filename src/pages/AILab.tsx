@@ -78,7 +78,7 @@ const AILab = () => {
               <h2 className="text-2xl font-black uppercase tracking-tight">Intelligence Feed</h2>
               <p className="font-bold leading-tight opacity-80">
                 As an AI Architect, I am constantly monitoring advances in Computer Vision and LLMs. 
-                Below are features that can be integrated into HGUARD Elite as soon as hardware constraints allow.
+                Below are ideas we may add when your device can handle them.
               </p>
             </div>
           </div>

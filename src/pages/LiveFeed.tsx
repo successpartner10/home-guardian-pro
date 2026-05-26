@@ -168,8 +168,8 @@ const LiveFeed = () => {
 
   const repairConnection = useCallback(async () => {
     toast({ 
-      title: "Repairing Connection", 
-      description: "Cleaning signaling channel and restarting handshake...",
+      title: "Reconnecting", 
+      description: "Resetting the connection — this may take a few seconds.",
       duration: 5000
     });
     
@@ -371,7 +371,7 @@ const LiveFeed = () => {
         <div className="flex flex-col items-center gap-6">
           <div className="h-16 w-16 animate-spin rounded-full border-4 border-primary border-t-transparent shadow-glow" />
             <div className="space-y-4 text-center">
-              <p className="text-[10px] font-black text-primary uppercase tracking-[0.5em]">Establishing Link v2.5.2...</p>
+              <p className="text-[10px] font-black text-primary uppercase tracking-[0.5em]">Connecting to camera…</p>
               <Button 
                 variant="ghost" 
                 size="sm" 
@@ -389,12 +389,12 @@ const LiveFeed = () => {
   const isOnline = device?.status === "online" || device?.status === "recording";
 
   const connectionLabel = {
-    new: "Starting up...",
-    connecting: "Connecting...",
+    new: "Starting…",
+    connecting: "Connecting…",
     connected: "Live",
-    disconnected: "Reconnecting...",
-    failed: "Could not connect",
-    closed: "Disconnected",
+    disconnected: "Reconnecting…",
+    failed: "Couldn't connect",
+    closed: "Offline",
   }[connectionState] || connectionState;
 
   return (
@@ -437,7 +437,7 @@ const LiveFeed = () => {
                 <div className="absolute top-24 inset-x-4 z-40 max-w-2xl mx-auto" style={{ transform: `scale(${1/zoomLevel})` }}>
                   <div className="mx-auto w-fit bg-black/80 backdrop-blur-3xl border border-purple-500/30 px-6 py-3 rounded-full flex items-center gap-3 shadow-[0_0_30px_rgba(168,85,247,0.3)] animate-pulse">
                     <div className="h-4 w-4 border-2 border-purple-400 border-t-transparent rounded-full animate-spin" />
-                    <span className="text-xs uppercase tracking-widest font-bold text-purple-300">AI Scanning Area...</span>
+                    <span className="text-xs tracking-wide font-bold text-purple-300">Looking for people and objects…</span>
                   </div>
                 </div>
               ) : null}
@@ -456,7 +456,7 @@ const LiveFeed = () => {
                         <div className="h-20 w-20 rounded-full bg-white/10 border border-white/20 flex items-center justify-center backdrop-blur-2xl shadow-2xl animate-pulse">
                             <Maximize2 className="h-8 w-8 text-white" />
                         </div>
-                        <span className="absolute bottom-32 text-[10px] font-bold text-white/50 uppercase tracking-[0.4em]">Tap to watch</span>
+                        <span className="absolute bottom-32 text-[10px] font-bold text-white/50 tracking-wide">Tap to watch</span>
                     </motion.div>
                 )}
             </AnimatePresence>
@@ -476,10 +476,10 @@ const LiveFeed = () => {
                 <div className="h-8 w-8 mx-auto animate-spin rounded-full border-2 border-primary border-t-transparent" />
                 <div className="flex flex-col items-center gap-1">
                   <p className="text-[10px] font-black uppercase tracking-widest text-primary">
-                    {connectionState === "new" ? "Step 1 of 3 — Finding camera" : "Step 2 of 3 — Setting up link"}
+                    {connectionState === "new" ? "Finding camera…" : "Connecting…"}
                   </p>
                   <p className="text-sm text-white/70">
-                    {connectionState === "new" ? "Looking for your camera..." : "Almost there, hang on..."}
+                    {connectionState === "new" ? "Open the camera app on your other device if you haven't yet." : "Video should appear in a moment."}
                   </p>
                   <span className="text-[10px] uppercase tracking-widest text-white/30 mt-1">{device?.name}</span>
                 </div>
@@ -711,7 +711,7 @@ const LiveFeed = () => {
                 </DrawerSection>
 
                 <DrawerSection label="Connection" isLast>
-                  <DrawerBtn icon={<RefreshCw className="h-4 w-4" />} label="Fix Connection" onClick={repairConnection} />
+                  <DrawerBtn icon={<RefreshCw className="h-4 w-4" />} label="Reconnect" onClick={repairConnection} />
                 </DrawerSection>
               </motion.div>
             )}

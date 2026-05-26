@@ -148,8 +148,8 @@ const Dashboard = () => {
     
     if (activeTarget) {
       toast({ 
-        title: "MESH HANDOFF", 
-        description: `Target locked on ${activeTarget.name}. Switching focus...`,
+        title: "Switching camera", 
+        description: `Opening live view for ${activeTarget.name}…`,
         className: "bg-blue-600 text-white border-none shadow-2xl"
       });
       // Small delay to allow user to see the toast before switching
@@ -288,7 +288,7 @@ const Dashboard = () => {
           const batch = toDelete.slice(i, i + batchSize);
           await Promise.all(batch.map(d => deleteDoc(d.ref)));
         }
-        toast({ title: "Cleaned Up", description: `Removed ${toDelete.length} old clips to free up mesh storage.` });
+        toast({ title: "Cleaned up", description: `Removed ${toDelete.length} old clips to free space.` });
       }
     } catch (e) {
       toast({ title: "Cleanup Failed", variant: "destructive" });
@@ -340,7 +340,7 @@ const Dashboard = () => {
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
                 </span>
-                <span className="text-[9px] font-black uppercase tracking-widest">System Armed</span>
+                <span className="text-[9px] font-black uppercase tracking-widest">Ready</span>
               </div>
 
               <button
@@ -353,7 +353,7 @@ const Dashboard = () => {
                 )}
               >
                 <Target className={cn("h-3 w-3", isMeshTracking && "animate-spin-slow")} />
-                <span className="text-[9px] font-black uppercase tracking-widest">Mesh Tracking {isMeshTracking ? 'ON' : 'OFF'}</span>
+                <span className="text-[9px] font-black uppercase tracking-widest">Auto-switch {isMeshTracking ? 'on' : 'off'}</span>
               </button>
             </div>
             
@@ -383,8 +383,8 @@ const Dashboard = () => {
           >
             <HelpCircle className="h-5 w-5 text-primary group-hover:scale-110 transition-transform" />
             <div className="text-left">
-              <p className="text-[10px] font-black text-white uppercase tracking-widest leading-none">New to HGUARD?</p>
-              <p className="text-[9px] font-bold text-white/40 uppercase tracking-tighter mt-1">Visit the Academy for feature guides</p>
+              <p className="text-[10px] font-black text-white tracking-wide leading-none">New to HGUARD?</p>
+              <p className="text-[9px] font-bold text-white/40 mt-1">See tips and how-to guides</p>
             </div>
           </button>
         </motion.div>
@@ -406,8 +406,8 @@ const Dashboard = () => {
                 <Camera className="h-8 w-8" />
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold tracking-tight">Camera Mode</div>
-                <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mt-1">Broadcast this device</div>
+                <div className="text-2xl font-bold tracking-tight">Use as camera</div>
+                <div className="text-[10px] font-medium text-muted-foreground mt-1">Turn this device into a security camera</div>
               </div>
             </Button>
           </motion.div>
@@ -428,8 +428,8 @@ const Dashboard = () => {
                 <MonitorSmartphone className="h-8 w-8" />
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold tracking-tight">Viewer Center</div>
-                <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mt-1">Monitor active feeds</div>
+                <div className="text-2xl font-bold tracking-tight">Watch cameras</div>
+                <div className="text-[10px] font-medium text-muted-foreground mt-1">See live video from your other devices</div>
               </div>
             </Button>
           </motion.div>
@@ -449,8 +449,8 @@ const Dashboard = () => {
                 <Video className="h-8 w-8" />
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold tracking-tight">Elite Archive</div>
-                <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mt-1">Review saved footage</div>
+                <div className="text-2xl font-bold tracking-tight">Recordings</div>
+                <div className="text-[10px] font-medium text-muted-foreground mt-1">Watch saved clips from Google Drive</div>
               </div>
             </Button>
           </motion.div>
@@ -463,18 +463,18 @@ const Dashboard = () => {
           className="pt-12 border-t border-white/5 space-y-8"
         >
           <div className="flex flex-col items-center gap-4">
-            <span className="text-[10px] font-bold text-white/30 uppercase tracking-[0.3em]">Network Topology</span>
+            <span className="text-[10px] font-bold text-white/30 tracking-wide">Status</span>
             <div className="flex flex-wrap justify-center gap-8">
                <div className="flex items-center gap-3 group translate-z-0">
                  <div className="relative flex h-2 w-2">
                     <div className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-40"></div>
                     <div className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></div>
                  </div>
-                 <span className="text-[10px] font-bold uppercase tracking-widest text-white/60 group-hover:text-white transition-colors">Mesh Cloud Active</span>
+                 <span className="text-[10px] font-bold tracking-wide text-white/60 group-hover:text-white transition-colors">Cameras can connect</span>
                </div>
                <div className="flex items-center gap-3 group">
                  <div className="h-2 w-2 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" />
-                 <span className="text-[10px] font-bold uppercase tracking-widest text-white/60 group-hover:text-white transition-colors">Drive Sync Enabled</span>
+                 <span className="text-[10px] font-bold tracking-wide text-white/60 group-hover:text-white transition-colors">Google Drive linked</span>
                  <button 
                    onClick={relinkGoogle}
                    className="ml-2 text-[9px] font-black uppercase text-primary hover:underline cursor-pointer"
@@ -487,7 +487,7 @@ const Dashboard = () => {
           
           <div className="flex flex-col items-center gap-3">
              <div className="px-5 py-2.5 rounded-full bg-white/[0.02] border border-white/5 backdrop-blur-md flex items-center gap-3 transition-colors hover:bg-white/[0.05]">
-                <span className="text-[9px] font-bold text-white/20 uppercase tracking-widest">Global Endpoint</span>
+                <span className="text-[9px] font-bold text-white/20 tracking-wide">Open in browser</span>
                 <a href="https://hguard-elite.web.app" target="_blank" className="text-[11px] font-medium text-primary/80 hover:text-primary transition-colors">hguard-elite.web.app</a>
              </div>
           </div>

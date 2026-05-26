@@ -64,7 +64,6 @@ const MultiLiveFeed = () => {
     };
 
     useEffect(() => {
-        alert("MULTILIVEFEED MOUNTED");
         if (!user || !user.email) return;
 
         // Query owned devices
@@ -181,8 +180,8 @@ const MultiLiveFeed = () => {
         return (
             <div className="flex min-h-screen items-center justify-center bg-black flex-col">
                 <div className="h-16 w-16 animate-spin rounded-full border-4 border-green-500 border-t-transparent" />
-                <h1 className="text-white mt-8 text-2xl font-bold">LOADING VIEWER...</h1>
-                <p className="text-white/50 mt-4">If this screen never goes away, the database connection is stuck.</p>
+                <h1 className="text-white mt-8 text-2xl font-bold">Loading your cameras…</h1>
+                <p className="text-white/50 mt-4">This is taking a while. Check your internet connection and try refreshing.</p>
                 <div className="mt-8 text-red-500 font-mono text-xs">
                     User: {user?.email} <br/>
                     UID: {user?.uid}
@@ -229,9 +228,9 @@ const MultiLiveFeed = () => {
                               <span className="text-xl font-black text-white uppercase tracking-tighter">HGUARD</span>
                             </div>
                             <div className="h-4 w-[1.5px] bg-primary/40 rounded-full" />
-                            <span className="text-[10px] font-black text-primary uppercase tracking-[0.3em]">Matrix v2</span>
+                            <span className="text-[10px] font-black text-primary uppercase tracking-[0.3em]">All cameras</span>
                         </div>
-                        <p className="text-[9px] text-white/40 uppercase font-black tracking-widest">{cameras.length} Active Cameras</p>
+                        <p className="text-[9px] text-white/40 font-semibold tracking-wide">{cameras.length} camera{cameras.length === 1 ? '' : 's'} online</p>
                     </div>
                 </div>
 
@@ -239,7 +238,7 @@ const MultiLiveFeed = () => {
                     <button
                         onClick={() => window.location.reload()}
                         className="h-10 w-10 flex items-center justify-center rounded-xl bg-white/5 border border-white/10 text-white/40 hover:text-primary transition-all"
-                        title="Force Refresh Mesh"
+                        title="Refresh camera list"
                     >
                         <RefreshCw className="h-4 w-4" />
                     </button>
@@ -265,7 +264,7 @@ const MultiLiveFeed = () => {
                         variant="ghost"
                         size="icon"
                         onClick={purgeAllDevices}
-                        title="Delete all device records"
+                        title="Remove all cameras from your account"
                         className="h-9 w-9 rounded-xl bg-black/40 border border-white/10 backdrop-blur-md text-white/50 hover:text-red-400 hover:bg-red-500/10 transition-all"
                     >
                         <Trash2 className="h-4 w-4" />
@@ -278,8 +277,8 @@ const MultiLiveFeed = () => {
                 {cameras.length === 0 ? (
                     <div className="h-full w-full flex flex-col items-center justify-center text-center">
                         <LayoutGrid className="h-16 w-16 text-muted-foreground/30 mb-4" />
-                        <h2 className="text-xl font-bold uppercase tracking-tighter text-white">No Cameras Available</h2>
-                        <p className="text-sm text-muted-foreground">Add cameras from another device to monitor them here.</p>
+                        <h2 className="text-xl font-bold tracking-tight text-white">No cameras online</h2>
+                        <p className="text-sm text-muted-foreground">Open HGUARD on a phone or tablet, tap Use as camera, then come back here to watch.</p>
                     </div>
                 ) : fullscreenCameraId ? (
                     // Spotlight Mode (Single camera full-screen)
@@ -328,23 +327,23 @@ const MultiLiveFeed = () => {
                         animate={{ opacity: 1 }} 
                         className="px-2 py-2 mb-1"
                     >
-                        <span className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Global Broadcast</span>
-                        <p className="text-[7px] text-white/30 uppercase font-bold">Commands all {cameras.length} nodes</p>
+                        <span className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">All cameras</span>
+                        <p className="text-[7px] text-white/30 font-bold">Controls every camera at once</p>
                     </motion.div>
 
-                    <DrawerSection label="Tactical">
-                      <DrawerBtn icon={<Flashlight className="h-4 w-4" />} label="All Flashlights" onClick={() => sendGlobalCommand('TOGGLE_FLASH')} />
-                      <DrawerBtn icon={<Moon className="h-4 w-4" />} label="All Night Mode" onClick={() => sendGlobalCommand('TOGGLE_NIGHT_VISION')} />
-                      <DrawerBtn icon={<AlertTriangle className="h-4 w-4" />} label="All Sirens" onClick={() => sendGlobalCommand('TOGGLE_SIREN')} />
+                    <DrawerSection label="Camera controls">
+                      <DrawerBtn icon={<Flashlight className="h-4 w-4" />} label="All flashlights" onClick={() => sendGlobalCommand('TOGGLE_FLASH')} />
+                      <DrawerBtn icon={<Moon className="h-4 w-4" />} label="All night mode" onClick={() => sendGlobalCommand('TOGGLE_NIGHT_VISION')} />
+                      <DrawerBtn icon={<AlertTriangle className="h-4 w-4" />} label="All alarms" onClick={() => sendGlobalCommand('TOGGLE_SIREN')} />
                     </DrawerSection>
 
-                    <DrawerSection label="Vision">
-                      <DrawerBtn icon={<Brain className="h-4 w-4" />} label="All AI Detection" onClick={() => sendGlobalCommand('TOGGLE_AI')} />
-                      <DrawerBtn icon={<Camera className="h-4 w-4" />} label="Take All Snapshots" onClick={() => sendGlobalCommand('TAKE_SNAPSHOT')} />
+                    <DrawerSection label="Smart features">
+                      <DrawerBtn icon={<Brain className="h-4 w-4" />} label="All AI detection" onClick={() => sendGlobalCommand('TOGGLE_AI')} />
+                      <DrawerBtn icon={<Camera className="h-4 w-4" />} label="Snapshot all" onClick={() => sendGlobalCommand('TAKE_SNAPSHOT')} />
                     </DrawerSection>
 
-                    <DrawerSection label="Mesh" isLast>
-                      <DrawerBtn icon={<RefreshCw className="h-4 w-4" />} label="Force Sync Mesh" onClick={() => window.location.reload()} />
+                    <DrawerSection label="More" isLast>
+                      <DrawerBtn icon={<RefreshCw className="h-4 w-4" />} label="Refresh all" onClick={() => window.location.reload()} />
                     </DrawerSection>
                   </motion.div>
                 )}
@@ -358,7 +357,7 @@ const MultiLiveFeed = () => {
                 <span
                   className="text-[7px] uppercase tracking-widest font-bold"
                   style={{ writingMode: 'vertical-rl' }}
-                >Matrix</span>
+                >Controls</span>
               </button>
             </div>
 
@@ -373,7 +372,7 @@ const MultiLiveFeed = () => {
                                 exit={{ opacity: 0, y: 10 }}
                                 className="px-4 py-1.5 bg-red-500 rounded-full shadow-2xl border border-red-400"
                             >
-                                <span className="text-[10px] font-black text-white uppercase tracking-[0.3em] animate-pulse">Broadcasting to Mesh</span>
+                                <span className="text-[10px] font-black text-white uppercase tracking-[0.3em] animate-pulse">Talking to all cameras</span>
                             </motion.div>
                         )}
                     </AnimatePresence>
@@ -383,7 +382,7 @@ const MultiLiveFeed = () => {
                             ? 'bg-primary border-primary/50 text-white scale-110 shadow-[0_0_50px_hsl(var(--primary))]'
                             : 'bg-black/80 border-white/20 text-white backdrop-blur-md hover:bg-black hover:border-white/40'
                             }`}
-                        title={isBroadcasting ? "Tap to Stop" : "Tap to Broadcast to All"}
+                        title={isBroadcasting ? "Stop talking" : "Talk to all cameras"}
                     >
                         {isBroadcasting ? <Mic className="h-8 w-8 animate-pulse text-white fill-white" /> : <MicOff className="h-8 w-8 opacity-50" />}
                     </Button>

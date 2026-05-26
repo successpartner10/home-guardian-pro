@@ -355,7 +355,7 @@ const CameraMode = () => {
   const wakeUp = useCallback(() => {
     if (isPowerSaveModeRef.current) {
       setIsPowerSaveMode(false);
-      toast({ title: "Smart Wake Triggered", description: "Activity detected. Feed restored." });
+      toast({ title: "Camera woke up", description: "Motion detected — live view is back on." });
     }
   }, []);
 
@@ -378,7 +378,7 @@ const CameraMode = () => {
             recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
             recorder.onstop = () => { resolve(new Blob(chunks, { type: 'video/webm' })); };
             recorder.start(1000);
-            setTimeout(() => { if (recorder.state === 'recording') recorder.stop(); }, 15000);
+            setTimeout(() => { if (recorder.state === 'recording') recorder.stop(); }, 120000);
           });
           if (videoBlob) {
             const filename = `hguard_${Date.now()}.webm`;
@@ -424,7 +424,7 @@ const CameraMode = () => {
   const handleFall = useCallback(async (snapshot: string) => {
     wakeUp();
     if (!userRef.current || !resolvedDeviceIdRef.current) return;
-    toast({ title: "FALL DETECTED", variant: "destructive" });
+    toast({ title: "Possible fall detected", variant: "destructive" });
     if (!sirenActive) toggleSiren();
     const alertData = { device_id: resolvedDeviceIdRef.current, user_id: userRef.current.uid, type: "fall_detected", viewed: false, created_at: serverTimestamp() };
     addDoc(collection(db, "alerts"), alertData).catch(() => {});
@@ -453,8 +453,8 @@ const CameraMode = () => {
           setShowNarrative(prev => !prev);
         } else {
           toast({
-            title: "Remote Command Blocked",
-            description: "Gemini AI is disabled on this node (Lite Mode active)."
+            title: "Command not available",
+            description: "Turn on Full protection mode to use AI from the viewer."
           });
         }
       }
@@ -595,7 +595,7 @@ const CameraMode = () => {
       {isReceivingAudio && (
         <div className="absolute top-6 right-6 z-50 flex items-center gap-3 px-4 py-2 bg-red-600/90 backdrop-blur-md rounded-2xl animate-pulse shadow-[0_0_20px_rgba(220,38,38,0.4)] border border-red-500/50">
           <Mic className="h-4 w-4 text-white" />
-          <span className="text-[10px] font-black uppercase tracking-widest text-white">Broadcast Live</span>
+          <span className="text-[10px] font-black uppercase tracking-widest text-white">Viewer is talking</span>
         </div>
       )}
 
@@ -609,21 +609,29 @@ const CameraMode = () => {
             "bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.8)]"
           )} />
           <span className="text-[9px] font-black uppercase tracking-[0.2em] text-white/80">
-            {!resolvedDeviceId ? "Resolving Node..." : viewerConnected ? "Active Link" : "Mesh Ready"}
+            {!resolvedDeviceId ? "Setting up…" : viewerConnected ? "Someone is watching" : "Ready to watch"}
           </span>
         </div>
 
         {cameraMode !== 'select' && (
           <button
-            onClick={() => {
+            onClick={async () => {
               const nextMode = cameraMode === 'lite' ? 'full' : 'lite';
+              if (nextMode === 'full') {
+                const fullCameras = devices.filter(d => d.settings?.cloud_recording === true && d.id !== resolvedDeviceId);
+                if (fullCameras.length >= 4) {
+                  toast({ title: "Limit Reached", description: "Maximum of 4 cameras can save to Google Drive simultaneously.", variant: "destructive" });
+                  return;
+                }
+              }
               setCameraMode(nextMode);
               localStorage.setItem("hguard_camera_mode", nextMode);
+              if (resolvedDeviceId) await updateDoc(doc(db, "devices", resolvedDeviceId), { "settings.cloud_recording": nextMode === 'full' });
               toast({
-                title: `Switched to ${nextMode === 'lite' ? 'Lite Mode' : 'Elite Security Mode'}`,
+                title: `Switched to ${nextMode === 'lite' ? 'Watch only' : 'Full protection'}`,
                 description: nextMode === 'lite' 
-                  ? "AI analysis and Drive uploads are paused."
-                  : "AI analysis and Cloud recording are active."
+                  ? "Streaming only — AI and cloud recording are off."
+                  : "AI alerts and cloud recording are on."
               });
             }}
             className={cn(
@@ -636,12 +644,12 @@ const CameraMode = () => {
             {cameraMode === 'lite' ? (
               <>
                 <Eye className="h-3 w-3 animate-pulse" />
-                <span>Lite</span>
+                <span>Watch only</span>
               </>
             ) : (
               <>
                 <Shield className="h-3 w-3" />
-                <span>Elite</span>
+                <span>Full</span>
               </>
             )}
           </button>
@@ -658,7 +666,7 @@ const CameraMode = () => {
               !isBridgeMode ? "bg-primary text-black" : "text-white/40 hover:text-white/60"
             )}
           >
-            LENS
+            Camera
           </button>
           <button
             onClick={() => { setIsBridgeMode(true); restartCamera(); }}
@@ -667,7 +675,7 @@ const CameraMode = () => {
               isBridgeMode ? "bg-blue-500 text-white" : "text-white/40 hover:text-white/60"
             )}
           >
-            BRIDGE
+            Screen share
           </button>
         </div>
 
@@ -678,7 +686,7 @@ const CameraMode = () => {
             className="px-4 py-2 rounded-xl bg-blue-500/20 border border-blue-500/30 text-center"
           >
             <p className="text-[8px] font-bold text-blue-300 uppercase tracking-widest leading-tight">
-              Select your other camera tab<br/>to start the bridge
+              Open another camera in a tab,<br/>then pick it here to share that view
             </p>
           </motion.div>
         )}
@@ -720,7 +728,7 @@ const CameraMode = () => {
           className="h-12 px-4 rounded-2xl bg-blue-500/10 backdrop-blur-3xl border border-blue-500/20 text-blue-400 text-[9px] font-black uppercase tracking-widest"
         >
           <RefreshCw className="h-3 w-3 mr-2" />
-          Reconnect Storage
+          Connect Google Drive
         </Button>
       </div>
 
@@ -737,10 +745,10 @@ const CameraMode = () => {
               <div className="flex flex-col items-center gap-2 text-center">
                 <Logo className="h-10 w-auto mb-2 text-primary" />
                 <h1 className="text-2xl font-black tracking-widest text-white uppercase bg-clip-text text-transparent bg-gradient-to-r from-white via-white/80 to-white/50">
-                  Select Camera Mode
+                  How should this phone work?
                 </h1>
-                <p className="text-xs text-white/40 tracking-wider uppercase font-semibold max-w-xs">
-                  Configure this node's performance, privacy, and tracking footprint
+                <p className="text-xs text-white/40 tracking-wider font-semibold max-w-xs">
+                  Pick watch-only for battery savings, or full protection for AI and recordings.
                 </p>
               </div>
 
@@ -749,10 +757,11 @@ const CameraMode = () => {
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  onClick={() => {
+                  onClick={async () => {
                     setCameraMode('lite');
                     localStorage.setItem("hguard_camera_mode", 'lite');
-                    toast({ title: "Lite Mode Selected", description: "Node started in Stream Only mode." });
+                    if (resolvedDeviceId) await updateDoc(doc(db, "devices", resolvedDeviceId), { "settings.cloud_recording": false });
+                    toast({ title: "Watch only", description: "This device will stream live video without AI or cloud saves." });
                   }}
                   className="relative group p-6 rounded-3xl bg-white/5 hover:bg-white/[0.08] border border-white/10 hover:border-emerald-500/30 text-left transition-all duration-300 flex flex-col justify-between h-64 shadow-2xl"
                 >
@@ -765,9 +774,9 @@ const CameraMode = () => {
                       <Eye className="h-6 w-6" />
                     </div>
                     <div>
-                      <h3 className="text-md font-black tracking-wider text-white uppercase">Lite Stream</h3>
+                      <h3 className="text-md font-black tracking-wider text-white uppercase">Watch only</h3>
                       <p className="text-[11px] text-white/50 mt-1 leading-relaxed">
-                        Optimized for battery, latency, and complete security isolation.
+                        Best for battery life. Streams video to your other devices — nothing saved to the cloud.
                       </p>
                     </div>
                   </div>
@@ -776,15 +785,15 @@ const CameraMode = () => {
                     <ul className="text-[10px] text-white/40 space-y-1.5 font-medium tracking-wide uppercase">
                       <li className="flex items-center gap-2">
                         <span className="h-1 w-1 rounded-full bg-emerald-400" />
-                        Zero Storage Uploads
+                        No cloud uploads
                       </li>
                       <li className="flex items-center gap-2">
                         <span className="h-1 w-1 rounded-full bg-emerald-400" />
-                        No Gemini AI Scanning
+                        No AI scanning
                       </li>
                       <li className="flex items-center gap-2">
                         <span className="h-1 w-1 rounded-full bg-emerald-400" />
-                        Minimal Battery Drain
+                        Uses less battery
                       </li>
                     </ul>
                   </div>
@@ -794,10 +803,16 @@ const CameraMode = () => {
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  onClick={() => {
+                  onClick={async () => {
+                    const fullCameras = devices.filter(d => d.settings?.cloud_recording === true && d.id !== resolvedDeviceId);
+                    if (fullCameras.length >= 4) {
+                      toast({ title: "Limit Reached", description: "Maximum of 4 cameras can save to Google Drive simultaneously.", variant: "destructive" });
+                      return;
+                    }
                     setCameraMode('full');
                     localStorage.setItem("hguard_camera_mode", 'full');
-                    toast({ title: "Elite Security Active", description: "Node started with full AI & Storage." });
+                    if (resolvedDeviceId) await updateDoc(doc(db, "devices", resolvedDeviceId), { "settings.cloud_recording": true });
+                    toast({ title: "Full protection on", description: "AI alerts and Google Drive recording are enabled." });
                   }}
                   className="relative group p-6 rounded-3xl bg-white/5 hover:bg-white/[0.08] border border-white/10 hover:border-purple-500/30 text-left transition-all duration-300 flex flex-col justify-between h-64 shadow-2xl"
                 >
@@ -810,9 +825,9 @@ const CameraMode = () => {
                       <Shield className="h-6 w-6" />
                     </div>
                     <div>
-                      <h3 className="text-md font-black tracking-wider text-white uppercase">Elite Guard</h3>
+                      <h3 className="text-md font-black tracking-wider text-white uppercase">Full protection</h3>
                       <p className="text-[11px] text-white/50 mt-1 leading-relaxed">
-                        Full surveillance grid utilizing smart cloud archiving and Gemini orchestrations.
+                        Motion alerts, AI checks, and automatic clips saved to your Google Drive.
                       </p>
                     </div>
                   </div>
@@ -821,15 +836,15 @@ const CameraMode = () => {
                     <ul className="text-[10px] text-white/40 space-y-1.5 font-medium tracking-wide uppercase">
                       <li className="flex items-center gap-2">
                         <span className="h-1 w-1 rounded-full bg-purple-400" />
-                        AI Threat Analysis
+                        Smart motion & AI alerts
                       </li>
                       <li className="flex items-center gap-2">
                         <span className="h-1 w-1 rounded-full bg-purple-400" />
-                        Auto-Save Clips to Drive
+                        Saves clips to Google Drive
                       </li>
                       <li className="flex items-center gap-2">
                         <span className="h-1 w-1 rounded-full bg-purple-400" />
-                        Advanced Audio Classification
+                        Detects sounds (glass, alarm, etc.)
                       </li>
                     </ul>
                   </div>

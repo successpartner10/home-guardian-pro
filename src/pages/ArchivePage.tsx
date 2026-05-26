@@ -127,7 +127,7 @@ const ArchivePage = () => {
               <ChevronLeft className="h-5 w-5" />
             </Button>
             <div>
-              <h1 className="text-3xl font-black uppercase tracking-tight text-white">Elite Archive</h1>
+              <h1 className="text-3xl font-black tracking-tight text-white">Recordings</h1>
               <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.3em]">Surveillance Repository</p>
             </div>
           </div>

@@ -254,20 +254,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // On native Android, use the official native Google Sign-In SDK
       const isNative = typeof window !== 'undefined' && (window as any).Capacitor?.isNative;
       
-      // DIAGNOSTIC OVERLAY
-      const debugEl = document.createElement('div');
-      debugEl.style.position = 'fixed';
-      debugEl.style.top = '10px';
-      debugEl.style.left = '10px';
-      debugEl.style.right = '10px';
-      debugEl.style.background = 'red';
-      debugEl.style.color = 'white';
-      debugEl.style.padding = '10px';
-      debugEl.style.zIndex = '9999';
-      debugEl.innerHTML = `isNative: ${isNative}<br/>Capacitor: ${!!(window as any).Capacitor}`;
-      document.body.appendChild(debugEl);
-      setTimeout(() => debugEl.remove(), 5000);
-      
       if (isNative || Capacitor.isNativePlatform()) {
         try {
           const result = await FirebaseAuthentication.signInWithGoogle();
@@ -283,7 +269,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return;
         } catch (e: any) {
           const errStr = e.message || JSON.stringify(e);
-          debugEl.innerHTML += `<br/>ERR: ${errStr}`;
           throw new Error(`NATIVE_ERR: ${errStr}`);
         }
       }

@@ -82,7 +82,7 @@ export const useCamera = ({
     console.log("[useCamera] startCamera initiated");
     try {
       if (!navigator.mediaDevices) {
-        throw new Error("Camera API is unavailable. Are you using HTTP instead of HTTPS on a mobile device?");
+        throw new Error("Camera isn't available in this browser. Try opening the app with https:// or use Chrome/Safari on your phone.");
       }
       let stream;
       try {
@@ -166,8 +166,8 @@ export const useCamera = ({
       } catch (videoOnlyErr: any) {
         console.error("[useCamera] All capture attempts failed:", videoOnlyErr);
         toast({
-          title: "Camera Hardware Error",
-          description: "Could not access any camera hardware. Please check your browser permissions and refresh.",
+          title: "Can't open camera",
+          description: "Allow camera access in your browser settings, then refresh this page.",
           variant: "destructive"
         });
         setError(videoOnlyErr.message || "Camera access denied. Check permissions in browser settings.");

@@ -364,7 +364,7 @@ const SettingsPage = () => {
       <div className="p-6 max-w-2xl mx-auto space-y-10 mb-20 tracking-tighter">
         <div className="space-y-2">
           <h1 className="text-4xl font-black uppercase leading-none">Settings</h1>
-          <p className="text-lg text-muted-foreground font-medium">Control your security mesh and visual style.</p>
+          <p className="text-lg text-muted-foreground font-medium">Control your security settings and preferences.</p>
         </div>
 
         {/* Alert Preferences */}
@@ -697,23 +697,23 @@ const SettingsPage = () => {
         <div className="zoomon-card border-destructive/20 bg-destructive/5 space-y-6">
           <div className="flex items-center gap-3 text-destructive">
             <Zap className="w-8 h-8" />
-            <h2 className="text-2xl font-black uppercase tracking-tight">System Purge</h2>
+            <h2 className="text-2xl font-black uppercase tracking-tight">Reset cameras</h2>
           </div>
           <div className="space-y-4">
             <p className="text-sm font-bold text-destructive/60 uppercase tracking-widest leading-relaxed">
-              If your mesh is displaying 'Ghost' cameras or stale devices, use this tool to wipe the slate clean.
+              If cameras look duplicated or outdated, use this tool to refresh your camera list.
             </p>
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button variant="destructive" className="w-full h-16 rounded-[2rem] font-black uppercase tracking-widest">
-                  RESET SECURITY MESH
+                  Reset camera list
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent className="bg-zinc-950 border-destructive/50">
                 <AlertDialogHeader>
-                  <AlertDialogTitle className="text-2xl font-black text-destructive italic underline">NUCLEAR PURGE</AlertDialogTitle>
+                  <AlertDialogTitle className="text-2xl font-black text-destructive italic underline">Confirm reset</AlertDialogTitle>
                   <AlertDialogDescription className="text-white/70 font-bold uppercase tracking-widest leading-loose">
-                    This will PERMANENTLY DELETE all camera records from your account. You will need to restart every camera manually.
+                    This permanently removes all cameras from your account. You'll need to set them up again.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -728,7 +728,7 @@ const SettingsPage = () => {
                     }}
                     className="bg-destructive text-white rounded-2xl font-black"
                   >
-                    CONFIRM PURGE
+                    Reset camera list
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>

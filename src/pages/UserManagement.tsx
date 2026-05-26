@@ -68,7 +68,7 @@ const UserManagement = () => {
             setUsers(prev => prev.map(u => u.user_id === userId ? { ...u, is_approved: !currentStatus } : u));
             toast({
                 title: !currentStatus ? "User Approved" : "Access Revoked",
-                description: `Permissions updated for the network node.`
+                description: `That person can ${!currentStatus ? 'now watch your cameras' : 'no longer access your cameras'}.`
             });
         } catch (e: any) {
             toast({ title: "Update Failed", description: e.message, variant: "destructive" });
@@ -101,7 +101,7 @@ const UserManagement = () => {
                         onClick={() => {
                             const link = `${window.location.origin}/login?ref=successpartner10`;
                             navigator.clipboard.writeText(link);
-                            toast({ title: "Invite Link Copied", description: "Send this to your friend to join the network." });
+                            toast({ title: "Invite link copied", description: "Send it to someone you want to share access with." });
                         }}
                         className="h-14 px-8 rounded-2xl border-2 border-primary/20 bg-primary/5 font-black uppercase tracking-widest text-xs hover:bg-primary/10 transition-all"
                     >
@@ -137,7 +137,7 @@ const UserManagement = () => {
                                             </div>
                                             <div className="space-y-1">
                                                 <p className="text-2xl font-black uppercase tracking-tight leading-none">
-                                                    {profile.display_name || "New Node"}
+                                                    {profile.display_name || "New user"}
                                                 </p>
                                                 <div className="flex items-center gap-3 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                                                     <span className="flex items-center gap-1.5"><Mail className="h-3 w-3" /> {profile.user_id.slice(0, 8)}...</span>

@@ -53,7 +53,7 @@ const Onboarding = () => {
             <h1 className="text-6xl font-black uppercase tracking-[-0.05em] text-white leading-none mb-2">HGUARD</h1>
             <div className="flex items-center gap-4 justify-center opacity-60">
               <div className="h-[1px] w-10 bg-primary rounded-full" />
-              <p className="text-[10px] text-primary font-[1000] uppercase tracking-[0.5em]">ELITE SECURITY</p>
+              <p className="text-[10px] text-primary font-[1000] uppercase tracking-[0.5em]">Home protection</p>
               <div className="h-[1px] w-10 bg-primary rounded-full" />
             </div>
           </div>
@@ -108,7 +108,7 @@ const Onboarding = () => {
         )}
 
         <p className="text-[10px] text-white/20 font-black uppercase tracking-[0.5em] pt-4">
-          Version: hG-v3-Elite
+          Version: {(window as any).hGuard_Version || "v2.5.2"}
         </p>
       </motion.div>
     </div>

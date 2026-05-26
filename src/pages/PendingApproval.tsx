@@ -23,9 +23,9 @@ const PendingApproval = () => {
                 </div>
 
                 <div className="space-y-3">
-                    <h1 className="text-4xl font-black uppercase leading-tight tracking-tighter">Access Reserved</h1>
+                    <h1 className="text-4xl font-black uppercase leading-tight tracking-tighter">Approval needed</h1>
                     <p className="text-muted-foreground text-lg font-medium max-w-xs mx-auto">
-                        Node <span className="text-foreground font-black">{user?.email?.split('@')[0]}</span> is verified but awaiting administrative clearance.
+                        <span className="text-foreground font-black">{user?.email?.split('@')[0]}</span> is verified, but access is pending admin approval.
                     </p>
                 </div>
 
@@ -34,14 +34,14 @@ const PendingApproval = () => {
                         <Clock className="h-7 w-7 animate-pulse" />
                     </div>
                     <div className="text-left">
-                        <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-40">Security Status</p>
-                        <p className="text-xl font-black uppercase tracking-tight text-primary">Awaiting Gatekeeper</p>
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-40">Status</p>
+                        <p className="text-xl font-black uppercase tracking-tight text-primary">Waiting for approval</p>
                     </div>
                 </div>
 
                 <div className="space-y-6 pt-6">
                     <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest opacity-60">
-                        Contact successpartner10@gmail.com for instant access.
+                        If this is urgent, email successpartner10@gmail.com.
                     </p>
                     <div className="flex flex-col gap-4">
                         <Button
@@ -49,10 +49,10 @@ const PendingApproval = () => {
                             onClick={() => signOut()}
                             className="h-14 w-full rounded-2xl font-black gap-2 shadow-xl shadow-primary/20 uppercase tracking-widest"
                         >
-                            <LogOut className="h-5 w-5" /> LOGIN WITH DIFFERENT ACCOUNT
+                            <LogOut className="h-5 w-5" /> Sign in with another account
                         </Button>
                         <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest opacity-40">
-                            Logged in as {user?.email}
+                            Signed in as {user?.email}
                         </p>
                     </div>
                 </div>

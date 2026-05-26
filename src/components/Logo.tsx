@@ -18,7 +18,7 @@ export const Logo: React.FC<LogoProps> = ({ className, size = "md" }) => {
     <div className={cn("relative flex items-center justify-center select-none group focus:outline-none", className)}>
       <img 
         src={`/hguard_elite_logo.png?t=${new Date().getTime()}`}
-        alt="HGUARD Elite Security" 
+        alt="HGUARD home security" 
         className={cn("object-contain transition-all duration-700 group-hover:scale-110 drop-shadow-[0_10px_30px_rgba(0,0,0,0.8)]", sizes[size])}
         draggable={false}
       />
