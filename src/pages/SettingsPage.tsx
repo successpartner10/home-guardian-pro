@@ -24,7 +24,7 @@ import {
   Trash2, Save, LogOut, AlertTriangle, ShieldCheck, Settings2, Shield, Bell, Clock, 
   UserCheck, HardDrive, Edit3, Share2, Activity, Moon, Zap, Palette, 
   VolumeX, Smartphone, Music, Calendar, Lock as LockIcon, Unlock as UnlockIcon,
-  HardDrive as DiscIcon, Download, CloudOff
+  HardDrive as DiscIcon, Download, CloudOff, Check, Camera as CameraIcon, Monitor
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
@@ -102,6 +102,8 @@ const SettingsPage = () => {
   const [activeBrain, setActiveBrain] = useState(aiOrchestrator.getProviderId());
   const [autoUpgrade, setAutoUpgrade] = useState(true);
   const [webhookUrl, setWebhookUrl] = useState("");
+  const [editingDeviceId, setEditingDeviceId] = useState<string | null>(null);
+  const [editingDeviceName, setEditingDeviceName] = useState("");
 
   const isAdmin = user?.email === ADMIN_EMAIL;
   
@@ -365,6 +367,80 @@ const SettingsPage = () => {
         <div className="space-y-2">
           <h1 className="text-4xl font-black uppercase leading-none">Settings</h1>
           <p className="text-lg text-muted-foreground font-medium">Control your security settings and preferences.</p>
+        </div>
+
+        {/* My Cameras & Viewers — Rename Section */}
+        <div className="zoomon-card space-y-5">
+          <div className="flex items-center gap-3 text-primary">
+            <CameraIcon className="w-8 h-8" />
+            <div>
+              <h2 className="text-2xl font-black tracking-tight">My cameras & viewers</h2>
+              <p className="text-xs text-muted-foreground mt-0.5">Tap any name to rename it</p>
+            </div>
+          </div>
+
+          {devices.length === 0 && (
+            <p className="text-sm text-muted-foreground text-center py-4">No devices registered yet.</p>
+          )}
+
+          <div className="space-y-3">
+            {devices.map((device) => (
+              <div
+                key={device.id}
+                className="flex items-center gap-3 p-4 rounded-2xl bg-card/40 border border-border/40 group"
+              >
+                <div className={`p-2 rounded-xl ${device.type === 'camera' ? 'bg-primary/10 text-primary' : 'bg-blue-500/10 text-blue-400'}`}>
+                  {device.type === 'camera' ? <CameraIcon className="w-5 h-5" /> : <Monitor className="w-5 h-5" />}
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  {editingDeviceId === device.id ? (
+                    <input
+                      autoFocus
+                      value={editingDeviceName}
+                      onChange={(e) => setEditingDeviceName(e.target.value)}
+                      onKeyDown={async (e) => {
+                        if (e.key === 'Enter') {
+                          await updateDeviceName(device.id, editingDeviceName);
+                          setEditingDeviceId(null);
+                        }
+                        if (e.key === 'Escape') setEditingDeviceId(null);
+                      }}
+                      className="w-full bg-transparent border-b-2 border-primary text-base font-bold outline-none py-0.5 text-white"
+                      placeholder="Enter a custom name…"
+                    />
+                  ) : (
+                    <button
+                      className="text-left w-full"
+                      onClick={() => { setEditingDeviceId(device.id); setEditingDeviceName(device.name); }}
+                    >
+                      <p className="text-base font-bold text-white truncate group-hover:text-primary transition-colors">{device.name || 'Unnamed device'}</p>
+                      <p className="text-xs text-muted-foreground capitalize">{device.type} · {device.status}</p>
+                    </button>
+                  )}
+                </div>
+
+                {editingDeviceId === device.id ? (
+                  <button
+                    onClick={async () => {
+                      await updateDeviceName(device.id, editingDeviceName);
+                      setEditingDeviceId(null);
+                    }}
+                    className="p-2 rounded-xl bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                  >
+                    <Check className="w-4 h-4" />
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => { setEditingDeviceId(device.id); setEditingDeviceName(device.name); }}
+                    className="p-2 rounded-xl opacity-0 group-hover:opacity-100 bg-white/5 text-white/40 hover:text-white hover:bg-white/10 transition-all"
+                  >
+                    <Edit3 className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* Alert Preferences */}

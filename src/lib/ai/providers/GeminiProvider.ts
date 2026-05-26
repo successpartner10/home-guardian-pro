@@ -12,13 +12,8 @@ export class GeminiProvider implements AIProvider {
     const model = modelOverride || "gemini-2.5-flash";
 
     try {
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{
-            parts: [
-              { text: `Analyze this security camera frame. ${isNightVision ? "NOTE: The image is in Tactical Night-Vision (IR) mode. Objects may be low contrast; use extreme sensitivity to identify shapes, people, and threats in the shadows." : ""} Return ONLY a JSON object exactly matching this schema:
+      const parts: any[] = [
+        { text: `Analyze this security camera frame. ${isNightVision ? "NOTE: The image is in Tactical Night-Vision (IR) mode. Objects may be low contrast; use extreme sensitivity to identify shapes, people, and threats in the shadows." : ""} Return ONLY a JSON object exactly matching this schema:
 {
   "label": "brief overall label (e.g., PERSON DETECTED)",
   "tags": ["person", "phone", "object"],
@@ -33,8 +28,21 @@ export class GeminiProvider implements AIProvider {
   ]
 }
 IMPORTANT: ALL detected objects (people, animals, notable items) MUST have a box_2d array with exactly 4 integers between 0 and 1000 representing [ymin, xmin, ymax, xmax].` },
-              { inline_data: { mime_type: "image/jpeg", data: base64Data } }
-            ]
+        { inline_data: { mime_type: "image/jpeg", data: base64Data } }
+      ];
+
+      if (_referenceImage) {
+        const refBase64Data = _referenceImage.split(',')[1] || _referenceImage;
+        parts.push({ text: "The following image is a reference photo of a familiar person (e.g., a family member or the owner). If the person in the camera frame matches this reference person, please indicate it in your summary and tags (e.g., add 'familiar_face' or the person's name)." });
+        parts.push({ inline_data: { mime_type: "image/jpeg", data: refBase64Data } });
+      }
+
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{
+            parts: parts
           }],
           generationConfig: {
             response_mime_type: "application/json"
