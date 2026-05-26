@@ -67,6 +67,7 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [devices, setDevices] = useState<Device[]>([]);
+  const [viewers, setViewers] = useState<Device[]>([]);
   const [unreadAlerts, setUnreadAlerts] = useState(0);
   const [loading, setLoading] = useState(true);
   const [registering, setRegistering] = useState(false);
@@ -93,9 +94,9 @@ const Dashboard = () => {
     const unsubscribeDevices = onSnapshot(devicesQuery, async (snapshot) => {
       const deviceList = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Device));
 
-      // Auto-deduplicate cameras: keep only the newest per unique name
+      // Separate cameras from viewers
+      const allViewers: typeof deviceList = [];
       const camerasByName = new Map<string, typeof deviceList>();
-      const viewers: typeof deviceList = [];
 
       for (const device of deviceList) {
         if (device.type === 'camera') {
@@ -103,11 +104,11 @@ const Dashboard = () => {
           existing.push(device);
           camerasByName.set(device.name, existing);
         } else {
-          viewers.push(device);
+          allViewers.push(device);
         }
       }
 
-      // Delete duplicates (keep newest)
+      // Delete duplicate cameras (keep newest per name)
       const uniqueCameras: Device[] = [];
       for (const [name, cameras] of camerasByName) {
         cameras.sort((a, b) => {
@@ -116,13 +117,13 @@ const Dashboard = () => {
           return timeB - timeA;
         });
         uniqueCameras.push(cameras[0]);
-        // Silently delete duplicates
         for (let i = 1; i < cameras.length; i++) {
           deleteDoc(doc(db, "devices", cameras[i].id)).catch(() => { });
         }
       }
 
       setDevices(uniqueCameras);
+      setViewers(allViewers);
       setLoading(false);
     }, (err) => {
       console.error("Dashboard devices error:", err);
@@ -362,17 +363,27 @@ const Dashboard = () => {
               <Camera className="h-5 w-5 text-primary" /> My Cameras
             </h1>
             <p className="text-xs text-muted-foreground mt-1">
-              {devices.length} {devices.length === 1 ? 'camera' : 'cameras'} connected to your account.
+              {devices.length} {devices.length === 1 ? 'camera' : 'cameras'} · {viewers.length} {viewers.length === 1 ? 'viewer' : 'viewers'}
             </p>
           </div>
           
-          <Button 
-            onClick={handleUseAsCamera} 
-            disabled={registering}
-            className="w-full sm:w-auto bg-primary text-black hover:bg-primary/90 rounded-full font-bold shadow-[0_0_15px_rgba(var(--primary),0.3)]"
-          >
-            <Camera className="mr-2 h-4 w-4" /> Add Camera (Use this phone)
-          </Button>
+          <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+            <Button 
+              onClick={handleUseAsCamera} 
+              disabled={registering}
+              className="flex-1 sm:flex-none bg-primary text-black hover:bg-primary/90 rounded-full font-bold shadow-[0_0_15px_rgba(var(--primary),0.3)]"
+            >
+              <Camera className="mr-2 h-4 w-4" /> Add Camera
+            </Button>
+            <Button 
+              onClick={handleUseAsViewer} 
+              disabled={registering}
+              variant="outline"
+              className="flex-1 sm:flex-none rounded-full border-white/10 hover:bg-white/5 font-bold"
+            >
+              <MonitorSmartphone className="mr-2 h-4 w-4" /> Add Viewer
+            </Button>
+          </div>
         </div>
 
         {/* Camera List */}
@@ -429,6 +440,44 @@ const Dashboard = () => {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Viewers Section */}
+        {viewers.length > 0 && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 px-1">
+              <MonitorSmartphone className="h-4 w-4 text-white/40" />
+              <span className="text-xs font-bold uppercase tracking-widest text-white/40">Active Viewers ({viewers.length})</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pb-12">
+              {viewers.map((viewer) => (
+                <div key={viewer.id} className="flex items-center gap-4 p-4 bg-white/[0.02] border border-white/10 rounded-2xl">
+                  <div className={`h-10 w-10 rounded-full flex items-center justify-center shrink-0 ${
+                    viewer.status === 'online' ? 'bg-green-500/10 text-green-400' : 'bg-white/5 text-white/30'
+                  }`}>
+                    <MonitorSmartphone className="h-5 w-5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-white truncate">{viewer.name}</p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <div className={`h-1.5 w-1.5 rounded-full ${
+                        viewer.status === 'online' ? 'bg-green-500 animate-pulse' : 'bg-white/20'
+                      }`} />
+                      <p className="text-[10px] text-white/40 font-medium capitalize">{viewer.status}</p>
+                    </div>
+                  </div>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    onClick={() => handleDeleteDevice(viewer.id, viewer.name)} 
+                    className="h-8 w-8 text-white/30 hover:text-red-400 hover:bg-red-400/10 rounded-xl"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
