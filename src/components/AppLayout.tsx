@@ -7,7 +7,8 @@ import { Logo } from "./Logo";
 const ADMIN_EMAIL = "successpartner10@gmail.com";
 
 const navItems = [
-  { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
+  { to: "/dashboard", icon: Camera, label: "Cameras" },
+  { to: "/archive", icon: Bell, label: "Events" },
   { to: "/users", icon: Users, label: "Users", adminOnly: true },
   { to: "/settings", icon: Settings, label: "Settings" },
   { to: "/help", icon: HelpCircle, label: "Help" },
@@ -45,15 +46,8 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
         filteredItems.length === 5 ? "grid-cols-5" : "grid-cols-4"
       )}>
         {filteredItems.map(({ to, icon: Icon, label }) => {
-          const active = location.pathname === to;
-          const shortLabel = {
-            "Dashboard": "Home",
-            "Camera": "Live",
-            "Events": "Alerts",
-            "Users": "Admin",
-            "Settings": "Setup",
-            "Help": "Help"
-          }[label] || label;
+          const active = location.pathname === to || (to === '/dashboard' && location.pathname === '/');
+          const shortLabel = label;
 
           return (
             <Link

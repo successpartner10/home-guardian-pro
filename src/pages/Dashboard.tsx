@@ -59,6 +59,8 @@ const statusConfig = {
   recording: { icon: Video, color: "bg-destructive", label: "Recording", className: "status-recording" },
 };
 
+import LiveCameraStream from "@/components/LiveCameraStream";
+
 const Dashboard = () => {
   const { user, relinkGoogle } = useAuth();
   const navigate = useNavigate();
@@ -131,11 +133,18 @@ const Dashboard = () => {
       setUnreadAlerts(alertList.filter(a => a.viewed === false).length);
     });
 
+    // Auto-start camera if remembered role
+    const savedRole = localStorage.getItem("hguard_role");
+    const savedId = localStorage.getItem("hguard_saved_camera_id");
+    if (savedRole === "camera" && savedId) {
+      navigate(`/camera/${savedId}`);
+    }
+
     return () => {
       unsubscribeDevices();
       unsubscribeAlerts();
     };
-  }, [user]);
+  }, [user, navigate]);
 
   // Mesh Tracking Handoff Logic
   useEffect(() => {
@@ -246,6 +255,8 @@ const Dashboard = () => {
     if (matchingDocs.length > 0) {
       const existingDoc = matchingDocs[0];
       await updateDoc(doc(db, "devices", existingDoc.id), { status: 'online', updated_at: serverTimestamp() });
+      localStorage.setItem("hguard_role", "camera");
+      localStorage.setItem("hguard_saved_camera_id", existingDoc.id);
       navigate(`/camera/${existingDoc.id}`);
       return;
     }
@@ -262,6 +273,8 @@ const Dashboard = () => {
         created_at: serverTimestamp(),
         updated_at: serverTimestamp()
       });
+      localStorage.setItem("hguard_role", "camera");
+      localStorage.setItem("hguard_saved_camera_id", docRef.id);
       navigate(`/camera/${docRef.id}`);
     } catch (e) {
       toast({ title: "Error", description: "Failed to start camera mode.", variant: "destructive" });
@@ -327,173 +340,59 @@ const Dashboard = () => {
 
   return (
     <AppLayout>
-      <div className="p-6 h-full flex flex-col justify-center max-w-4xl mx-auto space-y-16">
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col items-center gap-6 mb-12"
-        >
-          <Logo size="lg" className="h-24 w-24 mx-auto drop-shadow-2xl animate-float" />
-          
-          <div className="flex flex-col items-center gap-4">
-            <div className="flex items-center gap-3">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary animate-pulse-subtle">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
-                </span>
-                <span className="text-[9px] font-black uppercase tracking-widest">Ready</span>
-              </div>
-
-              <button
-                onClick={() => setIsMeshTracking(!isMeshTracking)}
-                className={cn(
-                  "inline-flex items-center gap-2 px-3 py-1 rounded-full border transition-all duration-300",
-                  isMeshTracking 
-                    ? "bg-blue-500/20 border-blue-400/40 text-blue-400 shadow-[0_0_20px_rgba(59,130,246,0.3)]" 
-                    : "bg-white/5 border-white/10 text-white/30 hover:bg-white/10"
-                )}
-              >
-                <Target className={cn("h-3 w-3", isMeshTracking && "animate-spin-slow")} />
-                <span className="text-[9px] font-black uppercase tracking-widest">Auto-switch {isMeshTracking ? 'on' : 'off'}</span>
-              </button>
-            </div>
-            
-            {user?.email === "successpartner10@gmail.com" && (
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => navigate('/ai-lab')}
-                className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-400 shadow-[0_0_15px_rgba(168,85,247,0.2)]"
-              >
-                <Sparkles className="h-3 w-3 animate-pulse" />
-                <span className="text-[9px] font-black uppercase tracking-widest">AI Insight Available</span>
-              </motion.button>
-            )}
+      <div className="p-4 sm:p-6 h-full flex flex-col max-w-5xl mx-auto space-y-6">
+        
+        {/* Top Actions & Info */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white/[0.02] border border-white/5 rounded-2xl p-4">
+          <div>
+            <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+              <Camera className="h-5 w-5 text-primary" /> My Cameras
+            </h1>
+            <p className="text-xs text-muted-foreground mt-1">
+              {devices.length} {devices.length === 1 ? 'camera' : 'cameras'} connected to your account.
+            </p>
           </div>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15 }}
-          className="flex justify-center mb-8"
-        >
-          <button 
-            onClick={() => navigate('/help')}
-            className="group flex items-center gap-3 px-6 py-3 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-primary/30 transition-all duration-200"
+          
+          <Button 
+            onClick={handleUseAsCamera} 
+            disabled={registering}
+            className="w-full sm:w-auto bg-primary text-black hover:bg-primary/90 rounded-full font-bold shadow-[0_0_15px_rgba(var(--primary),0.3)]"
           >
-            <HelpCircle className="h-5 w-5 text-primary group-hover:scale-110 transition-transform" />
-            <div className="text-left">
-              <p className="text-[10px] font-black text-white tracking-wide leading-none">New to HGUARD?</p>
-              <p className="text-[9px] font-bold text-white/40 mt-1">See tips and how-to guides</p>
-            </div>
-          </button>
-        </motion.div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto w-full">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-          >
-            <Button
-              size="lg"
-              onClick={handleUseAsCamera}
-              disabled={registering}
-              className="group relative h-48 w-full bg-white/[0.03] hover:bg-white/[0.08] border border-white/10 hover:border-primary/50 text-white rounded-[2rem] transition-all duration-500 flex flex-col gap-4 items-center justify-center overflow-hidden"
-            >
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-              <div className="p-4 rounded-2xl bg-primary/10 text-primary group-hover:scale-110 transition-transform duration-500">
-                <Camera className="h-8 w-8" />
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold tracking-tight">Use as camera</div>
-                <div className="text-[10px] font-medium text-muted-foreground mt-1">Turn this device into a security camera</div>
-              </div>
-            </Button>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-          >
-            <Button
-              size="lg"
-              onClick={() => { handleUseAsViewer(); navigate('/live/all'); }}
-              disabled={registering}
-              className="group relative h-48 w-full bg-white/[0.03] hover:bg-white/[0.08] border border-white/10 hover:border-blue-500/50 text-white rounded-[2rem] transition-all duration-500 flex flex-col gap-4 items-center justify-center overflow-hidden"
-            >
-              <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-              <div className="p-4 rounded-2xl bg-blue-500/10 text-blue-400 group-hover:scale-110 transition-transform duration-500">
-                <MonitorSmartphone className="h-8 w-8" />
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold tracking-tight">Watch cameras</div>
-                <div className="text-[10px] font-medium text-muted-foreground mt-1">See live video from your other devices</div>
-              </div>
-            </Button>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-          >
-            <Button
-              size="lg"
-              onClick={() => navigate('/archive')}
-              className="group relative h-48 w-full bg-white/[0.03] hover:bg-white/[0.08] border border-white/10 hover:border-purple-500/50 text-white rounded-[2rem] transition-all duration-500 flex flex-col gap-4 items-center justify-center overflow-hidden"
-            >
-              <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-              <div className="p-4 rounded-2xl bg-purple-500/10 text-purple-400 group-hover:scale-110 transition-transform duration-500">
-                <Video className="h-8 w-8" />
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold tracking-tight">Recordings</div>
-                <div className="text-[10px] font-medium text-muted-foreground mt-1">Watch saved clips from Google Drive</div>
-              </div>
-            </Button>
-          </motion.div>
+            <Camera className="mr-2 h-4 w-4" /> Add Camera (Use this phone)
+          </Button>
         </div>
 
-        <motion.div 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.4, duration: 0.5 }}
-          className="pt-12 border-t border-white/5 space-y-8"
-        >
-          <div className="flex flex-col items-center gap-4">
-            <span className="text-[10px] font-bold text-white/30 tracking-wide">Status</span>
-            <div className="flex flex-wrap justify-center gap-8">
-               <div className="flex items-center gap-3 group translate-z-0">
-                 <div className="relative flex h-2 w-2">
-                    <div className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-40"></div>
-                    <div className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></div>
-                 </div>
-                 <span className="text-[10px] font-bold tracking-wide text-white/60 group-hover:text-white transition-colors">Cameras can connect</span>
-               </div>
-               <div className="flex items-center gap-3 group">
-                 <div className="h-2 w-2 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" />
-                 <span className="text-[10px] font-bold tracking-wide text-white/60 group-hover:text-white transition-colors">Google Drive linked</span>
-                 <button 
-                   onClick={relinkGoogle}
-                   className="ml-2 text-[9px] font-black uppercase text-primary hover:underline cursor-pointer"
-                 >
-                   Reconnect
-                 </button>
-               </div>
-            </div>
+        {/* Camera List */}
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-20">
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+            <p className="mt-4 text-xs font-medium text-muted-foreground">Loading cameras...</p>
           </div>
-          
-          <div className="flex flex-col items-center gap-3">
-             <div className="px-5 py-2.5 rounded-full bg-white/[0.02] border border-white/5 backdrop-blur-md flex items-center gap-3 transition-colors hover:bg-white/[0.05]">
-                <span className="text-[9px] font-bold text-white/20 tracking-wide">Open in browser</span>
-                <a href="https://hguard-elite.web.app" target="_blank" className="text-[11px] font-medium text-primary/80 hover:text-primary transition-colors">hguard-elite.web.app</a>
-             </div>
+        ) : devices.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 px-4 text-center bg-white/[0.01] border border-white/5 rounded-3xl border-dashed">
+            <LayoutGrid className="h-12 w-12 text-white/10 mb-4" />
+            <h2 className="text-lg font-bold text-white mb-2">No cameras found</h2>
+            <p className="text-xs text-muted-foreground max-w-sm mb-6">
+              You haven't added any cameras yet. Install this app on a spare phone or tablet and tap "Add Camera".
+            </p>
+            <Button onClick={handleUseAsCamera} variant="outline" className="rounded-full border-white/10 hover:bg-white/5">
+              Set up this device as a camera instead
+            </Button>
           </div>
-        </motion.div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-12">
+            {devices.map((camera) => (
+              <div key={camera.id} className="w-full h-64 rounded-2xl overflow-hidden border border-white/10 shadow-lg relative bg-black/50 group">
+                <LiveCameraStream
+                    device={camera}
+                    localStream={null}
+                    onFullscreen={(id) => navigate(`/live/${id}`)}
+                />
+              </div>
+            ))}
+          </div>
+        )}
+
       </div>
     </AppLayout>
   );

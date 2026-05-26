@@ -719,7 +719,7 @@ const CameraMode = () => {
       />
 
       <div className="absolute top-6 left-6 z-50 flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")} className="h-12 w-12 rounded-2xl bg-white/10 backdrop-blur-3xl border border-white/20 text-white">
+        <Button variant="ghost" size="icon" onClick={() => { localStorage.removeItem("hguard_role"); navigate("/dashboard"); }} className="h-12 w-12 rounded-2xl bg-white/10 backdrop-blur-3xl border border-white/20 text-white">
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <Button 
