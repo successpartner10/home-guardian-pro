@@ -40,14 +40,13 @@ const LiveCameraStream: React.FC<LiveCameraStreamProps> = ({ device, onFullscree
     const [isTalkActive, setIsTalkActive] = useState(false);
     const [isThermal, setIsThermal] = useState(false);
 
-    // ── Optimistic local toggle states ──────────────────────────────────────────
     const [isFlashOn, setIsFlashOn] = useState(false);
     const [isNightVision, setIsNightVision] = useState(false);
     const [isSirenOn, setIsSirenOn] = useState(false);
     const [isAiActive, setIsAiActive] = useState(false);
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
     const [muted, setMuted] = useState(true);
-    // ────────────────────────────────────────────────────────────────────────────
+    const [playAttempted, setPlayAttempted] = useState(false);
 
     const handleRemoteStream = useCallback((stream: MediaStream) => {
         setRemoteStream(stream);
@@ -63,14 +62,12 @@ const LiveCameraStream: React.FC<LiveCameraStreamProps> = ({ device, onFullscree
             const d = msg.data || msg;
             setZoomLevel(d.zoomLevel || 1);
             setZoomCenter(d.zoomCenter || { x: 50, y: 50 });
-            // TELEMETRY from camera overrides our optimistic state (truth from camera)
             if (d.isFlashOn !== undefined) setIsFlashOn(d.isFlashOn);
             if (d.isNightVision !== undefined) setIsNightVision(d.isNightVision);
             if (d.isSirenOn !== undefined) setIsSirenOn(d.isSirenOn);
             if (d.isAiActive !== undefined) setIsAiActive(d.isAiActive);
         }
         if (msg.type === 'AI_ANALYSIS') {
-            console.log("[Viewer] AI data received:", msg.data);
             setAiAnalysis(msg.data);
             setTimeout(() => setAiAnalysis((prev: any) => prev === msg.data ? null : prev), 30000);
         }
@@ -87,14 +84,7 @@ const LiveCameraStream: React.FC<LiveCameraStreamProps> = ({ device, onFullscree
     const startTalk = async (e: React.PointerEvent) => {
         e.stopPropagation();
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ 
-                audio: {
-                    echoCancellation: true,
-                    noiseSuppression: true,
-                    autoGainControl: true
-                }, 
-                video: false 
-            });
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }, video: false });
             setMicStream(stream);
             setIsTalkActive(true);
         } catch (err) {
@@ -104,52 +94,34 @@ const LiveCameraStream: React.FC<LiveCameraStreamProps> = ({ device, onFullscree
 
     const endTalk = (e: React.PointerEvent) => {
         e.stopPropagation();
-        if (micStream) {
-            micStream.getTracks().forEach(t => t.stop());
-            setMicStream(null);
-        }
+        if (micStream) { micStream.getTracks().forEach(t => t.stop()); setMicStream(null); }
         setIsTalkActive(false);
     };
 
-    // Optimistic command: flip local state immediately, then send command
     const sendCommand = useCallback((action: string) => {
         if (!isConnected) return;
-        // Optimistic UI updates
         switch (action) {
-            case 'TOGGLE_FLASH':
-                setIsFlashOn(prev => !prev);
-                break;
-            case 'TOGGLE_NIGHT_VISION':
-                setIsNightVision(prev => !prev);
-                break;
-            case 'TOGGLE_SIREN':
-                setIsSirenOn(prev => !prev);
-                break;
-            case 'TOGGLE_AI':
-                setIsAiActive(prev => !prev);
-                break;
+            case 'TOGGLE_FLASH': setIsFlashOn(prev => !prev); break;
+            case 'TOGGLE_NIGHT_VISION': setIsNightVision(prev => !prev); break;
+            case 'TOGGLE_SIREN': setIsSirenOn(prev => !prev); break;
+            case 'TOGGLE_AI': setIsAiActive(prev => !prev); break;
         }
         sendData({ type: 'COMMAND', action });
     }, [isConnected, sendData]);
 
-    // Auto-connect when channel is ready
     useEffect(() => {
         const isOnline = device.status === "online" || device.status === "recording";
         if (isOnline && isChannelReady && (connectionState === "new" || connectionState === "failed" || connectionState === "disconnected")) {
-            console.log(`[Viewer] Auto-connecting to ${device.id} (state: ${connectionState})`);
-            const delay = connectionState === "new" ? 200 : 2000; // Faster initial connect
+            const delay = connectionState === "new" ? 200 : 2000;
             const timer = setTimeout(() => connect(), delay);
             return () => clearTimeout(timer);
         }
     }, [device.status, connectionState, connect, isChannelReady]);
 
-    // Attach stream to video element when ref is ready
     useEffect(() => {
         if (remoteVideoRef.current && remoteStream) {
             remoteVideoRef.current.srcObject = remoteStream;
             remoteVideoRef.current.play().catch(() => {});
-            
-            // Reset unread alerts on connection
             if (device.unread_alerts && device.unread_alerts > 0) {
               import("@/lib/firebase").then(({ db }) => {
                 import("firebase/firestore").then(({ doc, updateDoc }) => {
@@ -160,44 +132,19 @@ const LiveCameraStream: React.FC<LiveCameraStreamProps> = ({ device, onFullscree
         }
     }, [remoteStream, isConnected, device.id, device.unread_alerts]);
 
-    const handleRename = async (e: React.MouseEvent) => {
-        e.stopPropagation();
-        const newName = prompt("Enter new camera name:", device.name);
-        if (newName && newName !== device.name) {
-          const { db } = await import("@/lib/firebase");
-          const { doc, updateDoc } = await import("firebase/firestore");
-          await updateDoc(doc(db, "devices", device.id), { name: newName });
+    const handleFullscreenInternal = () => {
+        if (onFullscreen) {
+            onFullscreen(device.id);
+        } else if (containerRef.current) {
+            document.fullscreenElement ? document.exitFullscreen() : containerRef.current.requestFullscreen();
         }
     };
 
     const isOnline = device.status === "online" || device.status === "recording";
 
-    const handleFullscreenInternal = () => {
-        if (onFullscreen) {
-            onFullscreen(device.id);
-        } else if (containerRef.current) {
-            if (document.fullscreenElement) {
-                document.exitFullscreen();
-            } else {
-                containerRef.current.requestFullscreen();
-            }
-        }
-    };
-
-    const connectionLabel = {
-        new: "Starting…",
-        connecting: "Connecting…",
-        connected: "Live",
-        disconnected: "Reconnecting…",
-        failed: "Couldn't connect",
-        closed: "Offline",
-    }[connectionState] || connectionState;
-
-    const [playAttempted, setPlayAttempted] = useState(false);
-
     const handlePlayRequest = () => {
         if (remoteVideoRef.current) {
-            remoteVideoRef.current.play().catch(e => console.warn("[Viewer] Auto-play blocked:", e));
+            remoteVideoRef.current.play().catch(() => {});
             setPlayAttempted(true);
         }
     };
@@ -208,155 +155,105 @@ const LiveCameraStream: React.FC<LiveCameraStreamProps> = ({ device, onFullscree
             onClick={handlePlayRequest}
             className="relative w-full h-full bg-neutral-950 rounded-[2rem] overflow-hidden border border-white/5 group shadow-2xl cursor-pointer"
         >
+            {/* ── Video / Status ── */}
             {isConnected && remoteStream ? (
                 <>
                     <video
                         ref={remoteVideoRef}
                         className={cn(
-                          "absolute inset-0 h-full w-full object-cover transition-all duration-700 gpu-accelerated",
-                          (device as any)?.isNightVision ? "brightness-[1.8] contrast-[1.4] sepia-[1] hue-rotate-[70deg] saturate-[2.5] invert-[0.05]" : "",
+                          "absolute inset-0 h-full w-full object-cover transition-all duration-700",
+                          isNightVision ? "brightness-[1.8] contrast-[1.4] sepia-[1] hue-rotate-[70deg] saturate-[2.5] invert-[0.05]" : "",
                           zoomLevel > 1.5 && "brightness-[1.05] contrast-[1.1] saturate-[1.05]"
                         )}
-                        style={{ 
-                          transformOrigin: `${zoomCenter.x}% ${zoomCenter.y}%`, 
+                        style={{
+                          transformOrigin: `${zoomCenter.x}% ${zoomCenter.y}%`,
                           transform: `scale(${zoomLevel})`,
                           imageRendering: zoomLevel > 2 ? 'crisp-edges' : 'auto'
                         }}
-                        autoPlay
-                        playsInline
-                        muted
+                        autoPlay playsInline muted
                     />
-
                     <AIOverlays isMonitoring={isAiActive} analysis={aiAnalysis} canvasRef={canvasRef} isThermal={isThermal} />
 
-                    {/* Mesh Priority Badge */}
+                    {/* Person pill — tiny, bottom-left */}
                     {aiAnalysis?.detected_objects?.some((obj: any) => obj.label?.toLowerCase().includes('person')) && (
-                      <div className="absolute top-5 left-5 z-40 animate-pulse pointer-events-none">
-                        <div className="bg-red-600 border border-red-400 text-white text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-[10px] shadow-[0_0_20px_rgba(220,38,38,0.6)]">
-                          Person detected
-                        </div>
+                      <div className="absolute bottom-3 left-3 z-40 pointer-events-none">
+                        <span className="bg-red-600/90 text-white text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full animate-pulse">
+                          Person
+                        </span>
                       </div>
                     )}
-
-                    <AnimatePresence>
-                        {!playAttempted && (
-                            <motion.div
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                exit={{ opacity: 0 }}
-                                className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/40 backdrop-blur-sm group-hover:bg-black/20 transition-all"
-                            >
-                                <div className="h-20 w-20 rounded-full bg-white/10 border border-white/20 flex items-center justify-center backdrop-blur-2xl shadow-2xl animate-pulse">
-                                    <Maximize2 className="h-8 w-8 text-white" />
-                                </div>
-                                <span className="absolute bottom-12 text-[10px] font-bold text-white/50 tracking-wide">Tap to watch</span>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
                 </>
             ) : isOnline ? (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-neutral-900/50 z-10 backdrop-blur-xl">
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-neutral-900/60 z-10 backdrop-blur-sm">
                     {connectionState === "failed" ? (
-                        <div className="flex flex-col items-center gap-4">
-                            <div className="p-3 bg-destructive/10 rounded-2xl text-destructive">
-                                <AlertTriangle className="h-6 w-6" />
-                            </div>
-                            <div className="text-center">
-                                <p className="text-sm font-semibold text-white">Connection lost</p>
-                                <p className="text-[10px] text-muted-foreground mt-1">Make sure the camera app is open, then tap Reconnect.</p>
-                            </div>
-                            <Button onClick={() => { disconnect(); setTimeout(connect, 500); }} variant="outline" size="sm" className="bg-white/5 border-white/10 rounded-xl h-9 px-6 text-[10px] uppercase font-bold tracking-widest hover:bg-white/10">
-                                <RefreshCw className="h-3 w-3 mr-2" /> Reconnect
+                        <div className="flex flex-col items-center gap-3">
+                            <AlertTriangle className="h-5 w-5 text-destructive" />
+                            <p className="text-[10px] text-white/50">Connection lost</p>
+                            <Button onClick={() => { disconnect(); setTimeout(connect, 500); }} variant="ghost" size="sm" className="h-7 px-4 text-[10px] rounded-full border border-white/10 hover:bg-white/10">
+                                <RefreshCw className="h-3 w-3 mr-1.5" /> Retry
                             </Button>
                         </div>
                     ) : (
-                        <div className="flex flex-col items-center gap-4 p-6 bg-black/40 backdrop-blur-md rounded-3xl border border-white/5">
-                            <div className="h-8 w-8 mx-auto animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                            <div className="flex flex-col items-center gap-1 text-center">
-                                <p className="text-[10px] font-black uppercase tracking-widest text-primary">
-                                    {connectionState === "new" ? "Finding camera…" : "Connecting…"}
-                                </p>
-                                <p className="text-sm text-white/70">
-                                    {connectionState === "new" ? "Looking for your camera on the network." : "Almost ready — video should appear soon."}
-                                </p>
-                                <span className="text-[10px] uppercase tracking-widest text-white/30 mt-1">{device.name}</span>
-                            </div>
+                        <div className="flex flex-col items-center gap-2">
+                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                            <p className="text-[9px] text-white/30 uppercase tracking-widest">
+                                {connectionState === "new" ? "Finding…" : "Connecting…"}
+                            </p>
                         </div>
                     )}
                 </div>
             ) : (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-neutral-900/40 z-10">
-                    <div className="p-4 bg-white/5 rounded-3xl border border-white/5 mb-4">
-                        <WifiOff className="h-8 w-8 text-white/20" />
-                    </div>
-                    <p className="text-[10px] text-white/50 font-semibold tracking-wide">Camera is offline</p>
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-neutral-900/40 z-10 gap-2">
+                    <WifiOff className="h-5 w-5 text-white/10" />
+                    <p className="text-[9px] text-white/20 tracking-wide">Offline</p>
                 </div>
             )}
 
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/40 pointer-events-none z-10" />
+            {/* ── Hover-only gradient ── */}
+            <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-black/50 to-transparent pointer-events-none z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
 
-            {/* Top Bar: Minimal Info */}
-            <div className="absolute top-0 left-0 right-0 p-5 flex justify-between items-start z-20 pointer-events-none">
-                <div className="flex flex-col gap-2 pointer-events-auto">
-                    <div className="px-3 py-1.5 rounded-full bg-black/40 backdrop-blur-xl border border-white/5 flex items-center gap-2.5">
-                        <div className="relative flex h-2 w-2">
-                           {isConnected ? (
-                               <>
-                                 <div className="animate-ping absolute inset-0 rounded-full bg-red-500 opacity-75" />
-                                 <div className="relative rounded-full h-2 w-2 bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]" />
-                               </>
-                           ) : isOnline ? (
-                               <div className="rounded-full h-2 w-2 bg-primary animate-pulse shadow-[0_0_8px_rgba(var(--primary),0.5)]" />
-                           ) : (
-                               <div className="rounded-full h-2 w-2 bg-white/20" />
-                           )}
-                        </div>
-                        <span className="text-[10px] font-bold text-white uppercase tracking-widest">{isConnected ? "Live" : connectionLabel}</span>
-                        {device.battery_level !== undefined && (
-                          <>
-                            <div className="h-2 w-[1px] bg-white/10" />
-                            <span className={cn(
-                              "text-[9px] font-black tracking-widest",
-                              device.is_charging ? "text-green-400" : (device.battery_level < 20 ? "text-red-500" : "text-white/60")
-                            )}>
-                              {device.battery_level}%{device.is_charging ? "⚡" : ""}
-                            </span>
-                          </>
-                        )}
-                    </div>
-                    <div className="flex flex-col gap-1 px-1">
-                      <button 
-                        onClick={handleRename}
-                        className="text-sm font-bold text-white tracking-tight drop-shadow-lg truncate max-w-[180px] hover:text-primary transition-colors text-left"
-                      >
-                          {device.name}
-                      </button>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[8px] font-black uppercase tracking-[0.2em] text-primary">
-                          {device.unread_alerts || 0} New
-                        </span>
-                        <div className="h-1 w-1 rounded-full bg-white/10" />
-                        <span className="text-[8px] font-black uppercase tracking-[0.2em] text-white/30">
-                          {device.total_clips || 0} Clips
-                        </span>
-                      </div>
-                    </div>
+            {/* ── Hover-only top info bar ── */}
+            <div className="absolute top-2.5 left-3 z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none flex items-center gap-1.5">
+                <div className="relative flex h-1.5 w-1.5">
+                    {isConnected ? (
+                        <>
+                          <div className="animate-ping absolute inset-0 rounded-full bg-red-500 opacity-75" />
+                          <div className="relative rounded-full h-1.5 w-1.5 bg-red-500" />
+                        </>
+                    ) : isOnline ? (
+                        <div className="rounded-full h-1.5 w-1.5 bg-primary animate-pulse" />
+                    ) : (
+                        <div className="rounded-full h-1.5 w-1.5 bg-white/20" />
+                    )}
                 </div>
+                <span className="text-[9px] font-semibold text-white/60 drop-shadow truncate max-w-[130px]">{device.name}</span>
+                {device.battery_level !== undefined && (
+                  <span className={cn("text-[9px] font-bold", device.is_charging ? "text-green-400" : device.battery_level < 20 ? "text-red-400" : "text-white/30")}>
+                    {device.battery_level}%{device.is_charging ? "⚡" : ""}
+                  </span>
+                )}
             </div>
 
-            {/* Slide-out Controls Drawer */}
+            {/* ── Unread alert badge (always visible) ── */}
+            {(device.unread_alerts || 0) > 0 && (
+              <div className="absolute top-2 right-2 z-30 h-4 w-4 rounded-full bg-red-500 flex items-center justify-center pointer-events-none shadow-lg">
+                <span className="text-[7px] font-black text-white">{device.unread_alerts}</span>
+              </div>
+            )}
+
+            {/* ── Controls drawer (hover-only tab) ── */}
             <div
-              className="absolute right-0 top-1/2 -translate-y-1/2 z-50 flex items-center"
+              className="absolute right-0 top-1/2 -translate-y-1/2 z-50 flex items-center opacity-0 group-hover:opacity-100 transition-opacity duration-200"
               onClick={e => e.stopPropagation()}
             >
               <AnimatePresence>
                 {isDrawerOpen && (
                   <motion.div
                     key="drawer-panel"
-                    initial={{ opacity: 0, x: 24 }}
+                    initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 24 }}
-                    transition={{ type: "spring", damping: 26, stiffness: 320 }}
+                    exit={{ opacity: 0, x: 20 }}
+                    transition={{ type: "spring", damping: 28, stiffness: 340 }}
                     className="bg-black/85 backdrop-blur-2xl border border-white/10 rounded-2xl p-2 flex flex-col gap-0.5 shadow-2xl w-48 max-h-[75vh] overflow-y-auto mr-1"
                   >
                     <DrawerSection label="View">
@@ -367,33 +264,20 @@ const LiveCameraStream: React.FC<LiveCameraStreamProps> = ({ device, onFullscree
                       </div>
                       <DrawerBtn icon={<Maximize className="h-4 w-4" />} label="Fullscreen" onClick={handleFullscreenInternal} />
                     </DrawerSection>
-
                     <DrawerSection label="Camera">
                       <DrawerBtn icon={isFlashOn ? <Flashlight className="h-4 w-4" /> : <FlashlightOff className="h-4 w-4" />} label="Flashlight" active={isFlashOn} activeClass="bg-yellow-400/20 text-yellow-300 border border-yellow-400/30" onClick={() => sendCommand('TOGGLE_FLASH')} disabled={!isConnected} />
                       <DrawerBtn icon={isNightVision ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />} label="Night Mode" active={isNightVision} activeClass="bg-green-500/20 text-green-400 border border-green-400/30" onClick={() => sendCommand('TOGGLE_NIGHT_VISION')} disabled={!isConnected} />
                       <DrawerBtn icon={<Camera className="h-4 w-4" />} label="Take Snapshot" onClick={() => sendData({ type: 'COMMAND', action: 'TAKE_SNAPSHOT' })} disabled={!isConnected} />
                     </DrawerSection>
-
                     <DrawerSection label="Audio">
                       <DrawerBtn icon={muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />} label={muted ? "Tap to Unmute" : "Mute Audio"} active={!muted} activeClass="bg-blue-500/20 text-blue-300 border border-blue-400/30" onClick={() => setMuted(!muted)} />
-                      <DrawerBtn
-                        icon={<Mic className={cn("h-4 w-4", isTalkActive && "animate-pulse")} />}
-                        label={isTalkActive ? "Talking..." : "Hold to Talk"}
-                        active={isTalkActive}
-                        activeClass="bg-red-500/20 text-red-400 border border-red-400/30"
-                        onPointerDown={startTalk}
-                        onPointerUp={endTalk}
-                        onPointerLeave={endTalk}
-                        disabled={!isConnected}
-                      />
+                      <DrawerBtn icon={<Mic className={cn("h-4 w-4", isTalkActive && "animate-pulse")} />} label={isTalkActive ? "Talking..." : "Hold to Talk"} active={isTalkActive} activeClass="bg-red-500/20 text-red-400 border border-red-400/30" onPointerDown={startTalk} onPointerUp={endTalk} onPointerLeave={endTalk} disabled={!isConnected} />
                     </DrawerSection>
-
                     <DrawerSection label="AI & Detection">
                       <DrawerBtn icon={<Brain className={cn("h-4 w-4", isAiActive && "animate-pulse")} />} label="AI Detection" active={isAiActive} activeClass="bg-purple-500/20 text-purple-400 border border-purple-400/30" onClick={() => sendCommand('TOGGLE_AI')} disabled={!isConnected} />
                       <DrawerBtn icon={<Thermometer className="h-4 w-4" />} label="Thermal View" active={isThermal} activeClass="bg-orange-500/20 text-orange-400 border border-orange-400/30" onClick={() => setIsThermal(!isThermal)} />
                       <DrawerBtn icon={<AlertTriangle className="h-4 w-4" />} label="Alarm" active={isSirenOn} activeClass="bg-red-500/20 text-red-400 border border-red-400/30 animate-pulse" onClick={() => sendCommand('TOGGLE_SIREN')} disabled={!isConnected} />
                     </DrawerSection>
-
                     <DrawerSection label="Connection" isLast>
                       <DrawerBtn icon={<RefreshCw className="h-4 w-4" />} label="Reconnect" onClick={() => { disconnect(); setTimeout(connect, 500); }} />
                     </DrawerSection>
@@ -401,28 +285,13 @@ const LiveCameraStream: React.FC<LiveCameraStreamProps> = ({ device, onFullscree
                 )}
               </AnimatePresence>
 
+              {/* Slim tab — visible on hover */}
               <button
                 onClick={(e) => { e.stopPropagation(); setIsDrawerOpen(p => !p); }}
-                className="h-24 w-8 bg-black/60 backdrop-blur-md border border-white/10 border-r-0 rounded-l-2xl flex flex-col items-center justify-center gap-2 text-white/40 hover:bg-white/10 hover:text-white/80 transition-all shadow-2xl"
+                className="h-14 w-5 bg-black/50 backdrop-blur-md border border-white/10 border-r-0 rounded-l-xl flex items-center justify-center text-white/25 hover:bg-white/10 hover:text-white/60 transition-all"
               >
-                <ChevronRight className={cn("h-4 w-4 transition-transform duration-300", isDrawerOpen && "rotate-180")} />
-                <span
-                  className="text-[7px] uppercase tracking-widest font-bold"
-                  style={{ writingMode: 'vertical-rl' }}
-                >Controls</span>
+                <ChevronRight className={cn("h-3 w-3 transition-transform duration-200", isDrawerOpen && "rotate-180")} />
               </button>
-            </div>
-
-            {/* Fullscreen Button */}
-            <div className="absolute top-5 right-5 opacity-0 group-hover:opacity-100 transition-opacity z-40">
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={handleFullscreenInternal}
-                    className="h-10 w-10 rounded-full bg-white/5 hover:bg-white/10 backdrop-blur-xl border border-white/10 text-white transition-all shadow-xl"
-                >
-                    <Maximize className="h-4 w-4" />
-                </Button>
             </div>
         </div>
     );

@@ -181,6 +181,71 @@ const Dashboard = () => {
     }
   };
 
+  // Detect real device model from User-Agent (works on Android/iOS browsers)
+  const getDeviceModelName = (): string => {
+    const ua = navigator.userAgent;
+
+    // Samsung devices: "Samsung Galaxy S9" / "SM-G960F" etc.
+    const samsungMatch = ua.match(/Samsung[- ]([^\s;)]+)/i) || ua.match(/SM-([A-Z0-9]+)/i);
+    if (samsungMatch) {
+      // Try to humanise model numbers: SM-G960 → Samsung S9, SM-A515 → Samsung A51
+      const model = samsungMatch[1].toUpperCase();
+      const knownSamsung: Record<string, string> = {
+        'G960': 'Samsung S9', 'G965': 'Samsung S9+',
+        'G970': 'Samsung S10e', 'G973': 'Samsung S10', 'G975': 'Samsung S10+',
+        'G980': 'Samsung S20', 'G988': 'Samsung S20 Ultra',
+        'G991': 'Samsung S21', 'G998': 'Samsung S21 Ultra',
+        'S901': 'Samsung S22', 'S908': 'Samsung S22 Ultra',
+        'S911': 'Samsung S23', 'S918': 'Samsung S23 Ultra',
+        'S921': 'Samsung S24', 'S928': 'Samsung S24 Ultra',
+        'A515': 'Samsung A51', 'A525': 'Samsung A52', 'A536': 'Samsung A53',
+        'A546': 'Samsung A54', 'A556': 'Samsung A55',
+        'N975': 'Samsung Note 10+', 'N986': 'Samsung Note 20 Ultra',
+      };
+      const prefix = model.replace(/^SM-/, '').slice(0, 4);
+      if (knownSamsung[prefix]) return knownSamsung[prefix];
+      return `Samsung ${model.replace(/^SM-/, '')}`;
+    }
+
+    // iPhone / iPad
+    const iosMatch = ua.match(/iPhone|iPad/i);
+    if (iosMatch) {
+      // iOS UA doesn't expose model number well, use generic
+      const isIPad = /iPad/i.test(ua);
+      return isIPad ? 'iPad' : 'iPhone';
+    }
+
+    // Google Pixel
+    const pixelMatch = ua.match(/Pixel[- ]?(\d+[a-zA-Z]*)/i);
+    if (pixelMatch) return `Google Pixel ${pixelMatch[1]}`;
+
+    // OnePlus
+    const opMatch = ua.match(/OnePlus[- ]?([^\s;)]+)/i);
+    if (opMatch) return `OnePlus ${opMatch[1]}`;
+
+    // Xiaomi / Redmi / Poco
+    const xiaomiMatch = ua.match(/(Redmi|POCO|Mi)[- ]?([^\s;)]+)/i);
+    if (xiaomiMatch) return `${xiaomiMatch[1]} ${xiaomiMatch[2]}`;
+
+    // Huawei
+    const huaweiMatch = ua.match(/HUAWEI[- ]?([^\s;)]+)/i);
+    if (huaweiMatch) return `Huawei ${huaweiMatch[1]}`;
+
+    // Generic Android with model
+    const androidMatch = ua.match(/\(Linux;[^)]*;\s*([^;)]+)\s*Build\//i);
+    if (androidMatch) {
+      const raw = androidMatch[1].trim();
+      if (raw && raw !== 'Android') return raw;
+    }
+
+    // Desktop fallback
+    if (/Windows/i.test(ua)) return 'Windows PC';
+    if (/Macintosh/i.test(ua)) return 'Mac';
+    if (/Linux/i.test(ua)) return 'Linux';
+
+    return 'Unknown device';
+  };
+
   const getOrCreateDeviceId = () => {
     let id = localStorage.getItem("hguard_device_persistent_id");
     if (!id) {
@@ -196,7 +261,7 @@ const Dashboard = () => {
 
     const persistentId = getOrCreateDeviceId();
     const storedName = localStorage.getItem("hguard_preferred_name") || sessionStorage.getItem("hguard_preferred_name");
-    const deviceName = storedName || customName || `${navigator.platform} Viewer (${persistentId.slice(0, 4)})`;
+    const deviceName = storedName || customName || `${getDeviceModelName()} Viewer`;
     
     if (customName) {
       localStorage.setItem("hguard_preferred_name", customName);
@@ -247,7 +312,7 @@ const Dashboard = () => {
 
     const persistentId = getOrCreateDeviceId();
     const storedName = localStorage.getItem("hguard_preferred_name") || sessionStorage.getItem("hguard_preferred_name");
-    const deviceName = storedName || customName || `${navigator.platform} Camera (${persistentId.slice(0, 4)})`;
+    const deviceName = storedName || customName || `${getDeviceModelName()} Camera`;
     
     if (customName) {
       localStorage.setItem("hguard_preferred_name", customName);
