@@ -23,12 +23,19 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      {/* Top bar */}
-      <header className="glass-panel sticky top-0 z-50 flex h-20 items-center justify-between px-6 border-b border-white/5">
-        <Link to="/dashboard" className="flex items-center gap-3">
-          <Logo size="sm" className="h-10" />
-        </Link>
-        <div className="flex items-center gap-4">
+      <header className="glass-panel sticky top-0 z-50 flex h-24 items-center px-6 border-b border-white/5 relative">
+        {/* Left side empty space to balance layout */}
+        <div className="w-12 h-12 hidden sm:block" />
+
+        {/* Centered Bigger Logo */}
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+          <Link to="/dashboard" className="flex items-center justify-center">
+            <Logo size="md" className="h-16 w-16" />
+          </Link>
+        </div>
+
+        {/* Right side controls */}
+        <div className="flex items-center gap-4 ml-auto">
           <span className="text-[8px] font-black text-primary/40 uppercase tracking-widest hidden sm:block">
             { (window as any).hGuard_Version || "v2.5.2" }
           </span>
