@@ -423,8 +423,8 @@ const SettingsPage = () => {
     <AppLayout>
       <div className="p-6 max-w-2xl mx-auto space-y-10 mb-20 tracking-tighter">
         <div className="space-y-2">
-          <h1 className="text-4xl font-black uppercase leading-none">Settings</h1>
-          <p className="text-lg text-muted-foreground font-medium">Control your security settings and preferences.</p>
+          <h1 className="text-3xl font-black uppercase leading-none">Settings</h1>
+          <p className="text-base text-muted-foreground font-medium">Control your security settings and preferences.</p>
         </div>
 
         {/* My Cameras & Viewers — Rename Section */}
@@ -432,7 +432,7 @@ const SettingsPage = () => {
           <div className="flex items-center gap-3 text-primary">
             <CameraIcon className="w-8 h-8" />
             <div>
-              <h2 className="text-2xl font-black tracking-tight">My cameras & viewers</h2>
+              <h2 className="text-xl font-black tracking-tight">My cameras & viewers</h2>
               <p className="text-xs text-muted-foreground mt-0.5">Tap any name to rename it</p>
             </div>
           </div>
@@ -505,7 +505,7 @@ const SettingsPage = () => {
         <div className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-4">
           <div className="flex items-center gap-3 text-primary">
             <Bell className="w-8 h-8" />
-            <h2 className="text-2xl font-black uppercase tracking-tight">Alert Preferences</h2>
+            <h2 className="text-xl font-black uppercase tracking-tight">Alert Preferences</h2>
           </div>
           <div className="grid grid-cols-3 gap-3">
             <Button
@@ -552,7 +552,7 @@ const SettingsPage = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3 text-primary">
               <Clock className="w-8 h-8" />
-              <h2 className="text-2xl font-black tracking-tight">Motion Schedule</h2>
+              <h2 className="text-xl font-black tracking-tight">Motion Schedule</h2>
             </div>
             <Switch
               checked={schedule.enabled}
@@ -598,7 +598,7 @@ const SettingsPage = () => {
           <div className="flex items-center justify-between pt-4">
             <div className="flex items-center gap-3 text-primary">
               <Shield className="w-8 h-8" />
-              <h2 className="text-2xl font-black tracking-tight">Smart Detection</h2>
+              <h2 className="text-xl font-black tracking-tight">Smart Detection</h2>
             </div>
             <Switch
               checked={ignorePets}
@@ -618,13 +618,13 @@ const SettingsPage = () => {
         <div className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-4">
           <div className="flex items-center gap-3 text-primary">
             <LockIcon className="w-8 h-8" />
-            <h2 className="text-2xl font-black tracking-tight">Security & PIN</h2>
+            <h2 className="text-xl font-black tracking-tight">Security & PIN</h2>
           </div>
           <div className="space-y-6">
             <div className="p-6 bg-primary/5 border-2 border-primary/20 rounded-[2.5rem] space-y-4">
               <div className="flex items-center justify-between">
                 <div className="space-y-1">
-                  <p className="text-lg font-black uppercase leading-none">Deletion Guard</p>
+                  <p className="text-base font-black uppercase leading-none">Deletion Guard</p>
                   <p className="text-sm font-bold opacity-80 uppercase tracking-tight">Requires 4-digit PIN for destructive actions.</p>
                 </div>
                 {securityPin ? (
@@ -642,7 +642,7 @@ const SettingsPage = () => {
                   value={newPin}
                   onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ""))}
                   placeholder={securityPin ? "Change PIN (4 digits)" : "Set PIN (4 digits)"}
-                  className="h-14 font-black text-2xl tracking-[0.5em] text-center rounded-2xl bg-zinc-900/70 border-2"
+                  className="h-14 font-black text-xl tracking-[0.5em] text-center rounded-2xl bg-zinc-900/70 border-2"
                 />
                 <Button onClick={savePin} disabled={loading || newPin.length !== 4} size="lg" className="h-14 px-8 rounded-2xl font-black">
                   {securityPin ? "Update" : "Set"}
@@ -669,13 +669,13 @@ const SettingsPage = () => {
         <div className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-4">
           <div className="flex items-center gap-3 text-primary">
             <HardDrive className="w-8 h-8" />
-            <h2 className="text-2xl font-black tracking-tight">Storage Control</h2>
+            <h2 className="text-xl font-black tracking-tight">Storage Control</h2>
           </div>
           
           <div className="p-6 bg-primary/5 border-2 border-primary/20 rounded-[2rem] space-y-8">
             <div className="space-y-6">
               <div className="flex justify-between items-center">
-                <p className="text-lg font-black leading-none">Storage Limit</p>
+                <p className="text-base font-black leading-none">Storage Limit</p>
                 <div className="flex items-center gap-2">
                   <Input
                     type="number"
@@ -742,7 +742,7 @@ const SettingsPage = () => {
         <div className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-4">
           <div className="flex items-center gap-3 text-primary">
             <ShieldCheck className="w-8 h-8" />
-            <h2 className="text-2xl font-black uppercase tracking-tight">Account Sync</h2>
+            <h2 className="text-xl font-black uppercase tracking-tight">Account Sync</h2>
           </div>
           <div className={cn(
             "p-6 rounded-[2rem] border-2 transition-all flex items-center justify-between",
@@ -751,7 +751,7 @@ const SettingsPage = () => {
             <div className="flex items-center gap-4">
               <div className={cn("h-4 w-4 rounded-full", localStorage.getItem("google_drive_token") ? "bg-green-500 animate-pulse" : "bg-white/20")} />
               <div>
-                <p className="text-lg font-black uppercase leading-none">Google Drive</p>
+                <p className="text-base font-black uppercase leading-none">Google Drive</p>
                 <p className="text-xs font-bold opacity-80 uppercase tracking-tight">
                   {localStorage.getItem("google_drive_token") ? "Authorized & Linked" : "Not Linked"}
                 </p>
@@ -772,7 +772,7 @@ const SettingsPage = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3 text-primary">
               <Brain className="w-8 h-8" />
-              <h2 className="text-2xl font-black tracking-tight">AI Settings</h2>
+              <h2 className="text-xl font-black tracking-tight">AI Settings</h2>
             </div>
             <Switch
               checked={autoUpgrade}
@@ -830,7 +830,7 @@ const SettingsPage = () => {
         <div className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-4">
           <div className="flex items-center gap-3 text-primary">
             <Brain className="w-8 h-8" />
-            <h2 className="text-2xl font-black uppercase tracking-tight">Custom AI Keys</h2>
+            <h2 className="text-xl font-black uppercase tracking-tight">Custom AI Keys</h2>
           </div>
           <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
             Configure your custom API keys for extended AI quotas.
@@ -1066,7 +1066,7 @@ const SettingsPage = () => {
         <div className="bg-destructive/5 border border-destructive/20 rounded-2xl p-4 space-y-4">
           <div className="flex items-center gap-3 text-destructive">
             <Zap className="w-8 h-8" />
-            <h2 className="text-2xl font-black tracking-tight">Remove all cameras</h2>
+            <h2 className="text-xl font-black tracking-tight">Remove all cameras</h2>
           </div>
           <div className="space-y-4">
             <p className="text-sm font-bold text-destructive/60 uppercase tracking-widest leading-relaxed">
@@ -1074,13 +1074,13 @@ const SettingsPage = () => {
             </p>
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="destructive" className="w-full h-16 rounded-[2rem] font-black tracking-wide text-lg">
+                <Button variant="destructive" className="w-full h-16 rounded-[2rem] font-black tracking-wide text-base">
                   Remove all cameras
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent className="bg-zinc-950 border-destructive/50">
                 <AlertDialogHeader>
-                  <AlertDialogTitle className="text-2xl font-black text-destructive italic underline">Confirm reset</AlertDialogTitle>
+                  <AlertDialogTitle className="text-xl font-black text-destructive italic underline">Confirm reset</AlertDialogTitle>
                   <AlertDialogDescription className="text-white/70 font-bold uppercase tracking-widest leading-loose">
                     This permanently removes all cameras from your account. You'll need to set them up again.
                   </AlertDialogDescription>
@@ -1109,7 +1109,7 @@ const SettingsPage = () => {
         <div className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-4">
           <div className="flex items-center gap-3 text-primary">
             <Zap className="h-8 w-8" />
-            <h2 className="text-2xl font-black uppercase tracking-tight">Automation</h2>
+            <h2 className="text-xl font-black uppercase tracking-tight">Automation</h2>
           </div>
           <div className="p-8 bg-card/40 border-2 border-border/40 rounded-[2.5rem] space-y-4">
             <p className="text-[10px] font-black uppercase tracking-widest text-white/70">Real-time Webhook URL</p>
@@ -1131,7 +1131,7 @@ const SettingsPage = () => {
         <div className="bg-orange-500/5 border border-orange-500/20 rounded-2xl p-4 space-y-4">
           <div className="flex items-center gap-3 text-orange-400">
             <LockIcon className="w-8 h-8" />
-            <h2 className="text-2xl font-black uppercase tracking-tight">Session Control</h2>
+            <h2 className="text-xl font-black uppercase tracking-tight">Session Control</h2>
           </div>
           <div className="space-y-4">
             <p className="text-sm font-bold text-orange-400/70 uppercase tracking-widest leading-relaxed">
@@ -1149,7 +1149,7 @@ const SettingsPage = () => {
               </AlertDialogTrigger>
               <AlertDialogContent className="bg-zinc-950 border-orange-500/40">
                 <AlertDialogHeader>
-                  <AlertDialogTitle className="text-2xl font-black text-orange-400">Force Global Logout?</AlertDialogTitle>
+                  <AlertDialogTitle className="text-xl font-black text-orange-400">Force Global Logout?</AlertDialogTitle>
                   <AlertDialogDescription className="text-white/70 font-bold uppercase tracking-widest leading-loose">
                     This will immediately sign out ALL devices connected to your account, clear their local caches, and redirect them to the login screen. You will also be signed out.
                   </AlertDialogDescription>
