@@ -1,111 +1,224 @@
-const QUOTA_KEY = "hguard_ai_quota";
-const QUOTA_LIMIT = 40; // calls per 24h window
+/**
+ * Multi-provider AI cascade: Gemini → OpenAI → Claude
+ * Each provider has its own 24h quota bucket stored in localStorage.
+ * When one is exhausted, the next kicks in automatically.
+ */
 
-interface QuotaState {
+const WINDOW_MS = 24 * 60 * 60 * 1000;
+
+interface QuotaBucket {
   count: number;
-  windowStart: number; // epoch ms
+  windowStart: number;
 }
 
-const getQuota = (): QuotaState => {
+const PROVIDERS = [
+  { key: "gemini",  limit: 40 },
+  { key: "openai",  limit: 20 },
+  { key: "claude",  limit: 15 },
+] as const;
+
+type ProviderKey = typeof PROVIDERS[number]["key"];
+
+// ── Quota helpers ──────────────────────────────────────────────────────────────
+
+const readBucket = (key: ProviderKey): QuotaBucket => {
   try {
-    const raw = localStorage.getItem(QUOTA_KEY);
+    const raw = localStorage.getItem(`hguard_ai_${key}`);
     if (raw) return JSON.parse(raw);
   } catch {}
   return { count: 0, windowStart: Date.now() };
 };
 
-const saveQuota = (q: QuotaState) => {
-  localStorage.setItem(QUOTA_KEY, JSON.stringify(q));
-};
+const writeBucket = (key: ProviderKey, b: QuotaBucket) =>
+  localStorage.setItem(`hguard_ai_${key}`, JSON.stringify(b));
 
-/** Returns null if within quota, or a human-readable string like "in ~18h" if exhausted */
-export const getAIQuotaStatus = (): null | string => {
-  const q = getQuota();
-  const elapsed = Date.now() - q.windowStart;
-  const windowMs = 24 * 60 * 60 * 1000;
-
-  if (elapsed > windowMs) return null; // window reset — OK
-  if (q.count < QUOTA_LIMIT) return null; // still within limit
-
-  const remainingMs = windowMs - elapsed;
-  const remainingH = Math.ceil(remainingMs / (60 * 60 * 1000));
-  return remainingH <= 1 ? "in <1h" : `in ~${remainingH}h`;
-};
-
-const consumeQuota = (): boolean => {
-  let q = getQuota();
-  const elapsed = Date.now() - q.windowStart;
-  const windowMs = 24 * 60 * 60 * 1000;
-
-  // Reset window if expired
-  if (elapsed > windowMs) {
-    q = { count: 0, windowStart: Date.now() };
-  }
-
-  if (q.count >= QUOTA_LIMIT) return false;
-
-  q.count += 1;
-  saveQuota(q);
+const consume = (key: ProviderKey, limit: number): boolean => {
+  let b = readBucket(key);
+  if (Date.now() - b.windowStart > WINDOW_MS) b = { count: 0, windowStart: Date.now() };
+  if (b.count >= limit) return false;
+  writeBucket(key, { ...b, count: b.count + 1 });
   return true;
 };
 
-export const generateImageSummary = async (base64Image: string): Promise<string> => {
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-  if (!apiKey) {
-    console.warn("Gemini API key not configured.");
-    return "";
-  }
-
-  const exhausted = getAIQuotaStatus();
-  if (exhausted) {
-    return `__AI_EXHAUSTED__:${exhausted}`;
-  }
-
-  if (!consumeQuota()) {
-    const status = getAIQuotaStatus();
-    return `__AI_EXHAUSTED__:${status}`;
-  }
-
-  const base64Data = base64Image.split(",")[1] || base64Image;
-
-  try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{
-            parts: [
-              {
-                text: "You are a security camera AI. Write one specific, natural sentence describing what is happening in this camera frame, as if writing a push notification alert. Be specific about people, actions, and context. Good example: 'A person in a dark jacket is approaching the front door.' Bad example: 'Motion detected.' If nothing notable is happening, say 'No activity detected.'"
-              },
-              { inline_data: { mime_type: "image/jpeg", data: base64Data } }
-            ]
-          }]
-        })
-      }
-    );
-
-    // Detect quota exhaustion from the API itself
-    if (response.status === 429) {
-      // Mark local quota as exhausted
-      const q = getQuota();
-      q.count = QUOTA_LIMIT;
-      saveQuota(q);
-      const status = getAIQuotaStatus();
-      return `__AI_EXHAUSTED__:${status}`;
-    }
-
-    const data = await response.json();
-    return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-  } catch (e) {
-    console.error("Gemini API Error", e);
-    return "";
-  }
+const markExhausted = (key: ProviderKey, limit: number) => {
+  const b = readBucket(key);
+  writeBucket(key, { ...b, count: limit });
 };
 
-/** Parses a generateImageSummary result — returns { exhausted, retryIn, text } */
+/** Returns retry string like "~14h" or null if provider is available */
+const retryIn = (key: ProviderKey, limit: number): string | null => {
+  const b = readBucket(key);
+  const elapsed = Date.now() - b.windowStart;
+  if (elapsed > WINDOW_MS) return null;
+  if (b.count < limit) return null;
+  const h = Math.ceil((WINDOW_MS - elapsed) / 3_600_000);
+  return h <= 1 ? "<1h" : `~${h}h`;
+};
+
+// ── Public quota status (for UI banners) ─────────────────────────────────────
+
+export interface AIQuotaStatus {
+  available: ProviderKey | null; // which provider will handle next call
+  exhausted: Record<ProviderKey, string | null>; // retry times per provider
+  allExhausted: boolean;
+  retryIn: string | null; // earliest retry across all providers
+}
+
+export const getAIQuotaStatus = (): AIQuotaStatus => {
+  const exhausted = {} as Record<ProviderKey, string | null>;
+  let available: ProviderKey | null = null;
+
+  for (const { key, limit } of PROVIDERS) {
+    const r = retryIn(key, limit);
+    exhausted[key] = r;
+    if (!r && !available) available = key;
+  }
+
+  const times = Object.values(exhausted).filter(Boolean) as string[];
+  const allExhausted = available === null;
+
+  // Pick the shortest retry time as the "next available" hint
+  const retryHint = allExhausted
+    ? times.sort((a, b) => {
+        const num = (s: string) => parseInt(s.replace(/\D/g, "")) || 1;
+        return num(a) - num(b);
+      })[0] ?? null
+    : null;
+
+  return { available, exhausted, allExhausted, retryIn: retryHint };
+};
+
+// ── Actual API calls ──────────────────────────────────────────────────────────
+
+const callGemini = async (base64Data: string): Promise<string> => {
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  if (!apiKey) throw new Error("No Gemini key");
+
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{
+          parts: [
+            { text: "You are a security camera AI. Write one specific, natural sentence describing what is happening in this camera frame as a push notification. Be specific about people, actions, and context. If nothing notable: 'No activity detected.'" },
+            { inline_data: { mime_type: "image/jpeg", data: base64Data } }
+          ]
+        }]
+      })
+    }
+  );
+
+  if (res.status === 429) { markExhausted("gemini", 40); throw new Error("429"); }
+  const data = await res.json();
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) throw new Error("empty");
+  return text;
+};
+
+const callOpenAI = async (base64Data: string): Promise<string> => {
+  const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
+  if (!apiKey) throw new Error("No OpenAI key");
+
+  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      model: "gpt-4o-mini",
+      max_tokens: 60,
+      messages: [{
+        role: "user",
+        content: [
+          { type: "text", text: "You are a security camera AI. One sentence: what is happening in this frame? Be specific. If nothing notable: 'No activity detected.'" },
+          { type: "image_url", image_url: { url: `data:image/jpeg;base64,${base64Data}`, detail: "low" } }
+        ]
+      }]
+    })
+  });
+
+  if (res.status === 429) { markExhausted("openai", 20); throw new Error("429"); }
+  const data = await res.json();
+  const text = data.choices?.[0]?.message?.content;
+  if (!text) throw new Error("empty");
+  return text;
+};
+
+const callClaude = async (base64Data: string): Promise<string> => {
+  const apiKey = import.meta.env.VITE_CLAUDE_API_KEY;
+  if (!apiKey) throw new Error("No Claude key");
+
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01"
+    },
+    body: JSON.stringify({
+      model: "claude-3-haiku-20240307",
+      max_tokens: 60,
+      messages: [{
+        role: "user",
+        content: [
+          { type: "image", source: { type: "base64", media_type: "image/jpeg", data: base64Data } },
+          { type: "text", text: "Security camera AI: one sentence describing what is happening. Be specific. If nothing notable: 'No activity detected.'" }
+        ]
+      }]
+    })
+  });
+
+  if (res.status === 429) { markExhausted("claude", 15); throw new Error("429"); }
+  const data = await res.json();
+  const text = data.content?.[0]?.text;
+  if (!text) throw new Error("empty");
+  return text;
+};
+
+// ── Main entry point ──────────────────────────────────────────────────────────
+
+/**
+ * Analyzes a camera frame using the next available AI provider.
+ * Falls back automatically: Gemini → OpenAI → Claude.
+ * Returns { text, provider, exhausted, retryIn }
+ */
+export const analyzeFrame = async (base64Image: string): Promise<{
+  text: string;
+  provider: ProviderKey | null;
+  exhausted: boolean;
+  retryIn: string | null;
+}> => {
+  const base64Data = base64Image.split(",")[1] || base64Image;
+
+  const callers: Array<{ key: ProviderKey; limit: number; fn: (d: string) => Promise<string> }> = [
+    { key: "gemini", limit: 40, fn: callGemini },
+    { key: "openai", limit: 20, fn: callOpenAI },
+    { key: "claude", limit: 15, fn: callClaude },
+  ];
+
+  for (const { key, limit, fn } of callers) {
+    if (!consume(key, limit)) continue; // quota full, try next
+    try {
+      const text = await fn(base64Data);
+      return { text, provider: key, exhausted: false, retryIn: null };
+    } catch {
+      // API error or 429 — mark exhausted and cascade
+      markExhausted(key, limit);
+    }
+  }
+
+  // All providers exhausted
+  const status = getAIQuotaStatus();
+  return { text: "", provider: null, exhausted: true, retryIn: status.retryIn };
+};
+
+// ── Legacy shim (keeps existing callers working) ──────────────────────────────
+export const generateImageSummary = async (base64Image: string): Promise<string> => {
+  const result = await analyzeFrame(base64Image);
+  if (result.exhausted) return `__AI_EXHAUSTED__:${result.retryIn}`;
+  return result.text;
+};
+
 export const parseAIResult = (result: string) => {
   if (result.startsWith("__AI_EXHAUSTED__:")) {
     return { exhausted: true, retryIn: result.slice("__AI_EXHAUSTED__:".length), text: "" };

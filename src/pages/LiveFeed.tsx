@@ -16,7 +16,8 @@ import {
 } from "firebase/firestore";
 import { useWebRTC } from "@/hooks/useWebRTC";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Wifi, WifiOff, Volume2, VolumeX, Camera, Maximize, RefreshCw, Box, Flashlight, FlashlightOff, AlertTriangle, Users, RotateCw, ChevronRight, Share2, Copy, Check, Maximize2, Moon, Sun, Mic, Brain, Thermometer } from "lucide-react";
+import { ArrowLeft, Wifi, WifiOff, Volume2, VolumeX, Camera, Maximize, RefreshCw, ChevronRight, Share2, Copy, Check, Maximize2, Moon, Sun, Mic, Brain, Thermometer, AlertTriangle, Zap, FlashlightOff } from "lucide-react";
+import { getAIQuotaStatus } from "@/lib/gemini";
 import {
   Dialog,
   DialogContent,
@@ -48,7 +49,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { Logo } from "@/components/Logo";
+
 import { AIOverlays } from "@/components/AIOverlays";
 import { DrawerSection, DrawerBtn } from "@/components/CameraControls";
 
@@ -496,62 +497,26 @@ const LiveFeed = () => {
           </div>
         )}
 
-        {/* Top bar */}
-        <div className="absolute left-0 right-0 top-0 flex items-center justify-between p-4 z-40 bg-gradient-to-b from-black/80 to-transparent pt-6 pb-12">
-          <div className="flex items-center gap-4">
-            <button onClick={() => navigate("/dashboard")} className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 hover:bg-white/20 border border-white/10 backdrop-blur-md transition-colors shadow-lg">
-              <ArrowLeft className="h-5 w-5 text-white" />
-            </button>
-            <Link to="/dashboard">
-              <Logo size="sm" className="h-8 opacity-90 drop-shadow-2xl" />
-            </Link>
-          </div>
+        {/* Top bar — minimal: back + device pill + share */}
+        <div className="absolute left-0 right-0 top-0 flex items-center justify-between px-3 pt-4 pb-10 z-40 bg-gradient-to-b from-black/70 to-transparent">
+          {/* Back */}
+          <button onClick={() => navigate("/dashboard")} className="flex h-9 w-9 items-center justify-center rounded-full bg-black/50 hover:bg-white/20 border border-white/10 backdrop-blur-md transition-colors">
+            <ArrowLeft className="h-4 w-4 text-white" />
+          </button>
 
-          <div className="flex items-center gap-3">
-            {device && (
-              <div className="flex flex-col items-end gap-1 px-4 py-2 bg-black/40 border border-white/10 rounded-2xl backdrop-blur-md">
-                <div className="flex items-center gap-2">
-                  <button 
-                    onClick={handleRename}
-                    className="text-[10px] font-black text-white/60 hover:text-white uppercase tracking-widest transition-colors"
-                  >
-                    {device.name || "Camera"}
-                  </button>
-                  <div className="h-1 w-1 rounded-full bg-white/20" />
-                  <span className={cn(
-                    "text-[10px] font-black uppercase tracking-widest",
-                    (device as any).is_charging ? "text-green-400" : (device as any).battery_level < 20 ? "text-red-500" : "text-white/60"
-                  )}>
-                    {(device as any).battery_level ?? 100}% {(device as any).is_charging ? "Charging" : ""}
-                  </span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-[9px] font-bold text-primary uppercase tracking-[0.2em]">
-                    {(device as any).unread_alerts || 0} New Alerts
-                  </span>
-                  <span className="text-[9px] font-bold text-white/30 uppercase tracking-[0.2em]">
-                    {(device as any).total_clips || 0} Clips
-                  </span>
-                </div>
-              </div>
+          {/* Center: device name + live status */}
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-black/50 border border-white/10 rounded-full backdrop-blur-md">
+            {isConnected ? (
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-primary" />
+              </span>
+            ) : (
+              <div className="h-2 w-2 rounded-full bg-zinc-600" />
             )}
-
-            <div className="flex items-center gap-3 rounded-full bg-black/40 border border-white/10 px-4 py-2 backdrop-blur-md shadow-2xl h-10">
-              {isConnected ? (
-                <>
-                  <span className="relative flex h-3 w-3">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
-                  </span>
-                  <span className="text-sm font-semibold tracking-wide text-white uppercase leading-none">Live</span>
-                </>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <div className="h-2 w-2 rounded-full bg-zinc-600" />
-                  <span className="text-sm font-medium text-white/50 uppercase tracking-widest leading-none">{connectionLabel}</span>
-                </div>
-              )}
-            </div>
+            <span className="text-[11px] font-bold text-white/80 max-w-[120px] truncate">{device?.name || "Camera"}</span>
+            <span className="text-[10px] text-white/30">·</span>
+            <span className="text-[10px] font-bold text-white/50">{isConnected ? "Live" : connectionLabel}</span>
           </div>
 
           <Dialog>
@@ -705,6 +670,19 @@ const LiveFeed = () => {
                 </DrawerSection>
 
                 <DrawerSection label="AI & Detection">
+                  {(() => {
+                    const quota = getAIQuotaStatus();
+                    return quota.allExhausted ? (
+                      <div className="mx-2 my-1 px-2 py-1.5 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center gap-1.5">
+                        <Zap className="h-3 w-3 text-red-400" />
+                        <span className="text-[9px] text-red-300 font-bold">AI quota reset {quota.retryIn}</span>
+                      </div>
+                    ) : quota.available !== "gemini" ? (
+                      <div className="mx-2 my-1 px-2 py-1 rounded-xl bg-yellow-500/10 border border-yellow-500/20">
+                        <span className="text-[8px] text-yellow-300">Using {quota.available?.toUpperCase()} (Gemini full)</span>
+                      </div>
+                    ) : null;
+                  })()}
                   <DrawerBtn icon={<Brain className={cn("h-4 w-4", isAiActive && "animate-pulse")} />} label="AI Detection" active={isAiActive} activeClass="bg-purple-500/20 text-purple-400 border border-purple-400/30" onClick={() => sendCommand('TOGGLE_AI')} disabled={!isConnected} />
                   <DrawerBtn icon={<Thermometer className="h-4 w-4" />} label="Thermal View" active={isThermal} activeClass="bg-orange-500/20 text-orange-400 border border-orange-400/30" onClick={() => setIsThermal(!isThermal)} />
                   <DrawerBtn icon={<AlertTriangle className="h-4 w-4" />} label="Alarm" active={isSirenOn} activeClass="bg-red-500/20 text-red-400 border border-red-400/30 animate-pulse" onClick={() => sendCommand('TOGGLE_SIREN')} disabled={!isConnected} />
