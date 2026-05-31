@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search, Zap, Shield, Video, Moon, Radio, Share2, HelpCircle, ChevronRight, Info, Mic, Thermometer, Sparkles } from "lucide-react";
@@ -100,7 +101,7 @@ const features: FeatureHelp[] = [
   }
 ];
 
-// Mini Animated Thermal Core Simulator
+// 1. Mini Animated Thermal Core Simulator
 const ThermalMiniDemo = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   
@@ -133,10 +134,10 @@ const ThermalMiniDemo = () => {
       const y = canvas.height / 2 + Math.cos(time * 1.5) * 12;
       
       const grad = ctx.createRadialGradient(x, y, 1, x, y, 40);
-      grad.addColorStop(0, "rgba(255, 255, 255, 1.0)"); // hottest
-      grad.addColorStop(0.25, "rgba(249, 115, 22, 0.85)"); // orange
-      grad.addColorStop(0.55, "rgba(239, 68, 68, 0.6)"); // red
-      grad.addColorStop(0.85, "rgba(139, 92, 246, 0.3)"); // violet
+      grad.addColorStop(0, "rgba(255, 255, 255, 1.0)");
+      grad.addColorStop(0.25, "rgba(249, 115, 22, 0.85)");
+      grad.addColorStop(0.55, "rgba(239, 68, 68, 0.6)");
+      grad.addColorStop(0.85, "rgba(139, 92, 246, 0.3)");
       grad.addColorStop(1.0, "transparent");
       
       ctx.fillStyle = grad;
@@ -144,7 +145,6 @@ const ThermalMiniDemo = () => {
       ctx.arc(x, y, 40, 0, Math.PI * 2);
       ctx.fill();
       
-      // Tracking box overlays
       ctx.strokeStyle = "rgba(255, 255, 255, 0.35)";
       ctx.lineWidth = 1;
       ctx.strokeRect(x - 22, y - 22, 44, 44);
@@ -170,7 +170,7 @@ const ThermalMiniDemo = () => {
   );
 };
 
-// Mini Animated Grid Tracking Simulator
+// 2. Mini Animated Grid Tracking Simulator
 const TrackingMiniDemo = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   
@@ -188,7 +188,6 @@ const TrackingMiniDemo = () => {
       ctx.fillStyle = "#08070b";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       
-      // Grid lines
       ctx.strokeStyle = "rgba(255,255,255,0.03)";
       ctx.lineWidth = 1;
       for (let i = 0; i < canvas.width; i += 20) {
@@ -204,11 +203,9 @@ const TrackingMiniDemo = () => {
         { x: 330, y: 35, color: "#22c55e", name: "Cam-03" }
       ];
       
-      // Target position moving in an arc
       const tx = 200 + Math.sin(angle) * 110;
       const ty = 90 + Math.sin(angle * 2) * 20;
       
-      // Check which camera has active lock
       let bestCam = cams[0];
       let minDist = 9999;
       cams.forEach(c => {
@@ -219,7 +216,6 @@ const TrackingMiniDemo = () => {
         }
       });
       
-      // Draw coverage cones
       cams.forEach(c => {
         const isActive = c.name === bestCam.name;
         ctx.strokeStyle = isActive ? `${c.color}50` : "rgba(255,255,255,0.05)";
@@ -231,14 +227,12 @@ const TrackingMiniDemo = () => {
         ctx.fill();
         ctx.stroke();
         
-        // Cam sensor dot
         ctx.fillStyle = isActive ? c.color : "#4b5563";
         ctx.beginPath();
         ctx.arc(c.x, c.y, 5, 0, Math.PI * 2);
         ctx.fill();
       });
       
-      // Connection line
       ctx.strokeStyle = bestCam.color;
       ctx.lineWidth = 1.5;
       ctx.beginPath();
@@ -246,7 +240,6 @@ const TrackingMiniDemo = () => {
       ctx.lineTo(tx, ty);
       ctx.stroke();
       
-      // Target lock box and circle
       ctx.strokeStyle = bestCam.color;
       ctx.strokeRect(tx - 12, ty - 12, 24, 24);
       
@@ -255,7 +248,6 @@ const TrackingMiniDemo = () => {
       ctx.arc(tx, ty, 4, 0, Math.PI * 2);
       ctx.fill();
       
-      // Labels
       ctx.fillStyle = "#9ca3af";
       ctx.font = "8px monospace";
       ctx.fillText(`Mesh Active Lock: ${bestCam.name}`, 12, 20);
@@ -277,11 +269,478 @@ const TrackingMiniDemo = () => {
   );
 };
 
+// 3. Mini Screen Share Mirroring Animation
+const BridgeModeMiniDemo = () => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    let animId = 0;
+    let time = 0;
+    const draw = () => {
+      time += 0.05;
+      ctx.fillStyle = "#0c0a09";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      ctx.strokeStyle = "rgba(255,255,255,0.15)";
+      ctx.strokeRect(10, 15, canvas.width - 20, canvas.height - 30);
+      
+      ctx.fillStyle = "rgba(255,255,255,0.1)";
+      ctx.fillRect(10, 15, canvas.width - 20, 14);
+      ctx.fillStyle = "#ef4444"; ctx.beginPath(); ctx.arc(18, 22, 2, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = "#eab308"; ctx.beginPath(); ctx.arc(24, 22, 2, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = "#22c55e"; ctx.beginPath(); ctx.arc(30, 22, 2, 0, Math.PI*2); ctx.fill();
+      
+      const maxFrames = 4;
+      for (let i = 0; i < maxFrames; i++) {
+        const offset = ((time + i * 1.5) % 6) * 12;
+        const alpha = Math.max(0, 1 - ((time + i * 1.5) % 6) / 6);
+        ctx.strokeStyle = `rgba(234, 179, 8, ${alpha * 0.4})`;
+        ctx.strokeRect(20 + offset, 35 + offset, canvas.width - 40 - offset*2, canvas.height - 60 - offset*2);
+      }
+      
+      ctx.fillStyle = "#eab308";
+      ctx.font = "8px monospace";
+      ctx.fillText("Mirror Active Tab ➔ Casting Feed", 40, 24);
+      
+      animId = requestAnimationFrame(draw);
+    };
+    draw();
+    return () => cancelAnimationFrame(animId);
+  }, []);
+  return (
+    <div className="relative w-full h-36 rounded-[2rem] overflow-hidden border border-white/10 bg-black/40 shadow-inner my-4">
+      <canvas ref={canvasRef} width={400} height={144} className="w-full h-full object-cover" />
+      <div className="absolute bottom-3 right-3 px-3 py-1 bg-black/60 backdrop-blur-md rounded-xl text-[8px] text-white/50 font-mono tracking-wider">
+        Active Screen Mirroring
+      </div>
+    </div>
+  );
+};
+
+// 4. Night Vision Booster Animation
+const NightVisionMiniDemo = () => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    let animId = 0;
+    let time = 0;
+    const draw = () => {
+      time += 0.02;
+      ctx.fillStyle = "#090514";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      const divideX = (Math.sin(time) * 0.5 + 0.5) * canvas.width;
+      
+      // Raw dark
+      ctx.save();
+      ctx.rect(0, 0, divideX, canvas.height);
+      ctx.clip();
+      ctx.fillStyle = "#05020c";
+      ctx.fillRect(0,0,canvas.width,canvas.height);
+      ctx.fillStyle = "rgba(255,255,255,0.04)";
+      ctx.beginPath(); ctx.arc(canvas.width/2, canvas.height/2 + 10, 20, 0, Math.PI*2); ctx.fill();
+      ctx.font = "8px monospace";
+      ctx.fillStyle = "rgba(255,255,255,0.2)";
+      ctx.fillText("Raw dark input", 15, 20);
+      ctx.restore();
+      
+      // Boosted
+      ctx.save();
+      ctx.rect(divideX, 0, canvas.width - divideX, canvas.height);
+      ctx.clip();
+      ctx.fillStyle = "#0c1f10";
+      ctx.fillRect(0,0,canvas.width,canvas.height);
+      const grad = ctx.createRadialGradient(canvas.width/2, canvas.height/2 + 10, 2, canvas.width/2, canvas.height/2 + 10, 30);
+      grad.addColorStop(0, "#ffffff");
+      grad.addColorStop(0.5, "#4ade80");
+      grad.addColorStop(1.0, "transparent");
+      ctx.fillStyle = grad;
+      ctx.beginPath(); ctx.arc(canvas.width/2, canvas.height/2 + 10, 30, 0, Math.PI*2); ctx.fill();
+      ctx.strokeStyle = "#4ade80";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(canvas.width/2 - 25, canvas.height/2 - 15, 50, 50);
+      ctx.font = "8px monospace";
+      ctx.fillStyle = "#4ade80";
+      ctx.fillText("Amplified boosted feed", canvas.width - 150, 20);
+      ctx.restore();
+      
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(divideX, 0);
+      ctx.lineTo(divideX, canvas.height);
+      ctx.stroke();
+      
+      animId = requestAnimationFrame(draw);
+    };
+    draw();
+    return () => cancelAnimationFrame(animId);
+  }, []);
+  return (
+    <div className="relative w-full h-36 rounded-[2rem] overflow-hidden border border-white/10 bg-black/40 shadow-inner my-4">
+      <canvas ref={canvasRef} width={400} height={144} className="w-full h-full object-cover" />
+      <div className="absolute bottom-3 right-3 px-3 py-1 bg-black/60 backdrop-blur-md rounded-xl text-[8px] text-white/50 font-mono tracking-wider">
+        Light Amplifier
+      </div>
+    </div>
+  );
+};
+
+// 5. Cloud Recordings Sliding card Film Strip Animation
+const ArchiveMiniDemo = () => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    let animId = 0;
+    let time = 0;
+    const draw = () => {
+      time += 0.015;
+      ctx.fillStyle = "#0c0a09";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      const cardWidth = 80;
+      const cardHeight = 60;
+      const spacing = 15;
+      const startX = -100 + (time * 50) % (cardWidth + spacing);
+      
+      for (let i = 0; i < 6; i++) {
+        const x = startX + i * (cardWidth + spacing);
+        ctx.fillStyle = "rgba(255,255,255,0.03)";
+        ctx.strokeStyle = "rgba(255,255,255,0.15)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.roundRect(x, 40, cardWidth, cardHeight, 10);
+        ctx.fill();
+        ctx.stroke();
+        
+        ctx.fillStyle = "rgba(255,255,255,0.2)";
+        ctx.beginPath();
+        ctx.moveTo(x + cardWidth/2 - 4, 40 + cardHeight/2 - 6);
+        ctx.lineTo(x + cardWidth/2 + 6, 40 + cardHeight/2);
+        ctx.lineTo(x + cardWidth/2 - 4, 40 + cardHeight/2 + 6);
+        ctx.closePath();
+        ctx.fill();
+        
+        ctx.fillStyle = "rgba(255,255,255,0.3)";
+        ctx.font = "6px monospace";
+        ctx.fillText(`Clip #${Math.floor(time + i * 7) % 100}`, x + 8, 92);
+      }
+      
+      ctx.fillStyle = "rgba(255,255,255,0.4)";
+      ctx.font = "8px monospace";
+      ctx.fillText("Cloud Storage Archive Syncing", 12, 22);
+      
+      animId = requestAnimationFrame(draw);
+    };
+    draw();
+    return () => cancelAnimationFrame(animId);
+  }, []);
+  return (
+    <div className="relative w-full h-36 rounded-[2rem] overflow-hidden border border-white/10 bg-black/40 shadow-inner my-4">
+      <canvas ref={canvasRef} width={400} height={144} className="w-full h-full object-cover" />
+      <div className="absolute bottom-3 right-3 px-3 py-1 bg-black/60 backdrop-blur-md rounded-xl text-[8px] text-white/50 font-mono tracking-wider">
+        Google Drive Vault
+      </div>
+    </div>
+  );
+};
+
+// 6. Access Control Shield and Locks scanner
+const GatekeeperMiniDemo = () => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    let animId = 0;
+    let time = 0;
+    const draw = () => {
+      time += 0.03;
+      ctx.fillStyle = "#0c0a09";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      // Node 1: Admin
+      ctx.fillStyle = "#3b82f6";
+      ctx.beginPath(); ctx.arc(100, 72, 12, 0, Math.PI*2); ctx.fill();
+      ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.fillStyle = "#ffffff"; ctx.font = "7px monospace"; ctx.fillText("ADMIN", 88, 94);
+      
+      // Node 2: Locked Guest
+      const isScanning = (Math.floor(time / 2) % 2) === 0;
+      ctx.fillStyle = isScanning ? "#ef4444" : "#22c55e";
+      ctx.beginPath(); ctx.arc(300, 72, 12, 0, Math.PI*2); ctx.fill();
+      ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.fillStyle = "#ffffff"; ctx.fillText(isScanning ? "LOCKED" : "APPROVED", 278, 94);
+      
+      // beam
+      ctx.strokeStyle = isScanning ? "rgba(239, 68, 68, 0.4)" : "rgba(34, 197, 94, 0.4)";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(112, 72);
+      ctx.bezierCurveTo(180, 50 + Math.sin(time*5)*15, 220, 50 - Math.sin(time*5)*15, 288, 72);
+      ctx.stroke();
+      
+      ctx.fillStyle = "rgba(255,255,255,0.4)";
+      ctx.font = "8px monospace";
+      ctx.fillText(isScanning ? "Scanner: Negotiating access key" : "Scanner: Node approved", 12, 22);
+      
+      animId = requestAnimationFrame(draw);
+    };
+    draw();
+    return () => cancelAnimationFrame(animId);
+  }, []);
+  return (
+    <div className="relative w-full h-36 rounded-[2rem] overflow-hidden border border-white/10 bg-black/40 shadow-inner my-4">
+      <canvas ref={canvasRef} width={400} height={144} className="w-full h-full object-cover" />
+      <div className="absolute bottom-3 right-3 px-3 py-1 bg-black/60 backdrop-blur-md rounded-xl text-[8px] text-white/50 font-mono tracking-wider">
+        Approval Shield
+      </div>
+    </div>
+  );
+};
+
+// 7. Zoom interpolator details vector
+const AIZoomMiniDemo = () => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    let animId = 0;
+    let time = 0;
+    const draw = () => {
+      time += 0.02;
+      ctx.fillStyle = "#0c0a09";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      const zoomRatio = 1 + (Math.sin(time) * 0.5 + 0.5) * 3;
+      
+      ctx.save();
+      ctx.strokeStyle = "rgba(255,255,255,0.06)";
+      ctx.strokeRect(100, 20, 200, 100);
+      ctx.clip();
+      
+      const centerX = 200;
+      const centerY = 70;
+      ctx.strokeStyle = zoomRatio > 2.5 ? "#f97316" : "#ffffff";
+      ctx.lineWidth = zoomRatio > 2.5 ? 2 : 1;
+      
+      ctx.beginPath();
+      ctx.ellipse(centerX, centerY, 15 * zoomRatio, 20 * zoomRatio, 0, 0, Math.PI*2);
+      ctx.stroke();
+      
+      ctx.beginPath();
+      ctx.arc(centerX - 5 * zoomRatio, centerY - 5 * zoomRatio, 1.5 * zoomRatio, 0, Math.PI*2);
+      ctx.arc(centerX + 5 * zoomRatio, centerY - 5 * zoomRatio, 1.5 * zoomRatio, 0, Math.PI*2);
+      ctx.fillStyle = zoomRatio > 2.5 ? "#f97316" : "#ffffff";
+      ctx.fill();
+      
+      ctx.beginPath();
+      ctx.arc(centerX, centerY + 5 * zoomRatio, 4 * zoomRatio, 0, Math.PI, false);
+      ctx.stroke();
+      
+      ctx.restore();
+      
+      ctx.fillStyle = "rgba(255,255,255,0.4)";
+      ctx.font = "8px monospace";
+      ctx.fillText(`Zoom ratio: ${zoomRatio.toFixed(1)}x`, 12, 22);
+      ctx.fillText("AI Raster-to-Vector sharpening", 12, 34);
+      
+      animId = requestAnimationFrame(draw);
+    };
+    draw();
+    return () => cancelAnimationFrame(animId);
+  }, []);
+  return (
+    <div className="relative w-full h-36 rounded-[2rem] overflow-hidden border border-white/10 bg-black/40 shadow-inner my-4">
+      <canvas ref={canvasRef} width={400} height={144} className="w-full h-full object-cover" />
+      <div className="absolute bottom-3 right-3 px-3 py-1 bg-black/60 backdrop-blur-md rounded-xl text-[8px] text-white/50 font-mono tracking-wider">
+        HD Interpolator
+      </div>
+    </div>
+  );
+};
+
+// 8. Voice static filter waves
+const NoiseIsolationMiniDemo = () => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    let animId = 0;
+    let time = 0;
+    const draw = () => {
+      time += 0.08;
+      ctx.fillStyle = "#0c0a09";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      ctx.strokeStyle = "rgba(239, 68, 68, 0.4)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let x = 20; x < canvas.width - 20; x++) {
+        const y = 45 + Math.sin(x*0.1 + time)*15 + (Math.random() - 0.5)*12;
+        if (x === 20) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+      
+      ctx.strokeStyle = "#22c55e";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      for (let x = 20; x < canvas.width - 20; x++) {
+        const y = 95 + Math.sin(x*0.06 + time)*14;
+        if (x === 20) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+      
+      ctx.fillStyle = "#ef4444"; ctx.font = "7px monospace"; ctx.fillText("Static background noise", 20, 25);
+      ctx.fillStyle = "#22c55e"; ctx.fillText("Filtered vocal frequency", 20, 77);
+      
+      animId = requestAnimationFrame(draw);
+    };
+    draw();
+    return () => cancelAnimationFrame(animId);
+  }, []);
+  return (
+    <div className="relative w-full h-36 rounded-[2rem] overflow-hidden border border-white/10 bg-black/40 shadow-inner my-4">
+      <canvas ref={canvasRef} width={400} height={144} className="w-full h-full object-cover" />
+      <div className="absolute bottom-3 right-3 px-3 py-1 bg-black/60 backdrop-blur-md rounded-xl text-[8px] text-white/50 font-mono tracking-wider">
+        Acoustic Filter
+      </div>
+    </div>
+  );
+};
+
+// 9. Audio decibel and mic pulsing rings
+const TwoWayTalkMiniDemo = () => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    let animId = 0;
+    let time = 0;
+    const draw = () => {
+      time += 0.05;
+      ctx.fillStyle = "#0c0a09";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      const radiusBase = (time * 20) % 120;
+      
+      ctx.strokeStyle = "rgba(59, 130, 246, 0.4)";
+      ctx.lineWidth = 2;
+      for (let i = 0; i < 3; i++) {
+        const r = (radiusBase + i * 40) % 120;
+        const alpha = Math.max(0, 1 - r / 120);
+        ctx.strokeStyle = `rgba(59, 130, 246, ${alpha * 0.5})`;
+        ctx.beginPath();
+        ctx.arc(80, 72, r, -0.3*Math.PI, 0.3*Math.PI);
+        ctx.stroke();
+      }
+      
+      ctx.fillStyle = "#3b82f6";
+      for (let i = 0; i < 15; i++) {
+        const height = 10 + Math.abs(Math.sin(time*2 + i*0.4)) * 30;
+        ctx.fillRect(260 + i * 5, 72 - height/2, 3, height);
+      }
+      
+      ctx.fillStyle = "rgba(255,255,255,0.4)";
+      ctx.font = "8px monospace";
+      ctx.fillText("Transmitting audio signals", 12, 22);
+      
+      animId = requestAnimationFrame(draw);
+    };
+    draw();
+    return () => cancelAnimationFrame(animId);
+  }, []);
+  return (
+    <div className="relative w-full h-36 rounded-[2rem] overflow-hidden border border-white/10 bg-black/40 shadow-inner my-4">
+      <canvas ref={canvasRef} width={400} height={144} className="w-full h-full object-cover" />
+      <div className="absolute bottom-3 right-3 px-3 py-1 bg-black/60 backdrop-blur-md rounded-xl text-[8px] text-white/50 font-mono tracking-wider">
+        Walkie-Talkie Wave
+      </div>
+    </div>
+  );
+};
+
+// 10. Quota recycle sweeper sweep
+const DriveQuotaMiniDemo = () => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    let animId = 0;
+    let time = 0;
+    const draw = () => {
+      time += 0.02;
+      ctx.fillStyle = "#0c0a09";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      const width = 240;
+      const height = 24;
+      const x = canvas.width / 2 - width / 2;
+      const y = canvas.height / 2 - height / 2;
+      
+      ctx.strokeStyle = "rgba(255,255,255,0.15)";
+      ctx.strokeRect(x, y, width, height);
+      
+      const fillPercentage = 0.5 + Math.sin(time) * 0.3;
+      ctx.fillStyle = fillPercentage > 0.75 ? "#ef4444" : "#eab308";
+      ctx.fillRect(x + 2, y + 2, (width - 4) * fillPercentage, height - 4);
+      
+      if (fillPercentage > 0.75) {
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 2;
+        const sweepX = x + (width - 4) * fillPercentage;
+        ctx.beginPath();
+        ctx.moveTo(sweepX, y);
+        ctx.lineTo(sweepX, y + height);
+        ctx.stroke();
+        
+        ctx.fillStyle = "#ef4444";
+        ctx.font = "bold 8px monospace";
+        ctx.fillText("Quota full ➔ Recycling old clips", x, y - 10);
+      } else {
+        ctx.fillStyle = "#eab308";
+        ctx.font = "8px monospace";
+        ctx.fillText(`Drive reserved: ${(fillPercentage*100).toFixed(0)}%`, x, y - 10);
+      }
+      
+      animId = requestAnimationFrame(draw);
+    };
+    draw();
+    return () => cancelAnimationFrame(animId);
+  }, []);
+  return (
+    <div className="relative w-full h-36 rounded-[2rem] overflow-hidden border border-white/10 bg-black/40 shadow-inner my-4">
+      <canvas ref={canvasRef} width={400} height={144} className="w-full h-full object-cover" />
+      <div className="absolute bottom-3 right-3 px-3 py-1 bg-black/60 backdrop-blur-md rounded-xl text-[8px] text-white/50 font-mono tracking-wider">
+        Storage Manager
+      </div>
+    </div>
+  );
+};
+
 const HelpPage = () => {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedFeature, setSelectedFeature] = useState<FeatureHelp | null>(null);
   
-  // States to launch active interactive labs directly
   const [thermalOpen, setThermalOpen] = useState(false);
   const [meshOpen, setMeshOpen] = useState(false);
 
@@ -379,36 +838,130 @@ const HelpPage = () => {
                             <p className="text-lg font-bold text-black leading-tight">{f.description}</p>
                           </div>
                           
-                          {/* Animated Demo canvas simulations for implemented AI features */}
-                          {f.id === "thermal-vision" && (
-                            <div className="space-y-2">
-                              <p className="text-[10px] font-bold text-black/50">Simulated thermal feed</p>
-                              <div onClick={(e) => e.stopPropagation()}>
+                          {/* Animated Demo canvas simulations for all features */}
+                          <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
+                            <p className="text-[10px] font-bold text-black/50">Live simulation feed</p>
+                            
+                            {f.id === "thermal-vision" && (
+                              <>
                                 <ThermalMiniDemo />
                                 <Button 
                                   onClick={() => setThermalOpen(true)}
-                                  className="w-full h-12 bg-black text-white hover:bg-zinc-900 rounded-2xl font-bold text-xs uppercase transition-all tracking-wider"
+                                  className="w-full h-12 bg-black text-white hover:bg-zinc-900 rounded-2xl font-bold text-xs uppercase tracking-wider"
                                 >
                                   ⚡ Launch live thermal vision mapper
                                 </Button>
-                              </div>
-                            </div>
-                          )}
+                              </>
+                            )}
 
-                          {f.id === "mesh-tracking" && (
-                            <div className="space-y-2">
-                              <p className="text-[10px] font-bold text-black/50">Simulated tracking path</p>
-                              <div onClick={(e) => e.stopPropagation()}>
+                            {f.id === "mesh-tracking" && (
+                              <>
                                 <TrackingMiniDemo />
                                 <Button 
                                   onClick={() => setMeshOpen(true)}
-                                  className="w-full h-12 bg-black text-white hover:bg-zinc-900 rounded-2xl font-bold text-xs uppercase transition-all tracking-wider"
+                                  className="w-full h-12 bg-black text-white hover:bg-zinc-900 rounded-2xl font-bold text-xs uppercase tracking-wider"
                                 >
                                   ⚡ Launch cooperative mesh tracking lab
                                 </Button>
-                              </div>
-                            </div>
-                          )}
+                              </>
+                            )}
+
+                            {f.id === "bridge-mode" && (
+                              <>
+                                <BridgeModeMiniDemo />
+                                <Button 
+                                  onClick={() => navigate("/dashboard")}
+                                  className="w-full h-12 bg-black text-white hover:bg-zinc-900 rounded-2xl font-bold text-xs uppercase tracking-wider"
+                                >
+                                  ⚡ Open camera screen cast panel
+                                </Button>
+                              </>
+                            )}
+
+                            {f.id === "tactical-night-vision" && (
+                              <>
+                                <NightVisionMiniDemo />
+                                <Button 
+                                  onClick={() => navigate("/dashboard")}
+                                  className="w-full h-12 bg-black text-white hover:bg-zinc-900 rounded-2xl font-bold text-xs uppercase tracking-wider"
+                                >
+                                  ⚡ Open live stream night filter
+                                </Button>
+                              </>
+                            )}
+
+                            {f.id === "elite-archive" && (
+                              <>
+                                <ArchiveMiniDemo />
+                                <Button 
+                                  onClick={() => navigate("/archive")}
+                                  className="w-full h-12 bg-black text-white hover:bg-zinc-900 rounded-2xl font-bold text-xs uppercase tracking-wider"
+                                >
+                                  ⚡ Open Google Drive recording archive
+                                </Button>
+                              </>
+                            )}
+
+                            {f.id === "gatekeeper" && (
+                              <>
+                                <GatekeeperMiniDemo />
+                                <Button 
+                                  onClick={() => navigate("/settings")}
+                                  className="w-full h-12 bg-black text-white hover:bg-zinc-900 rounded-2xl font-bold text-xs uppercase tracking-wider"
+                                >
+                                  ⚡ Open device & security manager
+                                </Button>
+                              </>
+                            )}
+
+                            {f.id === "ai-zoom-enhance" && (
+                              <>
+                                <AIZoomMiniDemo />
+                                <Button 
+                                  onClick={() => navigate("/dashboard")}
+                                  className="w-full h-12 bg-black text-white hover:bg-zinc-900 rounded-2xl font-bold text-xs uppercase tracking-wider"
+                                >
+                                  ⚡ Open live stream stream booster
+                                </Button>
+                              </>
+                            )}
+
+                            {f.id === "noise-isolation" && (
+                              <>
+                                <NoiseIsolationMiniDemo />
+                                <Button 
+                                  onClick={() => navigate("/settings")}
+                                  className="w-full h-12 bg-black text-white hover:bg-zinc-900 rounded-2xl font-bold text-xs uppercase tracking-wider"
+                                >
+                                  ⚡ Configure microphones & filters
+                                </Button>
+                              </>
+                            )}
+
+                            {f.id === "two-way-talk" && (
+                              <>
+                                <TwoWayTalkMiniDemo />
+                                <Button 
+                                  onClick={() => navigate("/dashboard")}
+                                  className="w-full h-12 bg-black text-white hover:bg-zinc-900 rounded-2xl font-bold text-xs uppercase tracking-wider"
+                                >
+                                  ⚡ Open voice talkback broadcast
+                                </Button>
+                              </>
+                            )}
+
+                            {f.id === "drive-quota-control" && (
+                              <>
+                                <DriveQuotaMiniDemo />
+                                <Button 
+                                  onClick={() => navigate("/settings")}
+                                  className="w-full h-12 bg-black text-white hover:bg-zinc-900 rounded-2xl font-bold text-xs uppercase tracking-wider"
+                                >
+                                  ⚡ Open storage & backup quota options
+                                </Button>
+                              </>
+                            )}
+                          </div>
 
                           <div className="p-5 rounded-3xl bg-black/10 border border-black/5 space-y-2">
                             <p className="text-[10px] font-bold text-black/50">How it works</p>
