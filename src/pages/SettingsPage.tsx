@@ -941,8 +941,8 @@ const SettingsPage = () => {
             {/* Gemini Key 1 */}
             <div className="p-6 bg-card/40 border-2 border-border/40 rounded-[2rem] space-y-3">
               <div className="flex justify-between items-center">
-                <span className="text-[10px] font-black uppercase tracking-widest text-primary">Gemini API Key (Primary)</span>
-                {localStorage.getItem("hguard_gemini_api_key") ? (
+                <span className="text-[10px] font-black uppercase tracking-widest text-primary">Gemini API Key #1 (Primary)</span>
+                {(localStorage.getItem("hguard_gemini_api_key_1") || localStorage.getItem("hguard_gemini_api_key")) ? (
                   <span className="text-[8px] bg-green-500/20 text-green-400 font-bold px-2 py-0.5 rounded-full uppercase">Configured</span>
                 ) : (
                   <span className="text-[8px] bg-primary/20 text-primary font-bold px-2 py-0.5 rounded-full uppercase">System Free Tier</span>
@@ -952,12 +952,14 @@ const SettingsPage = () => {
                 <Input
                   type="password"
                   placeholder="AIzaSy..."
-                  defaultValue={localStorage.getItem("hguard_gemini_api_key") || ""}
+                  defaultValue={localStorage.getItem("hguard_gemini_api_key_1") || localStorage.getItem("hguard_gemini_api_key") || ""}
                   onChange={(e) => {
                     const val = e.target.value.trim();
                     if (val) {
-                      localStorage.setItem("hguard_gemini_api_key", val);
+                      localStorage.setItem("hguard_gemini_api_key_1", val);
+                      localStorage.setItem("hguard_gemini_api_key", val); // sync legacy
                     } else {
+                      localStorage.removeItem("hguard_gemini_api_key_1");
                       localStorage.removeItem("hguard_gemini_api_key");
                     }
                   }}
@@ -966,7 +968,7 @@ const SettingsPage = () => {
                 <Button
                   onClick={() => {
                     toast({
-                      title: "Primary Gemini Key Updated",
+                      title: "Gemini Key #1 Updated",
                       description: "Primary Gemini key saved successfully."
                     });
                   }}
@@ -980,8 +982,8 @@ const SettingsPage = () => {
             {/* Gemini Key 2 */}
             <div className="p-6 bg-card/40 border-2 border-border/40 rounded-[2rem] space-y-3">
               <div className="flex justify-between items-center">
-                <span className="text-[10px] font-black uppercase tracking-widest text-primary">Gemini API Key (Secondary)</span>
-                {localStorage.getItem("hguard_gemini_api_key_alt") ? (
+                <span className="text-[10px] font-black uppercase tracking-widest text-primary">Gemini API Key #2</span>
+                {localStorage.getItem("hguard_gemini_api_key_2") ? (
                   <span className="text-[8px] bg-green-500/20 text-green-400 font-bold px-2 py-0.5 rounded-full uppercase">Configured</span>
                 ) : (
                   <span className="text-[8px] bg-white/10 text-white/50 font-bold px-2 py-0.5 rounded-full uppercase">Not Configured</span>
@@ -991,13 +993,13 @@ const SettingsPage = () => {
                 <Input
                   type="password"
                   placeholder="AIzaSy..."
-                  defaultValue={localStorage.getItem("hguard_gemini_api_key_alt") || ""}
+                  defaultValue={localStorage.getItem("hguard_gemini_api_key_2") || ""}
                   onChange={(e) => {
                     const val = e.target.value.trim();
                     if (val) {
-                      localStorage.setItem("hguard_gemini_api_key_alt", val);
+                      localStorage.setItem("hguard_gemini_api_key_2", val);
                     } else {
-                      localStorage.removeItem("hguard_gemini_api_key_alt");
+                      localStorage.removeItem("hguard_gemini_api_key_2");
                     }
                   }}
                   className="h-12 bg-zinc-900/60 border-0 rounded-xl font-mono text-xs px-4"
@@ -1005,8 +1007,86 @@ const SettingsPage = () => {
                 <Button
                   onClick={() => {
                     toast({
-                      title: "Secondary Gemini Key Updated",
-                      description: "Secondary Gemini key saved successfully."
+                      title: "Gemini Key #2 Updated",
+                      description: "Gemini key #2 saved successfully."
+                    });
+                  }}
+                  className="h-12 px-6 rounded-xl font-bold text-[10px] uppercase tracking-wider shrink-0"
+                >
+                  Save
+                </Button>
+              </div>
+            </div>
+
+            {/* Gemini Key 3 */}
+            <div className="p-6 bg-card/40 border-2 border-border/40 rounded-[2rem] space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-[10px] font-black uppercase tracking-widest text-primary">Gemini API Key #3</span>
+                {localStorage.getItem("hguard_gemini_api_key_3") ? (
+                  <span className="text-[8px] bg-green-500/20 text-green-400 font-bold px-2 py-0.5 rounded-full uppercase">Configured</span>
+                ) : (
+                  <span className="text-[8px] bg-white/10 text-white/50 font-bold px-2 py-0.5 rounded-full uppercase">Not Configured</span>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  type="password"
+                  placeholder="AIzaSy..."
+                  defaultValue={localStorage.getItem("hguard_gemini_api_key_3") || ""}
+                  onChange={(e) => {
+                    const val = e.target.value.trim();
+                    if (val) {
+                      localStorage.setItem("hguard_gemini_api_key_3", val);
+                    } else {
+                      localStorage.removeItem("hguard_gemini_api_key_3");
+                    }
+                  }}
+                  className="h-12 bg-zinc-900/60 border-0 rounded-xl font-mono text-xs px-4"
+                />
+                <Button
+                  onClick={() => {
+                    toast({
+                      title: "Gemini Key #3 Updated",
+                      description: "Gemini key #3 saved successfully."
+                    });
+                  }}
+                  className="h-12 px-6 rounded-xl font-bold text-[10px] uppercase tracking-wider shrink-0"
+                >
+                  Save
+                </Button>
+              </div>
+            </div>
+
+            {/* Gemini Key 4 */}
+            <div className="p-6 bg-card/40 border-2 border-border/40 rounded-[2rem] space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-[10px] font-black uppercase tracking-widest text-primary">Gemini API Key #4</span>
+                {localStorage.getItem("hguard_gemini_api_key_4") ? (
+                  <span className="text-[8px] bg-green-500/20 text-green-400 font-bold px-2 py-0.5 rounded-full uppercase">Configured</span>
+                ) : (
+                  <span className="text-[8px] bg-white/10 text-white/50 font-bold px-2 py-0.5 rounded-full uppercase">Not Configured</span>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  type="password"
+                  placeholder="AIzaSy..."
+                  defaultValue={localStorage.getItem("hguard_gemini_api_key_4") || ""}
+                  onChange={(e) => {
+                    const val = e.target.value.trim();
+                    if (val) {
+                      localStorage.setItem("hguard_gemini_api_key_4", val);
+                    } else {
+                      localStorage.removeItem("hguard_gemini_api_key_4");
+                    }
+                  }}
+                  className="h-12 bg-zinc-900/60 border-0 rounded-xl font-mono text-xs px-4"
+                />
+                <Button
+                  onClick={() => {
+                    toast({
+                      title: "Gemini Key #4 Updated",
+                      description: "Gemini key #4 saved successfully."
                     });
                   }}
                   className="h-12 px-6 rounded-xl font-bold text-[10px] uppercase tracking-wider shrink-0"

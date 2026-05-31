@@ -12,8 +12,10 @@ interface QuotaBucket {
 }
 
 const PROVIDERS = [
-  { key: "gemini",      limit: 40 },
-  { key: "gemini_alt",  limit: 40 },
+  { key: "gemini_1",    limit: 40 },
+  { key: "gemini_2",    limit: 40 },
+  { key: "gemini_3",    limit: 40 },
+  { key: "gemini_4",    limit: 40 },
   { key: "groq",        limit: 50 },
   { key: "groq_alt",    limit: 50 },
   { key: "openrouter",  limit: 50 },
@@ -102,9 +104,16 @@ export const SECURITY_PROMPT = "You are a security camera AI. Write one specific
 /** Used by Super Zoom Capture — maximum detail on anything visible */
 export const DETAIL_PROMPT = "You are an AI vision assistant analyzing a zoomed security camera frame. Describe in maximum detail everything visible: any text (signs, numbers, plates, labels), people (clothing, appearance, actions), vehicles (make, color, any identifiers), objects, and distances. Be specific and thorough. Start immediately with what you see.";
 
-const callGemini = async (base64Data: string, prompt: string): Promise<string> => {
-  const apiKey = localStorage.getItem("hguard_gemini_api_key") || import.meta.env.VITE_GEMINI_API_KEY;
-  if (!apiKey) throw new Error("No Gemini key available. Configure in Settings.");
+const callGeminiByIndex = async (index: number, base64Data: string, prompt: string): Promise<string> => {
+  // Check local storage with backward compatibility for index 1
+  let localKey = localStorage.getItem(`hguard_gemini_api_key_${index}`);
+  if (index === 1 && !localKey) {
+    localKey = localStorage.getItem("hguard_gemini_api_key");
+  }
+  
+  const apiKey = (index === 1 && !localKey) ? import.meta.env.VITE_GEMINI_API_KEY : localKey;
+  
+  if (!apiKey) throw new Error(`No Gemini key configured at slot ${index}.`);
 
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
@@ -122,39 +131,17 @@ const callGemini = async (base64Data: string, prompt: string): Promise<string> =
     }
   );
 
-  if (res.status === 429) { markExhausted("gemini", 40); throw new Error("429"); }
+  if (res.status === 429) { markExhausted(`gemini_${index}` as any, 40); throw new Error("429"); }
   const data = await res.json();
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
   if (!text) throw new Error("empty");
   return text;
 };
 
-const callGeminiAlt = async (base64Data: string, prompt: string): Promise<string> => {
-  const apiKey = localStorage.getItem("hguard_gemini_api_key_alt");
-  if (!apiKey) throw new Error("No secondary Gemini key configured.");
-
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{
-          parts: [
-            { text: prompt },
-            { inline_data: { mime_type: "image/jpeg", data: base64Data } }
-          ]
-        }]
-      })
-    }
-  );
-
-  if (res.status === 429) { markExhausted("gemini_alt", 40); throw new Error("429"); }
-  const data = await res.json();
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) throw new Error("empty");
-  return text;
-};
+const callGemini1 = (base64Data: string, prompt: string) => callGeminiByIndex(1, base64Data, prompt);
+const callGemini2 = (base64Data: string, prompt: string) => callGeminiByIndex(2, base64Data, prompt);
+const callGemini3 = (base64Data: string, prompt: string) => callGeminiByIndex(3, base64Data, prompt);
+const callGemini4 = (base64Data: string, prompt: string) => callGeminiByIndex(4, base64Data, prompt);
 
 const callGroq = async (base64Data: string, prompt: string): Promise<string> => {
   const apiKey = localStorage.getItem("hguard_groq_api_key") || import.meta.env.VITE_GROQ_API_KEY;
@@ -324,8 +311,10 @@ export const analyzeFrame = async (base64Image: string, prompt?: string): Promis
   const usePrompt = prompt ?? DETAIL_PROMPT;
 
   const callers: Array<{ key: ProviderKey; limit: number; fn: (d: string, p: string) => Promise<string> }> = [
-    { key: "gemini",     limit: 40, fn: callGemini },
-    { key: "gemini_alt", limit: 40, fn: callGeminiAlt },
+    { key: "gemini_1",   limit: 40, fn: callGemini1 },
+    { key: "gemini_2",   limit: 40, fn: callGemini2 },
+    { key: "gemini_3",   limit: 40, fn: callGemini3 },
+    { key: "gemini_4",   limit: 40, fn: callGemini4 },
     { key: "groq",       limit: 50, fn: callGroq },
     { key: "groq_alt",   limit: 50, fn: callGroqAlt },
     { key: "openrouter", limit: 50, fn: callOpenRouter },
