@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Zap, Shield, Video, Moon, Radio, HelpCircle, ChevronRight, Info, Mic, Thermometer, Sparkles, AlertOctagon, BrainCircuit, Star } from "lucide-react";
+import { Search, Zap, Shield, Video, Moon, Radio, HelpCircle, ChevronRight, Info, Mic, Thermometer, Sparkles, AlertOctagon, BrainCircuit, Star, ScanSearch, Grid2x2 } from "lucide-react";
 import AppLayout from "@/components/AppLayout";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -150,6 +150,50 @@ const features: FeatureHelp[] = [
     howItWorks: "Choose your maximum storage space. When full, HGUARD automatically recycles your oldest recordings to make room for new ones.",
     actionLabel: "Open Storage Quota Settings",
     actionRoute: "/settings",
+  },
+  {
+    id: "super-zoom-capture",
+    title: "Super Zoom Detail Capture",
+    icon: ScanSearch,
+    category: "AI",
+    recommended: true,
+    recommendedReason: "Zoom into any distant object — sign, person, vehicle — and get an AI description of exactly what's there.",
+    description: "Captures a sharpened, high-detail still frame from your zoomed camera view, then asks AI to describe everything visible in maximum detail.",
+    howItWorks: "Open any live camera and zoom in on a distant area. Tap Controls → Super Zoom Capture. HGUARD grabs the frame at full resolution, applies pixel-level sharpening, and sends it to AI which will describe anything it can see — text, people, vehicles, objects — in full detail.",
+    actionLabel: "Open Live Feed & Try It",
+    actionRoute: "/dashboard",
+  },
+  {
+    id: "multi-camera-grid",
+    title: "Multi-Camera Grid View",
+    icon: Grid2x2,
+    category: "Vision",
+    recommended: true,
+    recommendedReason: "Watch 2, 3, or 4 cameras at the same time side-by-side.",
+    description: "Select any combination of your cameras and view them simultaneously in a responsive grid layout.",
+    howItWorks: "On the Cameras screen, tap the Grid button in the top bar. Check off 2 or more cameras, then tap View. All selected cameras open in a split-screen grid. Tap any feed to expand it full-screen.",
+    actionLabel: "Open Camera Grid",
+    actionRoute: "/live/all",
+  },
+  {
+    id: "multi-ai-quota",
+    title: "Multi-AI Smart Quota",
+    icon: BrainCircuit,
+    category: "AI",
+    description: "HGUARD uses Gemini, OpenAI, and Claude in sequence so AI features stay available even when one service hits its daily limit.",
+    howItWorks: "Each AI service has a daily call limit. When Gemini is full, HGUARD automatically switches to OpenAI, then to Claude. If all three are exhausted, the app shows you exactly how long until they reset (e.g. 'AI available again in ~14h').",
+    actionLabel: "Open AI Lab",
+    actionRoute: "/ai-lab",
+  },
+  {
+    id: "hardware-optical-zoom",
+    title: "Hardware Optical Zoom",
+    icon: Zap,
+    category: "Vision",
+    description: "Controls the camera phone's actual optical zoom lens — not just digital enlargement — for true high-detail long-distance viewing.",
+    howItWorks: "On phones with multi-lens zoom (like Samsung S-series or iPhone Pro), HGUARD can move the actual optical lens. Open any live feed, pull out the Controls panel, and drag the Optical Zoom slider. The physical camera lens moves, giving you genuine detail at distance.",
+    actionLabel: "Open Live Feed Controls",
+    actionRoute: "/dashboard",
   },
 ];
 
