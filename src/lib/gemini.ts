@@ -99,8 +99,8 @@ export const SECURITY_PROMPT = "You are a security camera AI. Write one specific
 export const DETAIL_PROMPT = "You are an AI vision assistant analyzing a zoomed security camera frame. Describe in maximum detail everything visible: any text (signs, numbers, plates, labels), people (clothing, appearance, actions), vehicles (make, color, any identifiers), objects, and distances. Be specific and thorough. Start immediately with what you see.";
 
 const callGemini = async (base64Data: string, prompt: string): Promise<string> => {
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-  if (!apiKey) throw new Error("No Gemini key");
+  const apiKey = localStorage.getItem("hguard_gemini_api_key") || import.meta.env.VITE_GEMINI_API_KEY;
+  if (!apiKey) throw new Error("No Gemini key available. Configure in Settings.");
 
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
@@ -126,8 +126,8 @@ const callGemini = async (base64Data: string, prompt: string): Promise<string> =
 };
 
 const callOpenAI = async (base64Data: string, prompt: string): Promise<string> => {
-  const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
-  if (!apiKey) throw new Error("No OpenAI key");
+  const apiKey = localStorage.getItem("hguard_openai_api_key") || import.meta.env.VITE_OPENAI_API_KEY;
+  if (!apiKey) throw new Error("No OpenAI key available. Configure in Settings.");
 
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",

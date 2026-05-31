@@ -768,6 +768,95 @@ const SettingsPage = () => {
           </div>
         </div>
 
+        {/* Custom AI Keys Settings Card */}
+        <div className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-4">
+          <div className="flex items-center gap-3 text-primary">
+            <Brain className="w-8 h-8" />
+            <h2 className="text-2xl font-black uppercase tracking-tight">Custom AI Keys</h2>
+          </div>
+          <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+            Configure your custom API keys for extended AI quotas.
+          </p>
+
+          <div className="space-y-4">
+            <div className="p-6 bg-card/40 border-2 border-border/40 rounded-[2rem] space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-[10px] font-black uppercase tracking-widest text-primary">OpenAI API Key (Custom)</span>
+                {localStorage.getItem("hguard_openai_api_key") ? (
+                  <span className="text-[8px] bg-green-500/20 text-green-400 font-bold px-2 py-0.5 rounded-full uppercase">Configured</span>
+                ) : (
+                  <span className="text-[8px] bg-white/10 text-white/50 font-bold px-2 py-0.5 rounded-full uppercase">Not Configured</span>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  type="password"
+                  placeholder="sk-proj-..."
+                  defaultValue={localStorage.getItem("hguard_openai_api_key") || ""}
+                  onChange={(e) => {
+                    const val = e.target.value.trim();
+                    if (val) {
+                      localStorage.setItem("hguard_openai_api_key", val);
+                    } else {
+                      localStorage.removeItem("hguard_openai_api_key");
+                    }
+                  }}
+                  className="h-12 bg-zinc-900/60 border-0 rounded-xl font-mono text-xs px-4"
+                />
+                <Button
+                  onClick={() => {
+                    toast({
+                      title: "OpenAI Key Updated",
+                      description: "Your custom OpenAI key has been saved securely to local storage."
+                    });
+                  }}
+                  className="h-12 px-6 rounded-xl font-bold text-[10px] uppercase tracking-wider shrink-0"
+                >
+                  Save
+                </Button>
+              </div>
+            </div>
+
+            <div className="p-6 bg-card/40 border-2 border-border/40 rounded-[2rem] space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-[10px] font-black uppercase tracking-widest text-primary">Gemini API Key (Optional)</span>
+                {localStorage.getItem("hguard_gemini_api_key") ? (
+                  <span className="text-[8px] bg-green-500/20 text-green-400 font-bold px-2 py-0.5 rounded-full uppercase">Configured</span>
+                ) : (
+                  <span className="text-[8px] bg-primary/20 text-primary font-bold px-2 py-0.5 rounded-full uppercase">System Free Tier</span>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  type="password"
+                  placeholder="AIzaSy..."
+                  defaultValue={localStorage.getItem("hguard_gemini_api_key") || ""}
+                  onChange={(e) => {
+                    const val = e.target.value.trim();
+                    if (val) {
+                      localStorage.setItem("hguard_gemini_api_key", val);
+                    } else {
+                      localStorage.removeItem("hguard_gemini_api_key");
+                    }
+                  }}
+                  className="h-12 bg-zinc-900/60 border-0 rounded-xl font-mono text-xs px-4"
+                />
+                <Button
+                  onClick={() => {
+                    toast({
+                      title: "Gemini Key Updated",
+                      description: "Your custom Gemini key has been saved securely."
+                    });
+                  }}
+                  className="h-12 px-6 rounded-xl font-bold text-[10px] uppercase tracking-wider shrink-0"
+                >
+                  Save
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Nuclear Mesh Reset Card */}
 
         <div className="bg-destructive/5 border border-destructive/20 rounded-2xl p-4 space-y-4">
