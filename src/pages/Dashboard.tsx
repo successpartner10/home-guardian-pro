@@ -23,7 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Camera, Wifi, WifiOff, Video, MonitorSmartphone, LayoutGrid, Trash2, RefreshCcw, Sparkles, Brain, Target, HelpCircle, Settings, Shield } from "lucide-react";
+import { Camera, Wifi, WifiOff, Video, MonitorSmartphone, LayoutGrid, Trash2, RefreshCcw, Sparkles, Brain, Target, HelpCircle, Settings, Shield, Grid2x2, CheckSquare, X } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -72,6 +72,8 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [registering, setRegistering] = useState(false);
   const [isMeshTracking, setIsMeshTracking] = useState(false);
+  const [gridSelectMode, setGridSelectMode] = useState(false);
+  const [selectedCameras, setSelectedCameras] = useState<Set<string>>(new Set());
   const [customName, setCustomName] = useState(
     localStorage.getItem("hguard_preferred_name") || 
     sessionStorage.getItem("hguard_preferred_name") || 
@@ -421,32 +423,61 @@ const Dashboard = () => {
     <AppLayout>
       <div className="p-4 sm:p-6 h-full flex flex-col max-w-5xl mx-auto space-y-6">
         
-        {/* Top Actions & Info */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white/[0.02] border border-white/5 rounded-2xl p-4">
-          <div>
-            <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
-              <Camera className="h-5 w-5 text-primary" /> My Cameras
+        {/* Top Actions — Alfred-inspired clean header */}
+        <div className="flex items-center justify-between gap-3 bg-white/[0.02] border border-white/5 rounded-2xl px-4 py-3">
+          <div className="min-w-0">
+            <h1 className="text-lg font-bold tracking-tight text-white flex items-center gap-2">
+              <Camera className="h-4 w-4 text-primary shrink-0" /> My Cameras
             </h1>
-            <p className="text-xs text-muted-foreground mt-1">
-              {devices.length} {devices.length === 1 ? 'camera' : 'cameras'} · {viewers.length} {viewers.length === 1 ? 'viewer' : 'viewers'}
+            <p className="text-[10px] text-muted-foreground mt-0.5">
+              {devices.length} {devices.length === 1 ? 'camera' : 'cameras'} · {viewers.length} viewer{viewers.length !== 1 ? 's' : ''}
             </p>
           </div>
           
-          <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Grid view select */}
+            {devices.length >= 2 && (
+              gridSelectMode ? (
+                <div className="flex items-center gap-1.5">
+                  <Button
+                    onClick={() => {
+                      if (selectedCameras.size >= 2) {
+                        navigate(`/live/all?ids=${[...selectedCameras].join(',')}`);
+                      }
+                    }}
+                    disabled={selectedCameras.size < 2}
+                    className="h-8 rounded-full bg-primary text-black hover:bg-primary/90 text-[10px] font-bold px-3"
+                  >
+                    <Grid2x2 className="h-3.5 w-3.5 mr-1" /> View {selectedCameras.size}
+                  </Button>
+                  <button onClick={() => { setGridSelectMode(false); setSelectedCameras(new Set()); }} className="h-8 w-8 rounded-full bg-white/5 flex items-center justify-center text-white/40 hover:text-white">
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <Button
+                  onClick={() => setGridSelectMode(true)}
+                  variant="outline"
+                  className="h-8 rounded-full border-white/10 hover:bg-white/5 text-[10px] font-bold px-3"
+                >
+                  <Grid2x2 className="h-3.5 w-3.5 mr-1" /> Grid
+                </Button>
+              )
+            )}
             <Button 
               onClick={handleUseAsCamera} 
               disabled={registering}
-              className="flex-1 sm:flex-none bg-primary text-black hover:bg-primary/90 rounded-full font-bold shadow-[0_0_15px_rgba(var(--primary),0.3)]"
+              className="h-8 bg-primary text-black hover:bg-primary/90 rounded-full font-bold text-[10px] px-3"
             >
-              <Camera className="mr-2 h-4 w-4" /> Add Camera
+              <Camera className="h-3.5 w-3.5 mr-1" /> Camera
             </Button>
             <Button 
               onClick={handleUseAsViewer} 
               disabled={registering}
               variant="outline"
-              className="flex-1 sm:flex-none rounded-full border-white/10 hover:bg-white/5 font-bold"
+              className="h-8 rounded-full border-white/10 hover:bg-white/5 font-bold text-[10px] px-3"
             >
-              <MonitorSmartphone className="mr-2 h-4 w-4" /> Add Viewer
+              <MonitorSmartphone className="h-3.5 w-3.5 mr-1" /> Viewer
             </Button>
           </div>
         </div>
@@ -469,42 +500,72 @@ const Dashboard = () => {
             </Button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-12">
-            {devices.map((camera) => (
-              <div key={camera.id} className="w-full h-[22rem] flex flex-col rounded-2xl overflow-hidden border border-white/10 shadow-lg relative bg-black/50 group">
-                <div className="flex-1 relative cursor-pointer" onClick={() => navigate(`/live/${camera.id}`)}>
-                  <LiveCameraStream
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 pb-12">
+            {devices.map((camera) => {
+              const isSelected = selectedCameras.has(camera.id);
+              return (
+                <div
+                  key={camera.id}
+                  className={cn(
+                    "w-full h-[18rem] rounded-2xl overflow-hidden border shadow-lg relative bg-black/50 group transition-all",
+                    gridSelectMode && isSelected
+                      ? "border-primary ring-2 ring-primary/30"
+                      : "border-white/10"
+                  )}
+                >
+                  {/* Grid select overlay */}
+                  {gridSelectMode && (
+                    <button
+                      onClick={() => {
+                        setSelectedCameras(prev => {
+                          const next = new Set(prev);
+                          if (next.has(camera.id)) next.delete(camera.id);
+                          else next.add(camera.id);
+                          return next;
+                        });
+                      }}
+                      className="absolute inset-0 z-30 flex items-center justify-center bg-black/40 backdrop-blur-[2px] cursor-pointer"
+                    >
+                      <div className={cn(
+                        "h-10 w-10 rounded-full flex items-center justify-center transition-all",
+                        isSelected ? "bg-primary text-black scale-110" : "bg-white/10 text-white/50 border border-white/20"
+                      )}>
+                        <CheckSquare className="h-5 w-5" />
+                      </div>
+                    </button>
+                  )}
+
+                  {/* Camera stream */}
+                  <div
+                    className="w-full h-full relative cursor-pointer"
+                    onClick={() => !gridSelectMode && navigate(`/live/${camera.id}`)}
+                  >
+                    <LiveCameraStream
                       device={camera}
                       localStream={null}
                       onFullscreen={(id) => navigate(`/live/${id}`)}
-                  />
-                  <div className="absolute inset-0 z-10 pointer-events-none hover:bg-white/5 transition-colors" />
-                </div>
-                <div className="h-16 bg-white/[0.02] border-t border-white/10 px-4 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-full bg-primary/10 text-primary">
-                      <Shield className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-white uppercase tracking-widest">Motion Detection</p>
-                      <p className="text-[9px] text-white/50 font-medium">
-                        {(camera.settings as any)?.cloud_recording ? "AI Enabled" : "Live Stream Only"}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Switch 
-                      checked={(camera.settings as any)?.cloud_recording || false} 
-                      onCheckedChange={(c) => toggleMotionDetection(camera.id, c)}
                     />
-                    <div className="w-px h-6 bg-white/10" />
-                    <Button variant="ghost" size="icon" onClick={() => navigate('/settings')} className="text-white/50 hover:text-white hover:bg-white/10 rounded-xl">
-                      <Settings className="w-5 h-5" />
-                    </Button>
                   </div>
+
+                  {/* Bottom status pill — Alfred-style compact */}
+                  {!gridSelectMode && (
+                    <div className="absolute bottom-2.5 left-2.5 right-2.5 z-20 flex items-center justify-between pointer-events-none">
+                      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md border border-white/10">
+                        <div className={cn(
+                          "h-1.5 w-1.5 rounded-full",
+                          camera.status === 'recording' ? 'bg-red-500 animate-pulse' :
+                          camera.status === 'online' ? 'bg-green-500' : 'bg-white/20'
+                        )} />
+                        <span className="text-[10px] font-bold text-white/80 truncate max-w-[100px]">{camera.name}</span>
+                        {(camera.settings as any)?.cloud_recording && (
+                          <Shield className="h-3 w-3 text-primary" />
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 

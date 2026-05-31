@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { db } from "@/lib/firebase";
 import {
@@ -14,11 +14,9 @@ import {
 } from "firebase/firestore";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, LayoutGrid, Maximize, Mic, MicOff, Share2, Trash2 } from "lucide-react";
+import { ArrowLeft, LayoutGrid, Maximize, Mic, MicOff, RefreshCw, ChevronRight, Flashlight, AlertTriangle, Moon, Brain, Camera } from "lucide-react";
 import LiveCameraStream from "@/components/LiveCameraStream";
 import { cn } from "@/lib/utils";
-import { Logo } from "@/components/Logo";
-import { RefreshCw, ChevronRight, Flashlight, AlertTriangle, Moon, Sun, Brain, Thermometer, Camera } from "lucide-react";
 import { DrawerSection, DrawerBtn } from "@/components/CameraControls";
 import { updateDoc, serverTimestamp } from "firebase/firestore";
 
@@ -35,6 +33,8 @@ interface Device {
 const MultiLiveFeed = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const filterIds = searchParams.get('ids')?.split(',').filter(Boolean) || [];
     const [cameras, setCameras] = useState<Device[]>([]);
     const [loading, setLoading] = useState(true);
     const [fullscreenCameraId, setFullscreenCameraId] = useState<string | null>(null);
@@ -109,7 +109,13 @@ const MultiLiveFeed = () => {
             });
 
             const unique = Array.from(new Map(filtered.map(d => [d.name, d])).values());
-            setCameras(unique);
+
+            // If user selected specific cameras via ?ids= param, filter
+            let final = unique;
+            if (filterIds.length > 0) {
+              final = unique.filter(d => filterIds.includes(d.id));
+            }
+            setCameras(final);
             setLoading(false);
         };
 
@@ -204,71 +210,48 @@ const MultiLiveFeed = () => {
 
     return (
         <div className="relative flex min-h-screen flex-col bg-black overflow-hidden select-none">
-            <div className="absolute left-0 right-0 top-0 flex items-center justify-between p-6 z-40 bg-gradient-to-b from-black via-black/40 to-transparent pt-8 pb-16">
-                <div className="flex items-center gap-5">
+            {/* Minimal top bar — no logo, just back + count + grid toggle */}
+            <div className="absolute left-0 right-0 top-0 flex items-center justify-between px-4 pt-4 pb-10 z-40 bg-gradient-to-b from-black/80 to-transparent">
+                <div className="flex items-center gap-3">
                     <button
                         onClick={() => {
-                            if (fullscreenCameraId) {
-                                setFullscreenCameraId(null);
-                            } else {
-                                navigate("/dashboard");
-                            }
+                            if (fullscreenCameraId) setFullscreenCameraId(null);
+                            else navigate("/dashboard");
                         }}
-                        className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 backdrop-blur-3xl transition-all shadow-2xl active:scale-90"
+                        className="flex h-9 w-9 items-center justify-center rounded-full bg-black/50 hover:bg-white/20 border border-white/10 backdrop-blur-md transition-colors"
                     >
-                        <ArrowLeft className="h-6 w-6 text-white" />
+                        <ArrowLeft className="h-4 w-4 text-white" />
                     </button>
-                    <div className="flex flex-col gap-0.5">
-                        <div className="flex items-center gap-2">
-                            <div 
-                                onClick={() => navigate("/dashboard")} 
-                                className="flex items-center gap-3 group cursor-pointer pointer-events-auto"
-                            >
-                              <Logo size="sm" className="h-8 transition-transform group-hover:scale-110" />
-                              <span className="text-xl font-black text-white uppercase tracking-tighter">HGUARD</span>
-                            </div>
-                            <div className="h-4 w-[1.5px] bg-primary/40 rounded-full" />
-                            <span className="text-[10px] font-black text-primary uppercase tracking-[0.3em]">All cameras</span>
-                        </div>
-                        <p className="text-[9px] text-white/40 font-semibold tracking-wide">{cameras.length} camera{cameras.length === 1 ? '' : 's'} online</p>
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-black/50 border border-white/10 rounded-full backdrop-blur-md">
+                        <LayoutGrid className="h-3 w-3 text-primary" />
+                        <span className="text-[11px] font-bold text-white/80">{cameras.length} Camera{cameras.length !== 1 ? 's' : ''}</span>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
                     <button
                         onClick={() => window.location.reload()}
-                        className="h-10 w-10 flex items-center justify-center rounded-xl bg-white/5 border border-white/10 text-white/40 hover:text-primary transition-all"
-                        title="Refresh camera list"
+                        className="h-9 w-9 flex items-center justify-center rounded-full bg-black/50 border border-white/10 text-white/40 hover:text-white transition-all"
                     >
-                        <RefreshCw className="h-4 w-4" />
+                        <RefreshCw className="h-3.5 w-3.5" />
                     </button>
 
                     {!fullscreenCameraId && (
-                        <div className="flex items-center gap-1.5 p-1.5 rounded-2xl bg-black/40 border border-white/5 backdrop-blur-3xl shadow-2xl">
-                            {[1, 2, 4, 6].map((size) => (
+                        <div className="flex items-center gap-1 p-1 rounded-full bg-black/50 border border-white/10 backdrop-blur-md">
+                            {[1, 2, 4].map((size) => (
                                 <button
                                     key={size}
                                     onClick={() => setGridSize(size)}
                                     className={cn(
-                                        "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                                        effectiveGridSize === size ? "bg-primary text-black shadow-lg shadow-primary/20" : "text-white/30 hover:text-white"
+                                        "px-3 py-1.5 rounded-full text-[10px] font-bold transition-all",
+                                        effectiveGridSize === size ? "bg-primary text-black" : "text-white/30 hover:text-white"
                                     )}
                                 >
-                                    {size}
+                                    {size === 1 ? '1' : size === 2 ? '2' : '4'}
                                 </button>
                             ))}
                         </div>
                     )}
-
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={purgeAllDevices}
-                        title="Remove all cameras from your account"
-                        className="h-9 w-9 rounded-xl bg-black/40 border border-white/10 backdrop-blur-md text-white/50 hover:text-red-400 hover:bg-red-500/10 transition-all"
-                    >
-                        <Trash2 className="h-4 w-4" />
-                    </Button>
                 </div>
             </div>
 
