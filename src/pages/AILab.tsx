@@ -29,41 +29,24 @@ const proposals: AIProposal[] = [
     title: "Behavioral Anomaly Detection",
     status: "research",
     icon: Target,
-    description: "AI learns 'normal' patterns (e.g., when you usually arrive home) and alerts only on deviations.",
-    potential: "Reduces false alerts by 95% by ignoring routine movements."
+    description: "AI learns your normal home routine (like when you usually arrive) and only alerts you when something unexpected happens.",
+    potential: "Reduces false notifications by 95% by ignoring routine household movements."
   },
   {
     id: "facial-identity",
     title: "Edge Facial Recognition",
     status: "research",
     icon: Eye,
-    description: "Distinguish between family members, known visitors, and strangers locally on your device.",
-    potential: "Allows for 'Silent Alarms' where the siren only sounds for unknown intruders."
+    description: "Securely distinguish between family members, known visitors, and strangers locally on your device without using the cloud.",
+    potential: "Allows for silent home alarms where sirens only sound for unknown visitors."
   },
   {
     id: "vocal-commands",
-    title: "Natural Language Control",
+    title: "Natural Voice Control",
     status: "future",
     icon: Mic,
-    category: "Security",
-    description: "Ask HGUARD questions like 'Is the front door open?' or 'When did the mail arrive?'.",
-    potential: "Zero-touch surveillance management via voice."
-  },
-  {
-    id: "thermal-vision",
-    title: "AI Thermal Reconstruction",
-    status: "available",
-    icon: Thermometer,
-    description: "Using AI to digitally map heat signatures from standard low-light IR sensors.",
-    potential: "Detect fever or hidden human presence in pitch-black environments."
-  },
-  {
-    id: "mesh-tracking",
-    title: "Cross-Camera Object Tracking",
-    status: "available",
-    icon: Sparkles,
-    description: "Automatically hand over tracking of a person from one camera to another as they move through your property.",
-    potential: "Unified 'Follow' view that keeps the intruder in frame across all nodes."
+    description: "Ask HGUARD simple questions like 'Is the front door open?' or 'When did the mail carrier arrive?'.",
+    potential: "Zero-touch control over your security system using natural conversation."
   }
 ];
 
@@ -107,7 +90,7 @@ const AILab = () => {
         <div className="space-y-4 text-center sm:text-left">
           <div className="flex items-center justify-center sm:justify-start gap-4 text-primary">
             <Microscope className="w-10 h-10" />
-            <h1 className="text-4xl font-black uppercase tracking-tight leading-none">HGUARD <span className="text-white">AI LAB</span></h1>
+            <h1 className="text-4xl font-black tracking-tight leading-none">HGUARD <span className="text-white">AI Lab</span></h1>
           </div>
           <p className="text-lg text-muted-foreground font-medium">Future intelligence proposals and active AI research.</p>
         </div>
@@ -116,7 +99,7 @@ const AILab = () => {
           <div className="flex items-start gap-6">
             <Brain className="h-12 w-12 shrink-0" />
             <div className="space-y-2">
-              <h2 className="text-2xl font-black uppercase tracking-tight">Intelligence Feed</h2>
+              <h2 className="text-2xl font-black tracking-tight">Intelligence Feed</h2>
               <p className="font-bold leading-tight opacity-80">
                 As an AI Architect, I am constantly monitoring advances in Computer Vision and LLMs. 
                 Below are ideas we may add when your device can handle them.
@@ -148,9 +131,9 @@ const AILab = () => {
                 
                 <div className="space-y-4 flex-1">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-2xl font-black uppercase tracking-tight">{p.title}</h3>
+                    <h3 className="text-2xl font-black tracking-tight">{p.title}</h3>
                     <span className={cn(
-                      "px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border",
+                      "px-4 py-1.5 rounded-full text-[9px] font-black tracking-wider border capitalize",
                       p.status === "research" ? "bg-orange-500/20 border-orange-500/30 text-orange-400" : 
                       p.status === "available" ? "bg-emerald-500/20 border-emerald-500/30 text-emerald-400 animate-pulse" :
                       "bg-blue-500/20 border-blue-500/30 text-blue-400"
@@ -165,7 +148,7 @@ const AILab = () => {
                   
                   <div className="pt-4 flex items-center gap-3 text-primary">
                     <Zap className="h-4 w-4" />
-                    <span className="text-xs font-black uppercase tracking-widest">Potential Impact: {p.potential}</span>
+                    <span className="text-xs font-bold tracking-wide">Potential Impact: {p.potential}</span>
                   </div>
                 </div>
               </div>
@@ -193,7 +176,7 @@ const AILab = () => {
                 <Bell className="w-6 h-6" />
               </div>
               <div>
-                <h3 className="text-xl font-black uppercase tracking-tight">Admin AI Alerts</h3>
+                <h3 className="text-xl font-bold tracking-tight">Admin AI Alerts</h3>
                 <p className="text-sm font-bold text-white/50">Get notified immediately when new Lab features go live.</p>
               </div>
             </div>
@@ -206,7 +189,7 @@ const AILab = () => {
         )}
 
         <div className="text-center pt-12">
-          <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.5em]">System Intelligence v2.5.5 • Experimental Build</p>
+          <p className="text-[10px] font-bold text-white/20 tracking-wider">System Intelligence v2.5.5 • Experimental Build</p>
         </div>
       </div>
     </AppLayout>
