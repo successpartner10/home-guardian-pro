@@ -10,6 +10,8 @@ import { useToast } from "@/hooks/use-toast";
 import { db } from "@/lib/firebase";
 import { doc, updateDoc } from "firebase/firestore";
 import { Bell } from "lucide-react";
+import { ThermalLab } from "@/components/ailab/ThermalLab";
+import { MeshTrackingLab } from "@/components/ailab/MeshTrackingLab";
 
 interface AIProposal {
   id: string;
@@ -69,6 +71,22 @@ const AILab = () => {
   const { user, profileData, isAdmin } = useAuth();
   const { toast } = useToast();
   
+  const [thermalOpen, setThermalOpen] = useState(false);
+  const [meshOpen, setMeshOpen] = useState(false);
+  
+  const handleOpenLab = (id: string) => {
+    if (id === "thermal-vision") {
+      setThermalOpen(true);
+    } else if (id === "mesh-tracking") {
+      setMeshOpen(true);
+    } else {
+      toast({
+        title: "Proposal in Research Stage",
+        description: "An interactive diagnostic lab is under active development for this feature."
+      });
+    }
+  };
+
   const handleToggleNotifications = async (enabled: boolean) => {
     if (!user) return;
     try {
@@ -115,7 +133,13 @@ const AILab = () => {
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: idx * 0.1 }}
-              className="group relative overflow-hidden p-8 rounded-[3rem] bg-white/[0.03] border-2 border-white/5 hover:border-primary/40 transition-all duration-500"
+              onClick={() => handleOpenLab(p.id)}
+              className={cn(
+                "group relative overflow-hidden p-8 rounded-[3rem] bg-white/[0.03] border-2 border-white/5 transition-all duration-500",
+                p.status === "available"
+                  ? "cursor-pointer hover:border-primary/40 hover:bg-white/[0.06] shadow-lg"
+                  : "border-white/5 opacity-80"
+              )}
             >
               <div className="flex flex-col sm:flex-row gap-8 items-start">
                 <div className="h-20 w-20 rounded-[2rem] bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform duration-500 shrink-0">
@@ -127,7 +151,9 @@ const AILab = () => {
                     <h3 className="text-2xl font-black uppercase tracking-tight">{p.title}</h3>
                     <span className={cn(
                       "px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border",
-                      p.status === "research" ? "bg-orange-500/20 border-orange-500/30 text-orange-400" : "bg-blue-500/20 border-blue-500/30 text-blue-400"
+                      p.status === "research" ? "bg-orange-500/20 border-orange-500/30 text-orange-400" : 
+                      p.status === "available" ? "bg-emerald-500/20 border-emerald-500/30 text-emerald-400 animate-pulse" :
+                      "bg-blue-500/20 border-blue-500/30 text-blue-400"
                     )}>
                       {p.status}
                     </span>
@@ -144,14 +170,21 @@ const AILab = () => {
                 </div>
               </div>
 
-              <div className="absolute top-0 right-0 p-8 opacity-0 group-hover:opacity-100 transition-opacity">
-                <Button variant="ghost" size="icon" className="h-12 w-12 rounded-full bg-primary/10 text-primary">
-                  <ArrowRight className="h-6 w-6" />
-                </Button>
-              </div>
+              {p.status === "available" && (
+                <div className="absolute top-0 right-0 p-8 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Button variant="ghost" size="icon" className="h-12 w-12 rounded-full bg-primary/10 text-primary">
+                    <ArrowRight className="h-6 w-6" />
+                  </Button>
+                </div>
+              )}
             </motion.div>
           ))}
         </div>
+
+        {/* Interactive Lab Modals */}
+        <ThermalLab open={thermalOpen} onOpenChange={setThermalOpen} />
+        <MeshTrackingLab open={meshOpen} onOpenChange={setMeshOpen} />
+
 
         {isAdmin && (
           <div className="p-6 rounded-[2rem] bg-white/5 border border-white/10 flex items-center justify-between gap-6">
