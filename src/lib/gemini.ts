@@ -13,6 +13,7 @@ interface QuotaBucket {
 
 const PROVIDERS = [
   { key: "gemini",  limit: 40 },
+  { key: "groq",    limit: 50 },
   { key: "openai",  limit: 20 },
   { key: "claude",  limit: 15 },
 ] as const;
@@ -125,6 +126,36 @@ const callGemini = async (base64Data: string, prompt: string): Promise<string> =
   return text;
 };
 
+const callGroq = async (base64Data: string, prompt: string): Promise<string> => {
+  const apiKey = localStorage.getItem("hguard_groq_api_key") || import.meta.env.VITE_GROQ_API_KEY;
+  if (!apiKey) throw new Error("No Groq key available. Configure in Settings.");
+
+  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${apiKey}`
+    },
+    body: JSON.stringify({
+      model: "llama-3.2-11b-vision-preview",
+      max_tokens: 60,
+      messages: [{
+        role: "user",
+        content: [
+          { type: "text", text: prompt },
+          { type: "image_url", image_url: { url: `data:image/jpeg;base64,${base64Data}` } }
+        ]
+      }]
+    })
+  });
+
+  if (res.status === 429) { markExhausted("groq", 50); throw new Error("429"); }
+  const data = await res.json();
+  const text = data.choices?.[0]?.message?.content;
+  if (!text) throw new Error("empty");
+  return text;
+};
+
 const callOpenAI = async (base64Data: string, prompt: string): Promise<string> => {
   const apiKey = localStorage.getItem("hguard_openai_api_key") || import.meta.env.VITE_OPENAI_API_KEY;
   if (!apiKey) throw new Error("No OpenAI key available. Configure in Settings.");
@@ -202,6 +233,7 @@ export const analyzeFrame = async (base64Image: string, prompt?: string): Promis
 
   const callers: Array<{ key: ProviderKey; limit: number; fn: (d: string, p: string) => Promise<string> }> = [
     { key: "gemini", limit: 40, fn: callGemini },
+    { key: "groq",   limit: 50, fn: callGroq },
     { key: "openai", limit: 20, fn: callOpenAI },
     { key: "claude", limit: 15, fn: callClaude },
   ];
