@@ -190,6 +190,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               // ───────────────────────────────────────────────────────────────
 
               setProfileData(data);
+              
+              // ── Cross-device AI Key Synchronizer ────────────────────────────
+              if (data.custom_keys) {
+                Object.entries(data.custom_keys).forEach(([k, v]) => {
+                  if (v && typeof v === "string") {
+                    localStorage.setItem(k, v);
+                  }
+                });
+              }
+              // ───────────────────────────────────────────────────────────────
+              
               setIsApproved(data.is_approved || (currentUser.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase()));
               
               if (data.ai_provider) aiOrchestrator.setProvider(data.ai_provider);

@@ -105,6 +105,16 @@ const SettingsPage = () => {
   const [editingDeviceId, setEditingDeviceId] = useState<string | null>(null);
   const [editingDeviceName, setEditingDeviceName] = useState("");
 
+  // Synchronized Custom AI Keys States
+  const [g1, setG1] = useState("");
+  const [g2, setG2] = useState("");
+  const [g3, setG3] = useState("");
+  const [g4, setG4] = useState("");
+  const [gr1, setGr1] = useState("");
+  const [gr2, setGr2] = useState("");
+  const [or, setOr] = useState("");
+  const [op, setOp] = useState("");
+
   const isAdmin = user?.email === ADMIN_EMAIL;
   
   // Fetch Drive Quota
@@ -132,6 +142,27 @@ const SettingsPage = () => {
       setArchiveLimit(profileData.archive_limit_gb || 10);
       setWebhookUrl(profileData.webhook_url || "");
       setAutoUpgrade(profileData.auto_upgrade_ai ?? true);
+
+      // Cloud API key synchronization
+      const ck = profileData.custom_keys || {};
+      setG1(ck.hguard_gemini_api_key_1 || ck.hguard_gemini_api_key || localStorage.getItem("hguard_gemini_api_key_1") || localStorage.getItem("hguard_gemini_api_key") || "");
+      setG2(ck.hguard_gemini_api_key_2 || localStorage.getItem("hguard_gemini_api_key_2") || "");
+      setG3(ck.hguard_gemini_api_key_3 || localStorage.getItem("hguard_gemini_api_key_3") || "");
+      setG4(ck.hguard_gemini_api_key_4 || localStorage.getItem("hguard_gemini_api_key_4") || "");
+      setGr1(ck.hguard_groq_api_key || localStorage.getItem("hguard_groq_api_key") || "");
+      setGr2(ck.hguard_groq_api_key_alt || localStorage.getItem("hguard_groq_api_key_alt") || "");
+      setOr(ck.hguard_openrouter_api_key || localStorage.getItem("hguard_openrouter_api_key") || "");
+      setOp(ck.hguard_openai_api_key || localStorage.getItem("hguard_openai_api_key") || "");
+    } else {
+      // Offline fallback
+      setG1(localStorage.getItem("hguard_gemini_api_key_1") || localStorage.getItem("hguard_gemini_api_key") || "");
+      setG2(localStorage.getItem("hguard_gemini_api_key_2") || "");
+      setG3(localStorage.getItem("hguard_gemini_api_key_3") || "");
+      setG4(localStorage.getItem("hguard_gemini_api_key_4") || "");
+      setGr1(localStorage.getItem("hguard_groq_api_key") || "");
+      setGr2(localStorage.getItem("hguard_groq_api_key_alt") || "");
+      setOr(localStorage.getItem("hguard_openrouter_api_key") || "");
+      setOp(localStorage.getItem("hguard_openai_api_key") || "");
     }
   }, [profileData, user]);
 
@@ -260,6 +291,33 @@ const SettingsPage = () => {
       toast({ title: "Failed to set PIN", variant: "destructive" });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const saveCustomKey = async (localStorageKey: string, val: string, successTitle: string, successDesc: string) => {
+    const trimmed = val.trim();
+    if (trimmed) {
+      localStorage.setItem(localStorageKey, trimmed);
+    } else {
+      localStorage.removeItem(localStorageKey);
+    }
+    
+    if (!user) return;
+    try {
+      await updateDoc(doc(db, "profiles", user.uid), {
+        [`custom_keys.${localStorageKey}`]: trimmed || null
+      });
+      toast({
+        title: successTitle,
+        description: successDesc
+      });
+    } catch (e) {
+      console.error(e);
+      toast({
+        title: "Sync Error",
+        description: "Saved locally, but failed to sync to cloud.",
+        variant: "destructive"
+      });
     }
   };
 
@@ -783,7 +841,7 @@ const SettingsPage = () => {
             <div className="p-6 bg-card/40 border-2 border-border/40 rounded-[2rem] space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-[10px] font-black uppercase tracking-widest text-primary">Groq API Key (Primary)</span>
-                {localStorage.getItem("hguard_groq_api_key") ? (
+                {gr1 ? (
                   <span className="text-[8px] bg-green-500/20 text-green-400 font-bold px-2 py-0.5 rounded-full uppercase">Configured</span>
                 ) : (
                   <span className="text-[8px] bg-white/10 text-white/50 font-bold px-2 py-0.5 rounded-full uppercase">Not Configured</span>
@@ -793,24 +851,12 @@ const SettingsPage = () => {
                 <Input
                   type="password"
                   placeholder="gsk_..."
-                  defaultValue={localStorage.getItem("hguard_groq_api_key") || ""}
-                  onChange={(e) => {
-                    const val = e.target.value.trim();
-                    if (val) {
-                      localStorage.setItem("hguard_groq_api_key", val);
-                    } else {
-                      localStorage.removeItem("hguard_groq_api_key");
-                    }
-                  }}
+                  value={gr1}
+                  onChange={(e) => setGr1(e.target.value)}
                   className="h-12 bg-zinc-900/60 border-0 rounded-xl font-mono text-xs px-4"
                 />
                 <Button
-                  onClick={() => {
-                    toast({
-                      title: "Primary Groq Key Updated",
-                      description: "Primary Groq Key saved successfully."
-                    });
-                  }}
+                  onClick={() => saveCustomKey("hguard_groq_api_key", gr1, "Primary Groq Key Updated", "Primary Groq Key saved successfully & synced.")}
                   className="h-12 px-6 rounded-xl font-bold text-[10px] uppercase tracking-wider shrink-0"
                 >
                   Save
@@ -822,7 +868,7 @@ const SettingsPage = () => {
             <div className="p-6 bg-card/40 border-2 border-border/40 rounded-[2rem] space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-[10px] font-black uppercase tracking-widest text-primary">Groq API Key (Secondary)</span>
-                {localStorage.getItem("hguard_groq_api_key_alt") ? (
+                {gr2 ? (
                   <span className="text-[8px] bg-green-500/20 text-green-400 font-bold px-2 py-0.5 rounded-full uppercase">Configured</span>
                 ) : (
                   <span className="text-[8px] bg-white/10 text-white/50 font-bold px-2 py-0.5 rounded-full uppercase">Not Configured</span>
@@ -832,24 +878,12 @@ const SettingsPage = () => {
                 <Input
                   type="password"
                   placeholder="gsk_..."
-                  defaultValue={localStorage.getItem("hguard_groq_api_key_alt") || ""}
-                  onChange={(e) => {
-                    const val = e.target.value.trim();
-                    if (val) {
-                      localStorage.setItem("hguard_groq_api_key_alt", val);
-                    } else {
-                      localStorage.removeItem("hguard_groq_api_key_alt");
-                    }
-                  }}
+                  value={gr2}
+                  onChange={(e) => setGr2(e.target.value)}
                   className="h-12 bg-zinc-900/60 border-0 rounded-xl font-mono text-xs px-4"
                 />
                 <Button
-                  onClick={() => {
-                    toast({
-                      title: "Secondary Groq Key Updated",
-                      description: "Secondary Groq Key saved successfully."
-                    });
-                  }}
+                  onClick={() => saveCustomKey("hguard_groq_api_key_alt", gr2, "Secondary Groq Key Updated", "Secondary Groq Key saved successfully & synced.")}
                   className="h-12 px-6 rounded-xl font-bold text-[10px] uppercase tracking-wider shrink-0"
                 >
                   Save
@@ -861,7 +895,7 @@ const SettingsPage = () => {
             <div className="p-6 bg-card/40 border-2 border-border/40 rounded-[2rem] space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-[10px] font-black uppercase tracking-widest text-primary">OpenRouter API Key (Free Vision Option)</span>
-                {localStorage.getItem("hguard_openrouter_api_key") ? (
+                {or ? (
                   <span className="text-[8px] bg-green-500/20 text-green-400 font-bold px-2 py-0.5 rounded-full uppercase">Configured</span>
                 ) : (
                   <span className="text-[8px] bg-white/10 text-white/50 font-bold px-2 py-0.5 rounded-full uppercase">Not Configured</span>
@@ -871,24 +905,12 @@ const SettingsPage = () => {
                 <Input
                   type="password"
                   placeholder="sk-or-v1-..."
-                  defaultValue={localStorage.getItem("hguard_openrouter_api_key") || ""}
-                  onChange={(e) => {
-                    const val = e.target.value.trim();
-                    if (val) {
-                      localStorage.setItem("hguard_openrouter_api_key", val);
-                    } else {
-                      localStorage.removeItem("hguard_openrouter_api_key");
-                    }
-                  }}
+                  value={or}
+                  onChange={(e) => setOr(e.target.value)}
                   className="h-12 bg-zinc-900/60 border-0 rounded-xl font-mono text-xs px-4"
                 />
                 <Button
-                  onClick={() => {
-                    toast({
-                      title: "OpenRouter Key Updated",
-                      description: "Your free OpenRouter Vision API key has been saved securely."
-                    });
-                  }}
+                  onClick={() => saveCustomKey("hguard_openrouter_api_key", or, "OpenRouter Key Updated", "Your free OpenRouter Vision API key has been saved and synced.")}
                   className="h-12 px-6 rounded-xl font-bold text-[10px] uppercase tracking-wider shrink-0"
                 >
                   Save
@@ -903,7 +925,7 @@ const SettingsPage = () => {
             <div className="p-6 bg-card/40 border-2 border-border/40 rounded-[2rem] space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-[10px] font-black uppercase tracking-widest text-primary">OpenAI API Key (Custom)</span>
-                {localStorage.getItem("hguard_openai_api_key") ? (
+                {op ? (
                   <span className="text-[8px] bg-green-500/20 text-green-400 font-bold px-2 py-0.5 rounded-full uppercase">Configured</span>
                 ) : (
                   <span className="text-[8px] bg-white/10 text-white/50 font-bold px-2 py-0.5 rounded-full uppercase">Not Configured</span>
@@ -913,24 +935,12 @@ const SettingsPage = () => {
                 <Input
                   type="password"
                   placeholder="sk-proj-..."
-                  defaultValue={localStorage.getItem("hguard_openai_api_key") || ""}
-                  onChange={(e) => {
-                    const val = e.target.value.trim();
-                    if (val) {
-                      localStorage.setItem("hguard_openai_api_key", val);
-                    } else {
-                      localStorage.removeItem("hguard_openai_api_key");
-                    }
-                  }}
+                  value={op}
+                  onChange={(e) => setOp(e.target.value)}
                   className="h-12 bg-zinc-900/60 border-0 rounded-xl font-mono text-xs px-4"
                 />
                 <Button
-                  onClick={() => {
-                    toast({
-                      title: "OpenAI Key Updated",
-                      description: "Your custom OpenAI key has been saved securely to local storage."
-                    });
-                  }}
+                  onClick={() => saveCustomKey("hguard_openai_api_key", op, "OpenAI Key Updated", "Your custom OpenAI key has been saved and synced.")}
                   className="h-12 px-6 rounded-xl font-bold text-[10px] uppercase tracking-wider shrink-0"
                 >
                   Save
@@ -942,7 +952,7 @@ const SettingsPage = () => {
             <div className="p-6 bg-card/40 border-2 border-border/40 rounded-[2rem] space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-[10px] font-black uppercase tracking-widest text-primary">Gemini API Key #1 (Primary)</span>
-                {(localStorage.getItem("hguard_gemini_api_key_1") || localStorage.getItem("hguard_gemini_api_key")) ? (
+                {g1 ? (
                   <span className="text-[8px] bg-green-500/20 text-green-400 font-bold px-2 py-0.5 rounded-full uppercase">Configured</span>
                 ) : (
                   <span className="text-[8px] bg-primary/20 text-primary font-bold px-2 py-0.5 rounded-full uppercase">System Free Tier</span>
@@ -952,25 +962,14 @@ const SettingsPage = () => {
                 <Input
                   type="password"
                   placeholder="AIzaSy..."
-                  defaultValue={localStorage.getItem("hguard_gemini_api_key_1") || localStorage.getItem("hguard_gemini_api_key") || ""}
-                  onChange={(e) => {
-                    const val = e.target.value.trim();
-                    if (val) {
-                      localStorage.setItem("hguard_gemini_api_key_1", val);
-                      localStorage.setItem("hguard_gemini_api_key", val); // sync legacy
-                    } else {
-                      localStorage.removeItem("hguard_gemini_api_key_1");
-                      localStorage.removeItem("hguard_gemini_api_key");
-                    }
-                  }}
+                  value={g1}
+                  onChange={(e) => setG1(e.target.value)}
                   className="h-12 bg-zinc-900/60 border-0 rounded-xl font-mono text-xs px-4"
                 />
                 <Button
                   onClick={() => {
-                    toast({
-                      title: "Gemini Key #1 Updated",
-                      description: "Primary Gemini key saved successfully."
-                    });
+                    saveCustomKey("hguard_gemini_api_key_1", g1, "Gemini Key #1 Updated", "Primary Gemini key saved and synced.");
+                    localStorage.setItem("hguard_gemini_api_key", g1); // legacy sync
                   }}
                   className="h-12 px-6 rounded-xl font-bold text-[10px] uppercase tracking-wider shrink-0"
                 >
@@ -983,7 +982,7 @@ const SettingsPage = () => {
             <div className="p-6 bg-card/40 border-2 border-border/40 rounded-[2rem] space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-[10px] font-black uppercase tracking-widest text-primary">Gemini API Key #2</span>
-                {localStorage.getItem("hguard_gemini_api_key_2") ? (
+                {g2 ? (
                   <span className="text-[8px] bg-green-500/20 text-green-400 font-bold px-2 py-0.5 rounded-full uppercase">Configured</span>
                 ) : (
                   <span className="text-[8px] bg-white/10 text-white/50 font-bold px-2 py-0.5 rounded-full uppercase">Not Configured</span>
@@ -993,24 +992,12 @@ const SettingsPage = () => {
                 <Input
                   type="password"
                   placeholder="AIzaSy..."
-                  defaultValue={localStorage.getItem("hguard_gemini_api_key_2") || ""}
-                  onChange={(e) => {
-                    const val = e.target.value.trim();
-                    if (val) {
-                      localStorage.setItem("hguard_gemini_api_key_2", val);
-                    } else {
-                      localStorage.removeItem("hguard_gemini_api_key_2");
-                    }
-                  }}
+                  value={g2}
+                  onChange={(e) => setG2(e.target.value)}
                   className="h-12 bg-zinc-900/60 border-0 rounded-xl font-mono text-xs px-4"
                 />
                 <Button
-                  onClick={() => {
-                    toast({
-                      title: "Gemini Key #2 Updated",
-                      description: "Gemini key #2 saved successfully."
-                    });
-                  }}
+                  onClick={() => saveCustomKey("hguard_gemini_api_key_2", g2, "Gemini Key #2 Updated", "Gemini key #2 saved and synced.")}
                   className="h-12 px-6 rounded-xl font-bold text-[10px] uppercase tracking-wider shrink-0"
                 >
                   Save
@@ -1022,7 +1009,7 @@ const SettingsPage = () => {
             <div className="p-6 bg-card/40 border-2 border-border/40 rounded-[2rem] space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-[10px] font-black uppercase tracking-widest text-primary">Gemini API Key #3</span>
-                {localStorage.getItem("hguard_gemini_api_key_3") ? (
+                {g3 ? (
                   <span className="text-[8px] bg-green-500/20 text-green-400 font-bold px-2 py-0.5 rounded-full uppercase">Configured</span>
                 ) : (
                   <span className="text-[8px] bg-white/10 text-white/50 font-bold px-2 py-0.5 rounded-full uppercase">Not Configured</span>
@@ -1032,24 +1019,12 @@ const SettingsPage = () => {
                 <Input
                   type="password"
                   placeholder="AIzaSy..."
-                  defaultValue={localStorage.getItem("hguard_gemini_api_key_3") || ""}
-                  onChange={(e) => {
-                    const val = e.target.value.trim();
-                    if (val) {
-                      localStorage.setItem("hguard_gemini_api_key_3", val);
-                    } else {
-                      localStorage.removeItem("hguard_gemini_api_key_3");
-                    }
-                  }}
+                  value={g3}
+                  onChange={(e) => setG3(e.target.value)}
                   className="h-12 bg-zinc-900/60 border-0 rounded-xl font-mono text-xs px-4"
                 />
                 <Button
-                  onClick={() => {
-                    toast({
-                      title: "Gemini Key #3 Updated",
-                      description: "Gemini key #3 saved successfully."
-                    });
-                  }}
+                  onClick={() => saveCustomKey("hguard_gemini_api_key_3", g3, "Gemini Key #3 Updated", "Gemini key #3 saved and synced.")}
                   className="h-12 px-6 rounded-xl font-bold text-[10px] uppercase tracking-wider shrink-0"
                 >
                   Save
@@ -1061,7 +1036,7 @@ const SettingsPage = () => {
             <div className="p-6 bg-card/40 border-2 border-border/40 rounded-[2rem] space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-[10px] font-black uppercase tracking-widest text-primary">Gemini API Key #4</span>
-                {localStorage.getItem("hguard_gemini_api_key_4") ? (
+                {g4 ? (
                   <span className="text-[8px] bg-green-500/20 text-green-400 font-bold px-2 py-0.5 rounded-full uppercase">Configured</span>
                 ) : (
                   <span className="text-[8px] bg-white/10 text-white/50 font-bold px-2 py-0.5 rounded-full uppercase">Not Configured</span>
@@ -1071,24 +1046,12 @@ const SettingsPage = () => {
                 <Input
                   type="password"
                   placeholder="AIzaSy..."
-                  defaultValue={localStorage.getItem("hguard_gemini_api_key_4") || ""}
-                  onChange={(e) => {
-                    const val = e.target.value.trim();
-                    if (val) {
-                      localStorage.setItem("hguard_gemini_api_key_4", val);
-                    } else {
-                      localStorage.removeItem("hguard_gemini_api_key_4");
-                    }
-                  }}
+                  value={g4}
+                  onChange={(e) => setG4(e.target.value)}
                   className="h-12 bg-zinc-900/60 border-0 rounded-xl font-mono text-xs px-4"
                 />
                 <Button
-                  onClick={() => {
-                    toast({
-                      title: "Gemini Key #4 Updated",
-                      description: "Gemini key #4 saved successfully."
-                    });
-                  }}
+                  onClick={() => saveCustomKey("hguard_gemini_api_key_4", g4, "Gemini Key #4 Updated", "Gemini key #4 saved and synced.")}
                   className="h-12 px-6 rounded-xl font-bold text-[10px] uppercase tracking-wider shrink-0"
                 >
                   Save
