@@ -10,7 +10,7 @@ const navItems = [
   { to: "/dashboard", icon: Camera, label: "Cameras" },
   { to: "/archive", icon: Bell, label: "Events" },
   { to: "/users", icon: Users, label: "Users", adminOnly: true },
-  { to: "/ailab", icon: Brain, label: "AI Lab", adminOnly: true },
+  { to: "/ai-lab", icon: Brain, label: "AI Lab", adminOnly: true },
   { to: "/settings", icon: Settings, label: "Settings" },
   { to: "/help", icon: HelpCircle, label: "Help" },
 ];
@@ -44,7 +44,7 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
       {/* Bottom navigation */}
       <nav className={cn(
         "glass-panel fixed bottom-0 left-0 right-0 z-50 grid h-20 items-center px-1 safe-area-pb",
-        filteredItems.length === 5 ? "grid-cols-5" : "grid-cols-4"
+        filteredItems.length === 6 ? "grid-cols-6" : filteredItems.length === 5 ? "grid-cols-5" : "grid-cols-4"
       )}>
         {filteredItems.map(({ to, icon: Icon, label }) => {
           const active = location.pathname === to || (to === '/dashboard' && location.pathname === '/');

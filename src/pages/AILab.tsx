@@ -18,6 +18,7 @@ interface AIProposal {
   icon: any;
   description: string;
   potential: string;
+  category?: string;
 }
 
 const proposals: AIProposal[] = [
