@@ -199,6 +199,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                   }
                 });
               }
+              
+              // Sync local keys back to Firestore if they exist in localStorage but not in cloud
+              const localKeys: Record<string, string | null> = {};
+              const keysToCheck = [
+                "hguard_gemini_api_key_1",
+                "hguard_gemini_api_key_2",
+                "hguard_gemini_api_key_3",
+                "hguard_gemini_api_key_4",
+                "hguard_gemini_api_key",
+                "hguard_groq_api_key",
+                "hguard_groq_api_key_alt",
+                "hguard_openrouter_api_key",
+                "hguard_openai_api_key"
+              ];
+              
+              let needsSyncBack = false;
+              const currentCloudKeys = data.custom_keys || {};
+              
+              keysToCheck.forEach(key => {
+                const localValue = localStorage.getItem(key);
+                if (localValue && !currentCloudKeys[key]) {
+                  localKeys[`custom_keys.${key}`] = localValue;
+                  needsSyncBack = true;
+                }
+              });
+              
+              if (needsSyncBack) {
+                console.log("[Auth] Auto-syncing PC local keys to secure Firestore cloud profiles...");
+                updateDoc(docRef, localKeys).catch(err => {
+                  console.error("[Auth] Cloud key sync back failed:", err);
+                });
+              }
               // ───────────────────────────────────────────────────────────────
               
               setIsApproved(data.is_approved || (currentUser.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase()));
