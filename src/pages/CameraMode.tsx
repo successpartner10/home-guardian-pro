@@ -431,7 +431,7 @@ const CameraMode = () => {
     triggerWebhook(alertData);
   }, [sirenActive, toggleSiren, wakeUp]);
 
-  const { videoRef, canvasRef, isActive, isMuted, flashOn, brightness, zoomLevel, zoomCenter, detectionZone, setDetectionZone, startCamera, stopCamera, restartCamera, toggleMute, toggleFlash, takeSnapshot, stream, error: cameraError } =
+  const { videoRef, canvasRef, isActive, isMuted, flashOn, brightness, zoomLevel, zoomCenter, detectionZone, setDetectionZone, startCamera, stopCamera, restartCamera, toggleMute, toggleFlash, takeSnapshot, stream, applyHardwareZoom, hardwareZoomRange, error: cameraError } =
     useCamera({
       onMotionDetected: cameraMode === 'full' ? handleMotion : undefined,
       onSoundDetected: cameraMode === 'full' ? handleSound : undefined,
@@ -448,6 +448,9 @@ const CameraMode = () => {
       if (msg.action === 'TOGGLE_SIREN') toggleSiren();
       if (msg.action === 'TOGGLE_NIGHT_VISION') { setAutoNightVision(false); setNightVision(prev => !prev); }
       if (msg.action === 'TAKE_SNAPSHOT') takeSnapshot();
+      if (msg.action === 'SET_ZOOM' && typeof msg.value === 'number') {
+        applyHardwareZoom(msg.value);
+      }
       if (msg.action === 'TOGGLE_AI') {
         if (cameraMode === 'full') {
           setShowNarrative(prev => !prev);
@@ -459,7 +462,7 @@ const CameraMode = () => {
         }
       }
     }
-  }, [toggleFlash, toggleSiren, takeSnapshot, wakeUp, cameraMode, toast]);
+  }, [toggleFlash, toggleSiren, takeSnapshot, applyHardwareZoom, wakeUp, cameraMode, toast]);
 
   const webRTCDeviceId = resolvedDeviceId || "";
 
@@ -512,9 +515,17 @@ const CameraMode = () => {
 
   useEffect(() => {
     if (viewerConnected) {
-      sendData({ type: 'TELEMETRY', data: { zoomLevel, zoomCenter, isFlashOn: flashOn, isSirenOn: sirenActive, isNightVision: nightVision, ambientBrightness: ambientBrightness, isAiActive: showNarrative } });
+      sendData({
+        type: 'TELEMETRY',
+        data: {
+          zoomLevel, zoomCenter,
+          isFlashOn: flashOn, isSirenOn: sirenActive, isNightVision: nightVision,
+          ambientBrightness, isAiActive: showNarrative,
+          hardwareZoomRange: hardwareZoomRange || null,
+        }
+      });
     }
-  }, [zoomLevel, zoomCenter, viewerConnected, sendData, flashOn, sirenActive, nightVision, ambientBrightness, showNarrative]);
+  }, [zoomLevel, zoomCenter, viewerConnected, sendData, flashOn, sirenActive, nightVision, ambientBrightness, showNarrative, hardwareZoomRange]);
 
   // AI Analysis Loop
   const aiErrorCountRef = useRef(0);

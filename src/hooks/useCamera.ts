@@ -45,6 +45,7 @@ export const useCamera = ({
   const [zoomCenter, setZoomCenter] = useState({ x: 50, y: 50 });
   const [soundLevel, setSoundLevel] = useState(0);
   const [detectionZone, setDetectionZone] = useState<{ x: number, y: number, width: number, height: number } | null>(null);
+  const [hardwareZoomRange, setHardwareZoomRange] = useState<{ min: number; max: number; step: number } | null>(null);
 
   const lastSoundAlertRef = useRef<number>(0);
   const lastMotionAlertRef = useRef<number>(0);
@@ -95,16 +96,32 @@ export const useCamera = ({
         } else {
           const constraints: MediaStreamConstraints = {
             video: deviceId 
-              ? { deviceId: { exact: deviceId }, width: { ideal: 1280 }, height: { ideal: 720 } }
-              : { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } },
+              ? {
+                  deviceId: { exact: deviceId },
+                  width: { ideal: 3840 }, height: { ideal: 2160 },  // 4K — falls back gracefully
+                  frameRate: { ideal: 30, max: 60 }
+                }
+              : {
+                  facingMode: "environment",
+                  width: { ideal: 3840 }, height: { ideal: 2160 },
+                  frameRate: { ideal: 30, max: 60 }
+                },
             audio: highPrecisionAudio ? {
               echoCancellation: true,
               noiseSuppression: true,
               autoGainControl: true,
             } : true,
           };
-          console.log("[useCamera] Requesting Hardware Camera...");
+          console.log("[useCamera] Requesting 4K Hardware Camera...");
           stream = await navigator.mediaDevices.getUserMedia(constraints);
+
+          // Read hardware zoom capabilities
+          const videoTrack = stream.getVideoTracks()[0];
+          const caps = videoTrack?.getCapabilities?.() as any;
+          if (caps?.zoom) {
+            setHardwareZoomRange({ min: caps.zoom.min, max: caps.zoom.max, step: caps.zoom.step || 0.1 });
+            console.log(`[useCamera] Hardware zoom: ${caps.zoom.min}x – ${caps.zoom.max}x`);
+          }
         }
       } catch (e) {
         console.warn("[useCamera] HD requested failed, trying standard mobile Fallback:", e);
@@ -244,6 +261,22 @@ export const useCamera = ({
       }
     }
   }, [flashOn, toast]);
+
+  const applyHardwareZoom = useCallback(async (zoom: number) => {
+    if (!streamRef.current) return;
+    const videoTrack = streamRef.current.getVideoTracks()[0];
+    if (!videoTrack) return;
+    try {
+      const caps = videoTrack.getCapabilities?.() as any;
+      if (caps?.zoom) {
+        const clamped = Math.max(caps.zoom.min, Math.min(caps.zoom.max, zoom));
+        await videoTrack.applyConstraints({ advanced: [{ zoom: clamped }] } as any);
+        console.log(`[useCamera] Hardware zoom set to ${clamped}x`);
+      }
+    } catch (e) {
+      console.warn("[useCamera] Hardware zoom not supported:", e);
+    }
+  }, []);
 
   const takeSnapshot = useCallback((): string | null => {
     if (!videoRef.current || !canvasRef.current) return null;
@@ -454,5 +487,7 @@ export const useCamera = ({
     toggleMute,
     toggleFlash,
     takeSnapshot,
+    applyHardwareZoom,
+    hardwareZoomRange,
   };
 };

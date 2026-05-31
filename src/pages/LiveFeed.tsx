@@ -16,8 +16,8 @@ import {
 } from "firebase/firestore";
 import { useWebRTC } from "@/hooks/useWebRTC";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Wifi, WifiOff, Volume2, VolumeX, Camera, Maximize, RefreshCw, ChevronRight, Share2, Copy, Check, Maximize2, Moon, Sun, Mic, Brain, Thermometer, AlertTriangle, Zap, FlashlightOff } from "lucide-react";
-import { getAIQuotaStatus } from "@/lib/gemini";
+import { ArrowLeft, Wifi, WifiOff, Volume2, VolumeX, Camera, Maximize, RefreshCw, ChevronRight, Share2, Copy, Check, Maximize2, Moon, Sun, Mic, Brain, Thermometer, AlertTriangle, Zap, FlashlightOff, ScanSearch, X } from "lucide-react";
+import { getAIQuotaStatus, analyzeFrame } from "@/lib/gemini";
 import {
   Dialog,
   DialogContent,
@@ -81,6 +81,9 @@ const LiveFeed = () => {
   const [isThermal, setIsThermal] = useState(false);
   const [aiAnalysis, setAiAnalysis] = useState<any>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [hardwareZoomRange, setHardwareZoomRange] = useState<{ min: number; max: number; step: number } | null>(null);
+  const [hwZoomValue, setHwZoomValue] = useState(1);
+  const [superZoom, setSuperZoom] = useState<{ image: string; reading: string | null; loading: boolean } | null>(null);
   const { toast } = useToast();
 
   const handleRemoteStream = useCallback((stream: MediaStream) => {
@@ -95,12 +98,11 @@ const LiveFeed = () => {
       const d = msg.data || msg;
       if (d.zoomLevel) setZoomLevel(d.zoomLevel);
       if (d.zoomCenter) setZoomCenter(d.zoomCenter);
-      
-      // TELEMETRY from camera overrides our optimistic state (truth from camera)
       if (d.isFlashOn !== undefined) setIsFlashOn(d.isFlashOn);
       if (d.isSirenOn !== undefined) setIsSirenOn(d.isSirenOn);
       if (d.isNightVision !== undefined) setIsNightVision(d.isNightVision);
       if (d.isAiActive !== undefined) setIsAiActive(d.isAiActive);
+      if (d.hardwareZoomRange) setHardwareZoomRange(d.hardwareZoomRange);
     } else if (msg.type === "AI_ANALYSIS") {
       setAiAnalysis(msg.data);
     }
@@ -365,6 +367,76 @@ const LiveFeed = () => {
       toast({ title: "Picture-in-Picture failed", variant: "destructive" });
     }
   };
+
+  // ── Super Zoom Capture: grab frame → unsharp mask → AI read ──────────────
+  const superZoomCapture = useCallback(async () => {
+    const video = remoteVideoRef.current;
+    if (!video || !isConnected) return;
+
+    // 1. Capture raw frame to canvas at native resolution
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth || 1280;
+    canvas.height = video.videoHeight || 720;
+    const ctx = canvas.getContext("2d")!;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    // 2. Crop to the zoomed region (current zoomCenter + zoomLevel)
+    if (zoomLevel > 1) {
+      const cw = Math.round(canvas.width / zoomLevel);
+      const ch = Math.round(canvas.height / zoomLevel);
+      const sx = Math.round((zoomCenter.x / 100) * canvas.width - cw / 2);
+      const sy = Math.round((zoomCenter.y / 100) * canvas.height - ch / 2);
+      const cropped = document.createElement("canvas");
+      cropped.width = canvas.width;
+      cropped.height = canvas.height;
+      const cctx = cropped.getContext("2d")!;
+      cctx.drawImage(canvas, Math.max(0, sx), Math.max(0, sy), cw, ch, 0, 0, canvas.width, canvas.height);
+      canvas.getContext("2d")!.drawImage(cropped, 0, 0);
+    }
+
+    // 3. Unsharp mask: draw → blur copy → blend (sharpen)
+    const sharp = document.createElement("canvas");
+    sharp.width = canvas.width;
+    sharp.height = canvas.height;
+    const sctx = sharp.getContext("2d")!;
+    // Original
+    sctx.drawImage(canvas, 0, 0);
+    const original = sctx.getImageData(0, 0, sharp.width, sharp.height);
+    // Blurred (box blur approx)
+    sctx.filter = "blur(1.5px) contrast(1.15) brightness(1.05)";
+    sctx.drawImage(canvas, 0, 0);
+    const blurred = sctx.getImageData(0, 0, sharp.width, sharp.height);
+    // Blend: out = original + amount * (original - blurred)
+    const amount = 2.2;
+    const out = sctx.createImageData(sharp.width, sharp.height);
+    for (let i = 0; i < original.data.length; i += 4) {
+      out.data[i]   = Math.max(0, Math.min(255, original.data[i]   + amount * (original.data[i]   - blurred.data[i])));
+      out.data[i+1] = Math.max(0, Math.min(255, original.data[i+1] + amount * (original.data[i+1] - blurred.data[i+1])));
+      out.data[i+2] = Math.max(0, Math.min(255, original.data[i+2] + amount * (original.data[i+2] - blurred.data[i+2])));
+      out.data[i+3] = 255;
+    }
+    sctx.filter = "none";
+    sctx.putImageData(out, 0, 0);
+
+    const enhanced = sharp.toDataURL("image/jpeg", 0.95);
+    setSuperZoom({ image: enhanced, reading: null, loading: true });
+
+    // 4. Send to AI Vision to read plate / identify content
+    try {
+      const result = await analyzeFrame(
+        enhanced.split(",")[1] // pass just base64
+      );
+      setSuperZoom(prev => prev ? {
+        ...prev,
+        loading: false,
+        reading: result.exhausted
+          ? `AI quota reset ${result.retryIn}`
+          : (result.text || "Could not read text in this frame.")
+      } : null);
+    } catch {
+      setSuperZoom(prev => prev ? { ...prev, loading: false, reading: "AI unavailable." } : null);
+    }
+  }, [remoteVideoRef, isConnected, zoomLevel, zoomCenter]);
 
   if (loading) {
     return (
@@ -645,6 +717,35 @@ const LiveFeed = () => {
                     <span className="text-xs font-black text-white/60">{zoomLevel.toFixed(1)}×</span>
                     <button onClick={handleZoomIn} disabled={zoomLevel >= 4} className="h-8 w-8 rounded-xl bg-white/10 text-white hover:bg-white/25 disabled:opacity-25 transition-all flex items-center justify-center font-bold text-lg">+</button>
                   </div>
+
+                  {/* Hardware optical zoom slider */}
+                  {hardwareZoomRange && (
+                    <div className="px-2 py-1 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[8px] font-bold text-primary/80 uppercase tracking-wider">📡 Optical Zoom</span>
+                        <span className="text-[9px] font-black text-white/60">{hwZoomValue.toFixed(1)}×</span>
+                      </div>
+                      <input
+                        type="range"
+                        min={hardwareZoomRange.min}
+                        max={hardwareZoomRange.max}
+                        step={hardwareZoomRange.step}
+                        value={hwZoomValue}
+                        onChange={e => {
+                          const v = parseFloat(e.target.value);
+                          setHwZoomValue(v);
+                          sendData({ type: 'COMMAND', action: 'SET_ZOOM', value: v });
+                        }}
+                        className="w-full h-1.5 rounded-full accent-primary cursor-pointer"
+                      />
+                      <div className="flex justify-between">
+                        <span className="text-[7px] text-white/25">{hardwareZoomRange.min}×</span>
+                        <span className="text-[7px] text-white/25">{hardwareZoomRange.max}×</span>
+                      </div>
+                    </div>
+                  )}
+
+                  <DrawerBtn icon={<ScanSearch className="h-4 w-4" />} label="Super Zoom Capture" onClick={superZoomCapture} disabled={!isConnected} />
                   <DrawerBtn icon={<Maximize className="h-4 w-4" />} label="Fullscreen" onClick={toggleFullscreen} />
                   <DrawerBtn icon={<Maximize2 className="h-4 w-4" />} label="Picture-in-Picture" onClick={togglePiP} />
                 </DrawerSection>
@@ -709,6 +810,82 @@ const LiveFeed = () => {
         </div>
       </div>
 
+      {/* ── Super Zoom Overlay ── */}
+      <AnimatePresence>
+        {superZoom && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] bg-black flex flex-col"
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 py-3 bg-black/80 border-b border-white/10 shrink-0">
+              <div className="flex items-center gap-2">
+                <ScanSearch className="h-4 w-4 text-primary" />
+                <span className="text-[11px] font-black text-white uppercase tracking-widest">Super Zoom Detail</span>
+              </div>
+              <button
+                onClick={() => setSuperZoom(null)}
+                className="h-8 w-8 rounded-full bg-white/10 flex items-center justify-center text-white/50 hover:text-white hover:bg-white/20 transition-all"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Sharpened image — fills screen */}
+            <div className="flex-1 relative overflow-hidden">
+              <img
+                src={superZoom.image}
+                alt="Super zoom capture"
+                className="absolute inset-0 w-full h-full object-contain"
+                style={{ imageRendering: "auto" }}
+              />
+              {/* Sharpening badge */}
+              <div className="absolute top-3 left-3 px-2 py-1 rounded-full bg-primary/20 border border-primary/40 backdrop-blur-md">
+                <span className="text-[9px] font-bold text-primary uppercase tracking-wider">
+                  ✦ Unsharp mask applied
+                </span>
+              </div>
+            </div>
+
+            {/* AI Reading panel */}
+            <div className="shrink-0 border-t border-white/10 bg-zinc-950 px-4 py-4 space-y-2">
+              <div className="flex items-center gap-2">
+                <Brain className="h-3.5 w-3.5 text-purple-400" />
+                <span className="text-[9px] font-bold text-purple-400 uppercase tracking-widest">AI Visual Analysis</span>
+              </div>
+
+              {superZoom.loading ? (
+                <div className="flex items-center gap-3">
+                  <div className="h-4 w-4 rounded-full border-2 border-purple-400 border-t-transparent animate-spin shrink-0" />
+                  <p className="text-xs text-white/50 italic">Analyzing what's visible in this frame…</p>
+                </div>
+              ) : (
+                <p className="text-sm text-white/90 leading-relaxed font-medium">
+                  {superZoom.reading}
+                </p>
+              )}
+
+              <div className="pt-1 flex gap-2">
+                <Button
+                  onClick={superZoomCapture}
+                  className="flex-1 h-9 rounded-xl bg-primary text-black hover:bg-primary/90 text-[10px] font-bold uppercase tracking-wider"
+                >
+                  <ScanSearch className="h-3.5 w-3.5 mr-1.5" /> Capture Again
+                </Button>
+                <Button
+                  onClick={() => setSuperZoom(null)}
+                  variant="outline"
+                  className="flex-1 h-9 rounded-xl border-white/10 text-[10px] font-bold uppercase tracking-wider"
+                >
+                  Close
+                </Button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
     </div>
   );

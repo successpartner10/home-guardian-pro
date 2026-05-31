@@ -90,7 +90,15 @@ export const getAIQuotaStatus = (): AIQuotaStatus => {
 
 // ── Actual API calls ──────────────────────────────────────────────────────────
 
-const callGemini = async (base64Data: string): Promise<string> => {
+// ── Prompt templates ──────────────────────────────────────────────────────────
+
+/** Used by background security monitoring (brief alert-style) */
+export const SECURITY_PROMPT = "You are a security camera AI. Write one specific, natural sentence describing what is happening in this camera frame as a push notification. Be specific about people, actions, and context. If nothing notable: 'No activity detected.'";
+
+/** Used by Super Zoom Capture — maximum detail on anything visible */
+export const DETAIL_PROMPT = "You are an AI vision assistant analyzing a zoomed security camera frame. Describe in maximum detail everything visible: any text (signs, numbers, plates, labels), people (clothing, appearance, actions), vehicles (make, color, any identifiers), objects, and distances. Be specific and thorough. Start immediately with what you see.";
+
+const callGemini = async (base64Data: string, prompt: string): Promise<string> => {
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
   if (!apiKey) throw new Error("No Gemini key");
 
@@ -102,7 +110,7 @@ const callGemini = async (base64Data: string): Promise<string> => {
       body: JSON.stringify({
         contents: [{
           parts: [
-            { text: "You are a security camera AI. Write one specific, natural sentence describing what is happening in this camera frame as a push notification. Be specific about people, actions, and context. If nothing notable: 'No activity detected.'" },
+            { text: prompt },
             { inline_data: { mime_type: "image/jpeg", data: base64Data } }
           ]
         }]
@@ -117,7 +125,7 @@ const callGemini = async (base64Data: string): Promise<string> => {
   return text;
 };
 
-const callOpenAI = async (base64Data: string): Promise<string> => {
+const callOpenAI = async (base64Data: string, prompt: string): Promise<string> => {
   const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
   if (!apiKey) throw new Error("No OpenAI key");
 
@@ -130,7 +138,7 @@ const callOpenAI = async (base64Data: string): Promise<string> => {
       messages: [{
         role: "user",
         content: [
-          { type: "text", text: "You are a security camera AI. One sentence: what is happening in this frame? Be specific. If nothing notable: 'No activity detected.'" },
+          { type: "text", text: prompt },
           { type: "image_url", image_url: { url: `data:image/jpeg;base64,${base64Data}`, detail: "low" } }
         ]
       }]
@@ -144,7 +152,7 @@ const callOpenAI = async (base64Data: string): Promise<string> => {
   return text;
 };
 
-const callClaude = async (base64Data: string): Promise<string> => {
+const callClaude = async (base64Data: string, prompt: string): Promise<string> => {
   const apiKey = import.meta.env.VITE_CLAUDE_API_KEY;
   if (!apiKey) throw new Error("No Claude key");
 
@@ -162,7 +170,7 @@ const callClaude = async (base64Data: string): Promise<string> => {
         role: "user",
         content: [
           { type: "image", source: { type: "base64", media_type: "image/jpeg", data: base64Data } },
-          { type: "text", text: "Security camera AI: one sentence describing what is happening. Be specific. If nothing notable: 'No activity detected.'" }
+          { type: "text", text: prompt }
         ]
       }]
     })
@@ -180,37 +188,41 @@ const callClaude = async (base64Data: string): Promise<string> => {
 /**
  * Analyzes a camera frame using the next available AI provider.
  * Falls back automatically: Gemini → OpenAI → Claude.
- * Returns { text, provider, exhausted, retryIn }
+ * @param base64Image - raw base64 or data URL
+ * @param prompt - optional custom prompt (defaults to DETAIL_PROMPT for Super Zoom)
  */
-export const analyzeFrame = async (base64Image: string): Promise<{
+export const analyzeFrame = async (base64Image: string, prompt?: string): Promise<{
   text: string;
   provider: ProviderKey | null;
   exhausted: boolean;
   retryIn: string | null;
 }> => {
   const base64Data = base64Image.split(",")[1] || base64Image;
+  const usePrompt = prompt ?? DETAIL_PROMPT;
 
-  const callers: Array<{ key: ProviderKey; limit: number; fn: (d: string) => Promise<string> }> = [
+  const callers: Array<{ key: ProviderKey; limit: number; fn: (d: string, p: string) => Promise<string> }> = [
     { key: "gemini", limit: 40, fn: callGemini },
     { key: "openai", limit: 20, fn: callOpenAI },
     { key: "claude", limit: 15, fn: callClaude },
   ];
 
   for (const { key, limit, fn } of callers) {
-    if (!consume(key, limit)) continue; // quota full, try next
+    if (!consume(key, limit)) continue;
     try {
-      const text = await fn(base64Data);
+      const text = await fn(base64Data, usePrompt);
       return { text, provider: key, exhausted: false, retryIn: null };
     } catch {
-      // API error or 429 — mark exhausted and cascade
       markExhausted(key, limit);
     }
   }
 
-  // All providers exhausted
   const status = getAIQuotaStatus();
   return { text: "", provider: null, exhausted: true, retryIn: status.retryIn };
 };
+
+// ── Background security monitoring (uses brief alert prompt) ─────────────────
+export const analyzeFrameSecurity = (base64Image: string) =>
+  analyzeFrame(base64Image, SECURITY_PROMPT);
 
 // ── Legacy shim (keeps existing callers working) ──────────────────────────────
 export const generateImageSummary = async (base64Image: string): Promise<string> => {
