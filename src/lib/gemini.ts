@@ -12,10 +12,11 @@ interface QuotaBucket {
 }
 
 const PROVIDERS = [
-  { key: "gemini",  limit: 40 },
-  { key: "groq",    limit: 50 },
-  { key: "openai",  limit: 20 },
-  { key: "claude",  limit: 15 },
+  { key: "gemini",      limit: 40 },
+  { key: "groq",        limit: 50 },
+  { key: "openrouter",  limit: 50 },
+  { key: "openai",      limit: 20 },
+  { key: "claude",      limit: 15 },
 ] as const;
 
 type ProviderKey = typeof PROVIDERS[number]["key"];
@@ -156,6 +157,38 @@ const callGroq = async (base64Data: string, prompt: string): Promise<string> => 
   return text;
 };
 
+const callOpenRouter = async (base64Data: string, prompt: string): Promise<string> => {
+  const apiKey = localStorage.getItem("hguard_openrouter_api_key") || import.meta.env.VITE_OPENROUTER_API_KEY;
+  if (!apiKey) throw new Error("No OpenRouter key available. Configure in Settings.");
+
+  const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${apiKey}`,
+      "HTTP-Referer": "https://hguard-elite.web.app",
+      "X-Title": "HGUARD Security"
+    },
+    body: JSON.stringify({
+      model: "meta-llama/llama-3.2-11b-vision-instruct:free",
+      max_tokens: 60,
+      messages: [{
+        role: "user",
+        content: [
+          { type: "text", text: prompt },
+          { type: "image_url", image_url: { url: `data:image/jpeg;base64,${base64Data}` } }
+        ]
+      }]
+    })
+  });
+
+  if (res.status === 429) { markExhausted("openrouter", 50); throw new Error("429"); }
+  const data = await res.json();
+  const text = data.choices?.[0]?.message?.content;
+  if (!text) throw new Error("empty");
+  return text;
+};
+
 const callOpenAI = async (base64Data: string, prompt: string): Promise<string> => {
   const apiKey = localStorage.getItem("hguard_openai_api_key") || import.meta.env.VITE_OPENAI_API_KEY;
   if (!apiKey) throw new Error("No OpenAI key available. Configure in Settings.");
@@ -232,10 +265,11 @@ export const analyzeFrame = async (base64Image: string, prompt?: string): Promis
   const usePrompt = prompt ?? DETAIL_PROMPT;
 
   const callers: Array<{ key: ProviderKey; limit: number; fn: (d: string, p: string) => Promise<string> }> = [
-    { key: "gemini", limit: 40, fn: callGemini },
-    { key: "groq",   limit: 50, fn: callGroq },
-    { key: "openai", limit: 20, fn: callOpenAI },
-    { key: "claude", limit: 15, fn: callClaude },
+    { key: "gemini",     limit: 40, fn: callGemini },
+    { key: "groq",       limit: 50, fn: callGroq },
+    { key: "openrouter", limit: 50, fn: callOpenRouter },
+    { key: "openai",     limit: 20, fn: callOpenAI },
+    { key: "claude",     limit: 15, fn: callClaude },
   ];
 
   for (const { key, limit, fn } of callers) {
