@@ -177,10 +177,10 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
       <main className="flex-1 pb-24">{children}</main>
 
       {/* ── BOTTOM NAVIGATION ── */}
-      <nav className={cn(
-        "glass-panel fixed bottom-0 left-0 right-0 z-40 grid h-18 items-center px-2 safe-area-pb border-t border-white/5",
-        `grid-cols-${filteredBottom.length}`
-      )}>
+      <nav 
+        className="glass-panel fixed bottom-0 left-0 right-0 z-40 grid h-18 items-center px-2 safe-area-pb border-t border-white/5"
+        style={{ gridTemplateColumns: `repeat(${filteredBottom.length}, minmax(0, 1fr))` }}
+      >
         {filteredBottom.map(({ to, icon: Icon, label }) => {
           const active = location.pathname === to || (to === "/dashboard" && location.pathname === "/");
           return (

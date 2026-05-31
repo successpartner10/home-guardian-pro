@@ -1,327 +1,658 @@
-import { useEffect, useRef } from "react";
+import React from "react";
 
-type DrawFn = (ctx: CanvasRenderingContext2D, w: number, h: number, t: number) => void;
+interface Props {
+  featureId: string;
+}
 
-// Shared grid — crisp dot grid for SVG/blueprint feel
-const grid = (ctx: CanvasRenderingContext2D, w: number, h: number) => {
-  const s = 18;
-  ctx.fillStyle = "rgba(255,255,255,0.07)";
-  for (let x = s; x < w; x += s)
-    for (let y = s; y < h; y += s) {
-      ctx.beginPath(); ctx.arc(x, y, 0.8, 0, Math.PI * 2); ctx.fill();
-    }
-};
-
-// Arrow helper
-const arrow = (ctx: CanvasRenderingContext2D, x1: number, y1: number, x2: number, y2: number) => {
-  const dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy);
-  const ux = dx / len, uy = dy / len;
-  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
-  ctx.beginPath();
-  ctx.moveTo(x2 - ux * 8 - uy * 5, y2 - uy * 8 + ux * 5);
-  ctx.lineTo(x2, y2);
-  ctx.lineTo(x2 - ux * 8 + uy * 5, y2 - uy * 8 - ux * 5);
-  ctx.fill();
-};
-
-const drawFns: Record<string, DrawFn> = {
-  "thermal-vision": (ctx, w, h, t) => {
-    const cx = w / 2 + Math.sin(t) * 55, cy = h / 2 + Math.cos(t * 1.4) * 10;
-    // Body silhouette segments
-    const segs = [{rx:10,ry:10,dy:-28},{rx:18,ry:22,dy:4},{rx:7,ry:16,dy:12,dx:-16},{rx:7,ry:16,dy:12,dx:16},{rx:9,ry:22,dy:45,dx:-10},{rx:9,ry:22,dy:45,dx:10}];
-    segs.forEach(s => {
-      const px = cx + (s as any).dx || cx, py = cy + s.dy;
-      const hot = `hsl(${30 - s.ry},${"90%"},${"55%"})`;
-      ctx.strokeStyle = hot; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.ellipse(px, py, s.rx, s.ry, 0, 0, Math.PI * 2); ctx.stroke();
-    });
-    // bounding box
-    ctx.strokeStyle = "rgba(255,200,80,0.6)"; ctx.lineWidth = 1.5; ctx.setLineDash([4,3]);
-    ctx.strokeRect(cx - 28, cy - 42, 56, 98); ctx.setLineDash([]);
-    // temp label
-    ctx.fillStyle = "#fbbf24"; ctx.font = "bold 9px monospace";
-    ctx.fillText(`36.${(Math.sin(t)*3+7).toFixed(0)}°C`, cx - 20, cy - 50);
-    ctx.fillStyle = "#9ca3af"; ctx.font = "8px monospace";
-    ctx.fillText("HUMAN HEAT MAP", 10, 18);
-  },
-
-  "mesh-tracking": (ctx, w, h, t) => {
-    const cams = [{x:50,y:30,c:"#ef4444"},{x:w/2,y:30,c:"#3b82f6"},{x:w-50,y:30,c:"#22c55e"}];
-    const tx = w/2 + Math.sin(t) * 110, ty = h/2 + 20;
-    let best = cams[0], bd = 9e9;
-    cams.forEach(c => { const d = Math.hypot(tx-c.x,ty-c.y); if(d<bd){bd=d;best=c;} });
-
-    cams.forEach(c => {
-      const act = c===best;
-      ctx.strokeStyle = act ? c.c+"80" : "rgba(255,255,255,0.08)";
-      ctx.lineWidth = act ? 1.5 : 1; ctx.setLineDash([4,4]);
-      ctx.beginPath(); ctx.moveTo(c.x,c.y); ctx.arc(c.x,c.y,100,0.15*Math.PI,0.85*Math.PI); ctx.closePath(); ctx.stroke();
-      ctx.setLineDash([]);
-      ctx.fillStyle = act ? c.c : "#374151";
-      ctx.beginPath(); ctx.arc(c.x,c.y,6,0,Math.PI*2); ctx.fill();
-    });
-    // lock line
-    ctx.strokeStyle = best.c; ctx.lineWidth = 1.5; ctx.setLineDash([]);
-    arrow(ctx, best.x, best.y, tx, ty);
-    // target
-    ctx.strokeStyle = best.c; ctx.lineWidth = 2;
-    ctx.strokeRect(tx-10,ty-12,20,24);
-    ctx.fillStyle = "#ffffff"; ctx.font = "bold 9px monospace";
-    ctx.fillText("MESH LOCK", 10, 18);
-  },
-
-  "ai-threat-guard": (ctx, w, h, t) => {
-    const risk = 70 + Math.sin(t*3)*12;
-    const color = risk > 75 ? "#ef4444" : "#f59e0b";
-    // pipeline nodes
-    const nodes = [{x:60,y:h/2,label:"Motion In",c:"#3b82f6"},{x:w/2,y:h/2,label:"AI Score",c:color},{x:w-60,y:h/2,label:"ALERT",c:"#ef4444"}];
-    ctx.lineWidth=1.5; ctx.setLineDash([3,3]);
-    ctx.strokeStyle="rgba(255,255,255,0.12)";
-    ctx.beginPath(); ctx.moveTo(nodes[0].x,nodes[0].y); ctx.lineTo(nodes[2].x,nodes[2].y); ctx.stroke();
-    ctx.setLineDash([]);
-    nodes.forEach((n,i) => {
-      const pulse = 8 + Math.sin(t*3+i)*5;
-      ctx.strokeStyle = n.c+"50"; ctx.lineWidth=1;
-      ctx.beginPath(); ctx.arc(n.x,n.y,pulse,0,Math.PI*2); ctx.stroke();
-      ctx.fillStyle=n.c; ctx.beginPath(); ctx.arc(n.x,n.y,5,0,Math.PI*2); ctx.fill();
-      ctx.fillStyle="#9ca3af"; ctx.font="7px monospace";
-      ctx.fillText(n.label, n.x-18, n.y-16);
-    });
-    ctx.fillStyle=color; ctx.font="bold 9px monospace";
-    ctx.fillText(`Risk Index: ${risk.toFixed(0)}% ${risk>75?"[ALERT]":"[OK]"}`, 10, 18);
-  },
-
-  "siren-defense": (ctx, w, h, t) => {
-    const cx=w/2, cy=h/2;
-    const isRed = Math.floor(t*1.8)%2===0;
-    const col = isRed ? "#ef4444" : "#3b82f6";
-    for(let i=0;i<4;i++){
-      const r = ((t*30)+i*25)%110;
-      const a = Math.max(0,1-r/110);
-      ctx.strokeStyle = `${col}${Math.floor(a*80).toString(16).padStart(2,"0")}`;
-      ctx.lineWidth=2;
-      ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.stroke();
-    }
-    // siren icon
-    ctx.fillStyle=col; ctx.beginPath(); ctx.arc(cx,cy,10,0,Math.PI*2); ctx.fill();
-    ctx.strokeStyle="#ffffff"; ctx.lineWidth=1.5; ctx.stroke();
-    // cone shape
-    ctx.strokeStyle=col+"40"; ctx.lineWidth=1; ctx.setLineDash([4,4]);
-    ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(cx-70,cy+55); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(cx+70,cy+55); ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.fillStyle=col; ctx.font="bold 9px monospace";
-    ctx.fillText(isRed?"SIREN: ACTIVE":"STROBE: ACTIVE", 10, 18);
-  },
-
-  "bridge-mode": (ctx, w, h, t) => {
-    // browser frame
-    ctx.strokeStyle="rgba(255,255,255,0.2)"; ctx.lineWidth=1.5;
-    ctx.strokeRect(20,20,w-40,h-40);
-    ctx.fillStyle="rgba(255,255,255,0.05)"; ctx.fillRect(20,20,w-40,16);
-    ["#ef4444","#eab308","#22c55e"].forEach((c,i)=>{
-      ctx.fillStyle=c; ctx.beginPath(); ctx.arc(30+i*10,28,3,0,Math.PI*2); ctx.fill();
-    });
-    // pulsing cast frames
-    for(let i=0;i<3;i++){
-      const off = ((t*1.5+i*2)%6)*10;
-      const a = Math.max(0,1-off/60);
-      ctx.strokeStyle=`rgba(234,179,8,${a*0.5})`; ctx.lineWidth=1.5;
-      ctx.strokeRect(30+off,42+off,w-60-off*2,h-64-off*2);
-    }
-    ctx.fillStyle="#eab308"; ctx.font="bold 9px monospace";
-    ctx.fillText("SCREEN CAST → HGUARD", 30, 17);
-  },
-
-  "tactical-night-vision": (ctx, w, h, t) => {
-    const div = (Math.sin(t*0.8)*0.5+0.5)*w;
-    // dark side
-    ctx.fillStyle="#050308"; ctx.fillRect(0,0,div,h);
-    ctx.fillStyle="rgba(255,255,255,0.04)";
-    ctx.beginPath(); ctx.arc(div*0.5,h/2,18,0,Math.PI*2); ctx.fill();
-    // boosted side
-    ctx.fillStyle="#091410"; ctx.fillRect(div,0,w-div,h);
-    ctx.strokeStyle="#4ade80"; ctx.lineWidth=1.5;
-    ctx.strokeRect(div+10,h/2-18,36,36);
-    const g=ctx.createRadialGradient(div+28,h/2,2,div+28,h/2,28);
-    g.addColorStop(0,"rgba(74,222,128,0.9)"); g.addColorStop(1,"transparent");
-    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(div+28,h/2,28,0,Math.PI*2); ctx.fill();
-    // divider
-    ctx.strokeStyle="#ffffff"; ctx.lineWidth=2; ctx.setLineDash([5,4]);
-    ctx.beginPath(); ctx.moveTo(div,0); ctx.lineTo(div,h); ctx.stroke(); ctx.setLineDash([]);
-    ctx.fillStyle="#9ca3af"; ctx.font="8px monospace";
-    ctx.fillText("RAW", 10,18); ctx.fillText("AI BOOSTED",div+8,18);
-  },
-
-  "elite-archive": (ctx, w, h, t) => {
-    const cw=72, ch=52, gap=12;
-    const startX = -cw + ((t*35)%(cw+gap));
-    for(let i=0;i<6;i++){
-      const x=startX+i*(cw+gap), y=(h-ch)/2;
-      if(x+cw<0||x>w) continue;
-      ctx.strokeStyle="rgba(255,255,255,0.2)"; ctx.lineWidth=1;
-      ctx.strokeRect(x,y,cw,ch);
-      // play triangle
-      ctx.fillStyle="rgba(255,255,255,0.25)";
-      ctx.beginPath(); ctx.moveTo(x+cw/2-5,y+ch/2-7); ctx.lineTo(x+cw/2+7,y+ch/2); ctx.lineTo(x+cw/2-5,y+ch/2+7); ctx.closePath(); ctx.fill();
-      ctx.fillStyle="rgba(255,255,255,0.3)"; ctx.font="6px monospace";
-      ctx.fillText(`Clip#${(i+Math.floor(t))%99}`,x+4,y+ch-5);
-    }
-    ctx.fillStyle="rgba(255,255,255,0.4)"; ctx.font="bold 9px monospace";
-    ctx.fillText("CLOUD ARCHIVE  →  GOOGLE DRIVE", 10, 18);
-  },
-
-  "gatekeeper": (ctx, w, h, t) => {
-    const approved = (Math.floor(t/2)%2)===1;
-    const gc = approved ? "#22c55e" : "#ef4444";
-    // admin
-    ctx.fillStyle="#3b82f6"; ctx.beginPath(); ctx.arc(80,h/2,12,0,Math.PI*2); ctx.fill();
-    ctx.strokeStyle="#fff"; ctx.lineWidth=1.5; ctx.stroke();
-    ctx.fillStyle="#9ca3af"; ctx.font="7px monospace"; ctx.fillText("ADMIN",65,h/2+26);
-    // guest
-    ctx.fillStyle=gc; ctx.beginPath(); ctx.arc(w-80,h/2,12,0,Math.PI*2); ctx.fill();
-    ctx.strokeStyle="#fff"; ctx.lineWidth=1.5; ctx.stroke();
-    ctx.fillStyle="#9ca3af"; ctx.fillText(approved?"VIEWER":"LOCKED",w-100,h/2+26);
-    // beam
-    ctx.strokeStyle=gc+"80"; ctx.lineWidth=2; ctx.setLineDash([6,4]);
-    ctx.beginPath(); ctx.moveTo(92,h/2); ctx.bezierCurveTo(w/2,h/2-30+Math.sin(t*4)*15,w/2,h/2+30-Math.sin(t*4)*15,w-92,h/2); ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.fillStyle=gc; ctx.font="bold 9px monospace";
-    ctx.fillText(approved?"ACCESS APPROVED":"SCANNING KEY…",10,18);
-  },
-
-  "ai-zoom-enhance": (ctx, w, h, t) => {
-    const zoom = 1+(Math.sin(t)*0.5+0.5)*3;
-    const cx=w/2, cy=h/2;
-    // original frame guide
-    ctx.strokeStyle="rgba(255,255,255,0.1)"; ctx.lineWidth=1; ctx.setLineDash([3,3]);
-    ctx.strokeRect(cx-45,cy-55,90,90); ctx.setLineDash([]);
-    // zoomed face outline
-    ctx.strokeStyle = zoom>2.5?"#f97316":"#ffffff"; ctx.lineWidth=1.5;
-    ctx.beginPath(); ctx.ellipse(cx,cy,14*zoom,18*zoom,0,0,Math.PI*2); ctx.stroke();
-    // eyes
-    [-1,1].forEach(s=>{
-      ctx.beginPath(); ctx.arc(cx+s*5*zoom,cy-5*zoom,2*zoom,0,Math.PI*2); ctx.fill();
-    });
-    // zoom label
-    ctx.fillStyle = zoom>2.5?"#f97316":"#9ca3af"; ctx.font="bold 9px monospace";
-    ctx.fillText(`${zoom.toFixed(1)}× AI UPSCALE`,10,18);
-    // corner brackets
-    [[cx-46,cy-56],[cx+46,cy-56],[cx-46,cy+34],[cx+46,cy+34]].forEach(([bx,by],i)=>{
-      const sx=i%2===0?1:-1, sy=i<2?1:-1;
-      ctx.strokeStyle="#f97316"; ctx.lineWidth=2;
-      ctx.beginPath(); ctx.moveTo(bx,by); ctx.lineTo(bx+sx*8,by); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(bx,by); ctx.lineTo(bx,by+sy*8); ctx.stroke();
-    });
-  },
-
-  "noise-isolation": (ctx, w, h, t) => {
-    // noisy wave
-    ctx.strokeStyle="#ef4444"; ctx.lineWidth=1.5;
-    ctx.beginPath();
-    for(let x=10;x<w-10;x++){
-      const y=38+Math.sin(x*0.12+t)*10+(Math.random()-0.5)*8;
-      x===10?ctx.moveTo(x,y):ctx.lineTo(x,y);
-    } ctx.stroke();
-    // clean wave
-    ctx.strokeStyle="#22c55e"; ctx.lineWidth=2;
-    ctx.beginPath();
-    for(let x=10;x<w-10;x++){
-      const y=88+Math.sin(x*0.07+t)*12;
-      x===10?ctx.moveTo(x,y):ctx.lineTo(x,y);
-    } ctx.stroke();
-    // labels
-    ctx.fillStyle="#ef4444"; ctx.font="7px monospace"; ctx.fillText("NOISE  (STATIC + WIND)", 10,22);
-    ctx.fillStyle="#22c55e"; ctx.fillText("FILTERED  (CLEAN VOICE)", 10,72);
-    // filter box
-    ctx.strokeStyle="rgba(34,197,94,0.3)"; ctx.lineWidth=1.5; ctx.setLineDash([3,3]);
-    ctx.strokeRect(10,60,w-20,42); ctx.setLineDash([]);
-  },
-
-  "two-way-talk": (ctx, w, h, t) => {
-    const rb=(t*25)%100;
-    // radio waves left
-    for(let i=0;i<3;i++){
-      const r=(rb+i*33)%100;
-      const a=Math.max(0,1-r/100);
-      ctx.strokeStyle=`rgba(59,130,246,${a*0.6})`; ctx.lineWidth=2;
-      ctx.beginPath(); ctx.arc(65,h/2,r,-0.35*Math.PI,0.35*Math.PI); ctx.stroke();
-    }
-    // mic icon
-    ctx.strokeStyle="#3b82f6"; ctx.lineWidth=2;
-    ctx.strokeRect(55,h/2-16,20,24);
-    ctx.beginPath(); ctx.arc(65,h/2+8,10,Math.PI,0); ctx.stroke();
-    // level bars right
-    for(let i=0;i<12;i++){
-      const bh=8+Math.abs(Math.sin(t*2.5+i*0.5))*28;
-      ctx.fillStyle=`hsl(${210+i*5},80%,${55+i*2}%)`;
-      ctx.fillRect(w-80+i*5,h/2+14-bh/2,3.5,bh);
-    }
-    ctx.fillStyle="#9ca3af"; ctx.font="bold 9px monospace";
-    ctx.fillText("TRANSMITTING LIVE AUDIO", 10, 18);
-  },
-
-  "drive-quota-control": (ctx, w, h, t) => {
-    const pct = 0.5+Math.sin(t)*0.3;
-    const bx=30,by=h/2-12,bw=w-60,bh=24;
-    // track
-    ctx.strokeStyle="rgba(255,255,255,0.15)"; ctx.lineWidth=1.5;
-    ctx.strokeRect(bx,by,bw,bh);
-    // fill
-    ctx.fillStyle=pct>0.78?"#ef4444":"#eab308";
-    ctx.fillRect(bx+1,by+1,( bw-2)*pct,bh-2);
-    // sweep line at edge
-    if(pct>0.78){
-      ctx.strokeStyle="#fff"; ctx.lineWidth=2;
-      const sx=bx+(bw-2)*pct;
-      ctx.beginPath(); ctx.moveTo(sx,by); ctx.lineTo(sx,by+bh); ctx.stroke();
-    }
-    // ticks
-    [0.25,0.5,0.75,1].forEach(p=>{
-      ctx.fillStyle="rgba(255,255,255,0.2)"; ctx.fillRect(bx+bw*p-0.5,by+bh,1,6);
-      ctx.fillStyle="#9ca3af"; ctx.font="6px monospace";
-      ctx.fillText(`${p*100|0}%`,bx+bw*p-6,by+bh+16);
-    });
-    ctx.fillStyle=pct>0.78?"#ef4444":"#eab308"; ctx.font="bold 9px monospace";
-    ctx.fillText(pct>0.78?`FULL — AUTO RECYCLE`:`DRIVE: ${(pct*100)|0}% USED`,10,18);
-  },
-};
-
-interface Props { featureId: string; }
-
-export const FeatureIllustration = ({ featureId }: Props) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    const drawFn = drawFns[featureId];
-    if (!drawFn) return;
-
-    let animId = 0, t = 0;
-    const loop = () => {
-      t += 0.04;
-      const {width:w, height:h} = canvas;
-      ctx.fillStyle = "#090b10";
-      ctx.fillRect(0, 0, w, h);
-      grid(ctx, w, h);
-      ctx.save();
-      drawFn(ctx, w, h, t);
-      ctx.restore();
-      animId = requestAnimationFrame(loop);
-    };
-    loop();
-    return () => cancelAnimationFrame(animId);
-  }, [featureId]);
-
-  return (
-    <div className="relative w-full h-36 rounded-[1.5rem] overflow-hidden border border-white/10 bg-[#090b10] my-3">
-      <canvas ref={canvasRef} width={420} height={144} className="w-full h-full" />
-      <div className="absolute bottom-2 right-3 px-2 py-0.5 bg-black/50 backdrop-blur rounded-lg text-[7px] text-white/30 font-mono tracking-wider">
-        Blueprint Simulation
-      </div>
-    </div>
+export const FeatureIllustration: React.FC<Props> = ({ featureId }) => {
+  // Common high-tech SVG components (like a grid background and glow filter)
+  const renderDefs = () => (
+    <defs>
+      {/* Crisp Blueprint Grid Pattern */}
+      <pattern id="helpGrid" width="18" height="18" patternUnits="userSpaceOnUse">
+        <circle cx="9" cy="9" r="0.8" fill="rgba(255, 255, 255, 0.12)" />
+      </pattern>
+      {/* High-Tech Vector Neon Glow Filter */}
+      <filter id="vectorGlow" x="-20%" y="-20%" width="140%" height="140%">
+        <feGaussianBlur stdDeviation="3.5" result="blur" />
+        <feMerge>
+          <feMergeNode in="blur" />
+          <feMergeNode in="SourceGraphic" />
+        </feMerge>
+      </filter>
+    </defs>
   );
+
+  const renderGridBg = () => (
+    <rect width="100%" height="100%" fill="url(#helpGrid)" />
+  );
+
+  // Render highly-scalable, responsive, sexy animated vector SVGs for each feature
+  switch (featureId) {
+    case "tactical-night-vision":
+      return (
+        <div className="relative w-full h-36 rounded-[1.5rem] overflow-hidden border border-white/10 bg-[#06080d] my-3">
+          <svg className="w-full h-full" viewBox="0 0 420 144" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <style>{`
+              @keyframes slideDivider {
+                0%, 100% { transform: translateX(-20px); }
+                50% { transform: translateX(20px); }
+              }
+              @keyframes pulseGreen {
+                0%, 100% { opacity: 0.3; }
+                50% { opacity: 1; }
+              }
+              .divider { animation: slideDivider 6s ease-in-out infinite; }
+              .target-box { animation: pulseGreen 2s infinite; }
+            `}</style>
+            {renderDefs()}
+            {renderGridBg()}
+
+            {/* Left Dark Area */}
+            <rect x="0" y="0" width="210" height="144" fill="rgba(5, 5, 10, 0.85)" />
+            <circle cx="105" cy="72" r="22" fill="rgba(255, 255, 255, 0.02)" stroke="rgba(255, 255, 255, 0.08)" strokeDasharray="3 3" />
+            <text x="30" y="30" fill="rgba(255, 255, 255, 0.3)" fontSize="9" fontWeight="bold" fontFamily="monospace">RAW VIEW</text>
+
+            {/* Right Tactical Green Boosted Area */}
+            <g clipPath="url(#boostedClip)">
+              <rect x="210" y="0" width="210" height="144" fill="rgba(16, 185, 129, 0.04)" />
+              {/* Target tracking box */}
+              <rect className="target-box" x="290" y="42" width="60" height="60" rx="8" stroke="#10b981" strokeWidth="1.5" filter="url(#vectorGlow)" />
+              <line className="target-box" x1="320" y1="30" x2="320" y2="114" stroke="rgba(16, 185, 129, 0.2)" strokeDasharray="3 3" />
+              <line className="target-box" x1="260" y1="72" x2="380" y2="72" stroke="rgba(16, 185, 129, 0.2)" strokeDasharray="3 3" />
+              <text x="375" y="30" textAnchor="end" fill="#10b981" fontSize="9" fontWeight="bold" fontFamily="monospace" filter="url(#vectorGlow)">NIGHT VISION ENABLED</text>
+            </g>
+
+            {/* Scanning Slider Divider Line */}
+            <g className="divider">
+              <line x1="210" y1="0" x2="210" y2="144" stroke="#ffffff" strokeWidth="2" strokeDasharray="4 4" />
+              <polygon points="210,67 205,72 210,77 215,72" fill="#ffffff" />
+            </g>
+          </svg>
+        </div>
+      );
+
+    case "thermal-vision":
+      return (
+        <div className="relative w-full h-36 rounded-[1.5rem] overflow-hidden border border-white/10 bg-[#06080d] my-3">
+          <svg className="w-full h-full" viewBox="0 0 420 144" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <style>{`
+              @keyframes thermalPulse {
+                0%, 100% { transform: scale(1) translate(0px, 0px); }
+                50% { transform: scale(1.05) translate(4px, -2px); }
+              }
+              @keyframes tempFlicker {
+                0%, 100% { opacity: 0.9; }
+                50% { opacity: 0.6; }
+              }
+              .thermal-figure { animation: thermalPulse 5s ease-in-out infinite; transform-origin: center; }
+              .temp-text { animation: tempFlicker 1.5s infinite; }
+            `}</style>
+            {renderDefs()}
+            {renderGridBg()}
+
+            {/* Glowing thermal target body heat signature */}
+            <g className="thermal-figure">
+              {/* Outer heat gradient rings */}
+              <ellipse cx="210" cy="72" rx="34" ry="50" fill="rgba(239, 68, 68, 0.08)" stroke="rgba(239, 68, 68, 0.15)" strokeWidth="1" />
+              <ellipse cx="210" cy="72" rx="22" ry="36" fill="rgba(245, 158, 11, 0.15)" stroke="rgba(245, 158, 11, 0.3)" strokeWidth="1.5" />
+              
+              {/* High heat core */}
+              <circle cx="210" cy="50" r="12" fill="#ef4444" filter="url(#vectorGlow)" />
+              <ellipse cx="210" cy="80" rx="14" ry="24" fill="#f59e0b" filter="url(#vectorGlow)" />
+              <circle cx="210" cy="50" r="6" fill="#fff" />
+              
+              {/* Tactical Crosshair overlay */}
+              <path d="M190 72 H230 M210 52 V92" stroke="rgba(255,255,255,0.4)" strokeWidth="1" />
+            </g>
+
+            {/* Floating telemetry metrics */}
+            <text x="25" y="30" fill="#f59e0b" fontSize="9" fontWeight="black" fontFamily="monospace" filter="url(#vectorGlow)">RECONSTRUCTED THERMAL</text>
+            <g className="temp-text" transform="translate(305, 68)">
+              <rect x="0" y="0" width="90" height="24" rx="6" fill="rgba(239, 68, 68, 0.15)" stroke="#ef4444" strokeWidth="1" />
+              <text x="45" y="15" textAnchor="middle" fill="#ef4444" fontSize="10" fontWeight="bold" fontFamily="monospace" filter="url(#vectorGlow)">36.7°C ACTIVE</text>
+            </g>
+          </svg>
+        </div>
+      );
+
+    case "two-way-talk":
+      return (
+        <div className="relative w-full h-36 rounded-[1.5rem] overflow-hidden border border-white/10 bg-[#06080d] my-3">
+          <svg className="w-full h-full" viewBox="0 0 420 144" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <style>{`
+              @keyframes soundRings {
+                0% { r: 12; opacity: 1; }
+                100% { r: 64; opacity: 0; }
+              }
+              @keyframes audioBar {
+                0%, 100% { height: 10px; }
+                50% { height: 42px; }
+              }
+              .ring1 { animation: soundRings 2.4s linear infinite; }
+              .ring2 { animation: soundRings 2.4s linear infinite 0.8s; }
+              .ring3 { animation: soundRings 2.4s linear infinite 1.6s; }
+              .bar1 { animation: audioBar 0.8s ease-in-out infinite; }
+              .bar2 { animation: audioBar 0.9s ease-in-out infinite 0.15s; }
+              .bar3 { animation: audioBar 0.7s ease-in-out infinite 0.3s; }
+              .bar4 { animation: audioBar 1.1s ease-in-out infinite 0.05s; }
+            `}</style>
+            {renderDefs()}
+            {renderGridBg()}
+
+            {/* Left Emitter */}
+            <g transform="translate(90, 72)">
+              <circle cx="0" cy="0" r="16" fill="#3b82f6" filter="url(#vectorGlow)" />
+              {/* Pulsing sound waves */}
+              <circle className="ring1" cx="0" cy="0" r="16" stroke="#3b82f6" strokeWidth="1.5" fill="none" />
+              <circle className="ring2" cx="0" cy="0" r="16" stroke="#3b82f6" strokeWidth="1.5" fill="none" />
+              <circle className="ring3" cx="0" cy="0" r="16" stroke="#3b82f6" strokeWidth="1.5" fill="none" />
+              {/* Mic vector graphic */}
+              <rect x="-5" y="-10" width="10" height="16" rx="5" fill="#fff" />
+              <path d="M-9 -2 A9 9 0 0 0 9 -2 M0 7 V12 M-5 12 H5" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" />
+            </g>
+
+            {/* Connecting radio beam */}
+            <line x1="120" y1="72" x2="270" y2="72" stroke="rgba(59, 130, 246, 0.3)" strokeWidth="2" strokeDasharray="6 6" />
+
+            {/* Right Signal Level Bars */}
+            <g transform="translate(300, 72)">
+              <rect className="bar1" x="0" y="-5" width="5" height="10" rx="2.5" fill="#3b82f6" transform="translate(0, 0) scale(1, -1)" />
+              <rect className="bar2" x="10" y="-5" width="5" height="10" rx="2.5" fill="#60a5fa" transform="translate(0, 0) scale(1, -1)" />
+              <rect className="bar3" x="20" y="-5" width="5" height="10" rx="2.5" fill="#93c5fd" transform="translate(0, 0) scale(1, -1)" />
+              <rect className="bar4" x="30" y="-5" width="5" height="10" rx="2.5" fill="#3b82f6" transform="translate(0, 0) scale(1, -1)" />
+            </g>
+
+            <text x="25" y="30" fill="#3b82f6" fontSize="9" fontWeight="bold" fontFamily="monospace" filter="url(#vectorGlow)">DUPLEX BROADCASTING</text>
+          </svg>
+        </div>
+      );
+
+    case "mesh-tracking":
+      return (
+        <div className="relative w-full h-36 rounded-[1.5rem] overflow-hidden border border-white/10 bg-[#06080d] my-3">
+          <svg className="w-full h-full" viewBox="0 0 420 144" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <style>{`
+              @keyframes pathTrace {
+                0% { stroke-dashoffset: 40; }
+                100% { stroke-dashoffset: 0; }
+              }
+              @keyframes targetLock {
+                0%, 100% { transform: translate(0px, 0px); }
+                50% { transform: translate(60px, 20px); }
+              }
+              .flight-path { stroke-dasharray: 6 4; animation: pathTrace 2s linear infinite; }
+              .mesh-target { animation: targetLock 6s ease-in-out infinite; }
+            `}</style>
+            {renderDefs()}
+            {renderGridBg()}
+
+            {/* Three Dotted Camera Fields of View */}
+            {/* Cam 1 */}
+            <path d="M60 20 L20 110 H140 Z" fill="rgba(59, 130, 246, 0.03)" stroke="rgba(59, 130, 246, 0.15)" strokeWidth="1" strokeDasharray="3 3" />
+            <circle cx="60" cy="20" r="5" fill="#3b82f6" />
+
+            {/* Cam 2 */}
+            <path d="M210 20 L130 110 H290 Z" fill="rgba(16, 185, 129, 0.04)" stroke="rgba(16, 185, 129, 0.3)" strokeWidth="1.5" strokeDasharray="3 3" />
+            <circle cx="210" cy="20" r="5" fill="#10b981" />
+
+            {/* Cam 3 */}
+            <path d="M360 20 L300 110 H420 Z" fill="rgba(245, 158, 11, 0.03)" stroke="rgba(245, 158, 11, 0.15)" strokeWidth="1" strokeDasharray="3 3" />
+            <circle cx="360" cy="20" r="5" fill="#f59e0b" />
+
+            {/* Inter-camera lock handoff beams */}
+            <line x1="60" y1="20" x2="210" y2="20" stroke="rgba(255,255,255,0.1)" strokeWidth="1.5" strokeDasharray="4 4" />
+            <line x1="210" y1="20" x2="360" y2="20" stroke="rgba(255,255,255,0.1)" strokeWidth="1.5" strokeDasharray="4 4" />
+
+            {/* Target being tracked */}
+            <g className="mesh-target" transform="translate(140, 68)">
+              {/* Dotted path tracking trail */}
+              <path className="flight-path" d="M -80 0 C -20 20, 20 -20, 80 10" stroke="#10b981" strokeWidth="1.5" fill="none" />
+              <rect x="-8" y="-8" width="16" height="16" stroke="#10b981" strokeWidth="1.5" fill="rgba(16, 185, 129, 0.15)" filter="url(#vectorGlow)" />
+              {/* Target tag */}
+              <text x="12" y="4" fill="#10b981" fontSize="7" fontWeight="bold" fontFamily="monospace">LOCK_02A</text>
+            </g>
+
+            <text x="25" y="30" fill="#10b981" fontSize="9" fontWeight="bold" fontFamily="monospace" filter="url(#vectorGlow)">DYNAMIC MESH TRACKING</text>
+          </svg>
+        </div>
+      );
+
+    case "ai-threat-guard":
+      return (
+        <div className="relative w-full h-36 rounded-[1.5rem] overflow-hidden border border-white/10 bg-[#06080d] my-3">
+          <svg className="w-full h-full" viewBox="0 0 420 144" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <style>{`
+              @keyframes pipelineFlow {
+                0% { stroke-dashoffset: 24; }
+                100% { stroke-dashoffset: 0; }
+              }
+              @keyframes threatPulse {
+                0%, 100% { transform: scale(1); filter: drop-shadow(0 0 2px #ef4444); }
+                50% { transform: scale(1.15); filter: drop-shadow(0 0 8px #ef4444); }
+              }
+              .pipe-flow { stroke-dasharray: 8 6; animation: pipelineFlow 1.2s linear infinite; }
+              .danger-badge { animation: threatPulse 1.5s infinite; }
+            `}</style>
+            {renderDefs()}
+            {renderGridBg()}
+
+            {/* Neural nodes pipeline */}
+            <path className="pipe-flow" d="M60 72 H360" stroke="rgba(255, 255, 255, 0.2)" strokeWidth="2.5" />
+
+            {/* Node 1: Input */}
+            <g transform="translate(80, 72)">
+              <circle cx="0" cy="0" r="14" fill="rgba(59, 130, 246, 0.15)" stroke="#3b82f6" strokeWidth="1.5" />
+              <circle cx="0" cy="0" r="6" fill="#3b82f6" filter="url(#vectorGlow)" />
+              <text x="0" y="24" textAnchor="middle" fill="rgba(255,255,255,0.4)" fontSize="8" fontWeight="bold" fontFamily="monospace">INPUT</text>
+            </g>
+
+            {/* Node 2: Analysis */}
+            <g transform="translate(210, 72)">
+              <circle cx="0" cy="0" r="18" fill="rgba(245, 158, 11, 0.15)" stroke="#f59e0b" strokeWidth="1.5" />
+              <circle cx="0" cy="0" r="8" fill="#f59e0b" filter="url(#vectorGlow)" />
+              <text x="0" y="28" textAnchor="middle" fill="rgba(255,255,255,0.4)" fontSize="8" fontWeight="bold" fontFamily="monospace">VECTOR LAB</text>
+            </g>
+
+            {/* Node 3: Risk Alert output */}
+            <g className="danger-badge" transform="translate(340, 72)">
+              <circle cx="0" cy="0" r="16" fill="rgba(239, 68, 68, 0.2)" stroke="#ef4444" strokeWidth="2" />
+              <polygon points="0,-7 7,5 -7,5" fill="#ef4444" filter="url(#vectorGlow)" />
+              <text x="0" y="26" textAnchor="middle" fill="#ef4444" fontSize="8" fontWeight="bold" fontFamily="monospace">THREAT</text>
+            </g>
+
+            <text x="25" y="30" fill="#ef4444" fontSize="9" fontWeight="bold" fontFamily="monospace" filter="url(#vectorGlow)">PREDICTIVE AI SHIELD</text>
+          </svg>
+        </div>
+      );
+
+    case "siren-defense":
+      return (
+        <div className="relative w-full h-36 rounded-[1.5rem] overflow-hidden border border-white/10 bg-[#06080d] my-3">
+          <svg className="w-full h-full" viewBox="0 0 420 144" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <style>{`
+              @keyframes flashRedBlue {
+                0%, 100% { fill: #ef4444; stroke: #ef4444; }
+                50% { fill: #3b82f6; stroke: #3b82f6; }
+              }
+              @keyframes expandWaves {
+                0% { r: 10; opacity: 1; stroke-width: 1; }
+                100% { r: 70; opacity: 0; stroke-width: 3; }
+              }
+              .siren-core { animation: flashRedBlue 1s step-end infinite; }
+              .sound-wave-expand { animation: expandWaves 1.5s ease-out infinite; }
+            `}</style>
+            {renderDefs()}
+            {renderGridBg()}
+
+            <g transform="translate(210, 72)">
+              {/* Expanding alarm waves */}
+              <circle className="sound-wave-expand siren-core" cx="0" cy="0" r="10" stroke="#ef4444" fill="none" />
+              <circle className="sound-wave-expand siren-core" cx="0" cy="0" r="10" stroke="#ef4444" fill="none" style={{ animationDelay: "0.5s" }} />
+              <circle className="sound-wave-expand siren-core" cx="0" cy="0" r="10" stroke="#ef4444" fill="none" style={{ animationDelay: "1s" }} />
+
+              {/* Siren structure */}
+              <ellipse cx="0" cy="18" rx="20" ry="6" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.3)" />
+              <path d="M-12 18 C-12 -12 12 -12 12 18 Z" className="siren-core" filter="url(#vectorGlow)" />
+              <rect x="-4" y="8" width="8" height="10" fill="#fff" />
+            </g>
+
+            <text x="25" y="30" fill="#ef4444" fontSize="9" fontWeight="bold" fontFamily="monospace" filter="url(#vectorGlow)">DETERRENCE SIREN ACTIVE</text>
+          </svg>
+        </div>
+      );
+
+    case "bridge-mode":
+      return (
+        <div className="relative w-full h-36 rounded-[1.5rem] overflow-hidden border border-white/10 bg-[#06080d] my-3">
+          <svg className="w-full h-full" viewBox="0 0 420 144" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <style>{`
+              @keyframes castPills {
+                0% { opacity: 0.1; transform: scale(0.9); }
+                50% { opacity: 0.5; transform: scale(1.02); }
+                100% { opacity: 0.1; transform: scale(0.9); }
+              }
+              .cast-ring { animation: castPills 4s ease-in-out infinite; transform-origin: center; }
+            `}</style>
+            {renderDefs()}
+            {renderGridBg()}
+
+            {/* Main Mirror Screen */}
+            <rect x="50" y="24" width="320" height="96" rx="10" fill="rgba(255, 255, 255, 0.02)" stroke="rgba(255, 255, 255, 0.15)" strokeWidth="1.5" />
+            
+            {/* Mirror lines */}
+            <g className="cast-ring" transform="translate(210, 72)">
+              <rect x="-140" y="-36" width="280" height="72" rx="6" stroke="#f59e0b" strokeWidth="1" fill="none" filter="url(#vectorGlow)" />
+              <rect x="-130" y="-30" width="260" height="60" rx="4" stroke="#f59e0b" strokeWidth="0.8" strokeDasharray="3 3" fill="none" />
+            </g>
+
+            <circle cx="70" cy="38" r="4" fill="#ef4444" />
+            <circle cx="82" cy="38" r="4" fill="#f59e0b" />
+            <circle cx="94" cy="38" r="4" fill="#10b981" />
+
+            <text x="25" y="30" fill="#f59e0b" fontSize="9" fontWeight="bold" fontFamily="monospace" filter="url(#vectorGlow)">SCREEN CAST STREAMING</text>
+          </svg>
+        </div>
+      );
+
+    case "elite-archive":
+      return (
+        <div className="relative w-full h-36 rounded-[1.5rem] overflow-hidden border border-white/10 bg-[#06080d] my-3">
+          <svg className="w-full h-full" viewBox="0 0 420 144" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <style>{`
+              @keyframes scrollStrip {
+                0% { transform: translateX(0px); }
+                100% { transform: translateX(-96px); }
+              }
+              .film-strip { animation: scrollStrip 5s linear infinite; }
+            `}</style>
+            {renderDefs()}
+            {renderGridBg()}
+
+            {/* Sliding Clip Archive Strip */}
+            <g className="film-strip" transform="translate(0, 42)">
+              {Array.from({ length: 6 }).map((_, i) => {
+                const xOffset = i * 96;
+                return (
+                  <g key={i} transform={`translate(${xOffset}, 0)`}>
+                    <rect x="10" y="4" width="80" height="52" rx="6" fill="rgba(255,255,255,0.02)" stroke="rgba(255, 255, 255, 0.2)" strokeWidth="1.5" />
+                    {/* Play triangle */}
+                    <polygon points="46,24 46,36 56,30" fill="rgba(255,255,255,0.6)" filter="url(#vectorGlow)" />
+                    {/* Telemetry frame index */}
+                    <text x="18" y="46" fill="rgba(255,255,255,0.3)" fontSize="6" fontWeight="bold" fontFamily="monospace">CLIP_0{i}</text>
+                  </g>
+                );
+              })}
+            </g>
+
+            <text x="25" y="30" fill="rgba(255,255,255,0.5)" fontSize="9" fontWeight="bold" fontFamily="monospace" filter="url(#vectorGlow)">CLOUD ARCHIVE PIPELINE</text>
+          </svg>
+        </div>
+      );
+
+    case "gatekeeper":
+      return (
+        <div className="relative w-full h-36 rounded-[1.5rem] overflow-hidden border border-white/10 bg-[#06080d] my-3">
+          <svg className="w-full h-full" viewBox="0 0 420 144" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <style>{`
+              @keyframes laserPulse {
+                0%, 100% { stroke-dashoffset: 0; stroke: #10b981; }
+                50% { stroke-dashoffset: 16; stroke: #3b82f6; }
+              }
+              .laser-gate { stroke-dasharray: 6 4; animation: laserPulse 1.8s linear infinite; }
+            `}</style>
+            {renderDefs()}
+            {renderGridBg()}
+
+            {/* Left admin control node */}
+            <g transform="translate(80, 72)">
+              <circle cx="0" cy="0" r="16" fill="rgba(59,130,246,0.15)" stroke="#3b82f6" strokeWidth="1.5" />
+              <rect x="-6" y="-6" width="12" height="12" fill="#3b82f6" filter="url(#vectorGlow)" />
+              <text x="0" y="26" textAnchor="middle" fill="#3b82f6" fontSize="7" fontWeight="bold" fontFamily="monospace">ADMIN</text>
+            </g>
+
+            {/* Connecting laser shield beam */}
+            <path className="laser-gate" d="M96 72 Q 210 40, 324 72" stroke="#10b981" strokeWidth="2.5" fill="none" filter="url(#vectorGlow)" />
+
+            {/* Right secured viewer node */}
+            <g transform="translate(340, 72)">
+              <circle cx="0" cy="0" r="16" fill="rgba(16,185,129,0.15)" stroke="#10b981" strokeWidth="1.5" />
+              <circle cx="0" cy="0" r="6" fill="#10b981" filter="url(#vectorGlow)" />
+              <text x="0" y="26" textAnchor="middle" fill="#10b981" fontSize="7" fontWeight="bold" fontFamily="monospace">APPROVED</text>
+            </g>
+
+            <text x="25" y="30" fill="#10b981" fontSize="9" fontWeight="bold" fontFamily="monospace" filter="url(#vectorGlow)">ACCESS WORKFLOW VERIFIED</text>
+          </svg>
+        </div>
+      );
+
+    case "ai-zoom-enhance":
+      return (
+        <div className="relative w-full h-36 rounded-[1.5rem] overflow-hidden border border-white/10 bg-[#06080d] my-3">
+          <svg className="w-full h-full" viewBox="0 0 420 144" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <style>{`
+              @keyframes zoomPulse {
+                0%, 100% { transform: scale(1); }
+                50% { transform: scale(1.1); }
+              }
+              @keyframes scanEnhance {
+                0% { transform: translateY(-30px); }
+                100% { transform: translateY(30px); }
+              }
+              .zoom-mesh { animation: zoomPulse 4s ease-in-out infinite; transform-origin: center; }
+              .scan-bar { animation: scanEnhance 2s ease-in-out infinite alternate; }
+            `}</style>
+            {renderDefs()}
+            {renderGridBg()}
+
+            <g transform="translate(210, 72)">
+              <g className="zoom-mesh">
+                {/* Face Targeting Ring Mesh */}
+                <ellipse cx="0" cy="0" rx="34" ry="42" stroke="#f57c00" strokeWidth="1.5" fill="rgba(245, 124, 0, 0.05)" filter="url(#vectorGlow)" />
+                <path d="M-22 -12 C-14 -20 14 -20 22 -12 M-20 14 C-10 24 10 24 20 14" stroke="#fff" strokeWidth="1.2" strokeLinecap="round" />
+                <circle cx="-10" cy="-6" r="3" fill="#fff" />
+                <circle cx="10" cy="-6" r="3" fill="#fff" />
+              </g>
+
+              {/* Laser scan lines */}
+              <line className="scan-bar" x1="-45" y1="0" x2="45" y2="0" stroke="#f59e0b" strokeWidth="1.5" filter="url(#vectorGlow)" />
+            </g>
+
+            {/* Tactical targeting corner brackets */}
+            <path d="M170 30 H180 V40 M250 30 H240 V40 M170 114 H180 V104 M250 114 H240 V104" stroke="#f59e0b" strokeWidth="2" />
+
+            <text x="25" y="30" fill="#f59e0b" fontSize="9" fontWeight="bold" fontFamily="monospace" filter="url(#vectorGlow)">UPSCALE: 4.0X RESOLUTION</text>
+          </svg>
+        </div>
+      );
+
+    case "noise-isolation":
+      return (
+        <div className="relative w-full h-36 rounded-[1.5rem] overflow-hidden border border-white/10 bg-[#06080d] my-3">
+          <svg className="w-full h-full" viewBox="0 0 420 144" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <style>{`
+              @keyframes waveFlow {
+                0% { stroke-dashoffset: 0; }
+                100% { stroke-dashoffset: -40; }
+              }
+              .raw-noise { stroke-dasharray: 4 4; }
+              .clean-sine { stroke-dasharray: 80; stroke-dashoffset: 0; animation: waveFlow 2s linear infinite; }
+            `}</style>
+            {renderDefs()}
+            {renderGridBg()}
+
+            {/* Top Raw Audio Noise wave */}
+            <path className="raw-noise" d="M30 42 Q 70 20, 110 50 T 190 35 T 270 46 T 390 35" stroke="#ef4444" strokeWidth="1.5" fill="none" />
+            <path d="M30 42 Q 60 55, 90 28 T 210 46 T 310 32 T 390 42" stroke="#ef4444" strokeWidth="0.8" fill="none" opacity="0.4" />
+            <text x="25" y="24" fill="#ef4444" fontSize="7" fontWeight="bold" fontFamily="monospace">RAW AUDIBLE NOISE</text>
+
+            {/* Bottom Clean Voice sine wave */}
+            <path className="clean-sine" d="M30 100 Q 75 80, 120 100 T 210 100 T 300 100 T 390 100" stroke="#10b981" strokeWidth="2" fill="none" filter="url(#vectorGlow)" />
+            <text x="25" y="80" fill="#10b981" fontSize="7" fontWeight="bold" fontFamily="monospace">ISOLATED VOICE CHANNEL</text>
+
+            <text x="25" y="14" fill="#10b981" fontSize="9" fontWeight="bold" fontFamily="monospace">VOICE NOISE ISOLATION ACTIVE</text>
+          </svg>
+        </div>
+      );
+
+    case "drive-quota-control":
+      return (
+        <div className="relative w-full h-36 rounded-[1.5rem] overflow-hidden border border-white/10 bg-[#06080d] my-3">
+          <svg className="w-full h-full" viewBox="0 0 420 144" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <style>{`
+              @keyframes fillQuota {
+                0%, 100% { width: 140px; fill: #eab308; }
+                50% { width: 280px; fill: #ef4444; }
+              }
+              .quota-bar { animation: fillQuota 6s ease-in-out infinite; }
+            `}</style>
+            {renderDefs()}
+            {renderGridBg()}
+
+            {/* Quota bar container */}
+            <rect x="40" y="52" width="340" height="24" rx="8" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.15)" strokeWidth="1.5" />
+            
+            {/* Glowing progress fill */}
+            <rect className="quota-bar" x="42" y="54" height="20" rx="6" fill="#eab308" filter="url(#vectorGlow)" />
+
+            <line x1="295" y1="46" x2="295" y2="82" stroke="rgba(239, 68, 68, 0.4)" strokeWidth="1.5" strokeDasharray="3 3" />
+            <text x="295" y="40" textAnchor="middle" fill="#ef4444" fontSize="7" fontWeight="black" fontFamily="monospace">90% LIMIT</text>
+
+            <text x="25" y="30" fill="#eab308" fontSize="9" fontWeight="bold" fontFamily="monospace" filter="url(#vectorGlow)">CLOUD FIFO STORAGE QUOTA</text>
+          </svg>
+        </div>
+      );
+
+    case "super-zoom-capture":
+      return (
+        <div className="relative w-full h-36 rounded-[1.5rem] overflow-hidden border border-white/10 bg-[#06080d] my-3">
+          <svg className="w-full h-full" viewBox="0 0 420 144" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <style>{`
+              @keyframes reticlePulse {
+                0%, 100% { transform: scale(1); opacity: 0.8; }
+                50% { transform: scale(1.08); opacity: 1; }
+              }
+              .reticle { animation: reticlePulse 2s ease-in-out infinite; transform-origin: center; }
+            `}</style>
+            {renderDefs()}
+            {renderGridBg()}
+
+            {/* Dotted scope ring */}
+            <circle className="reticle" cx="210" cy="72" r="42" stroke="#3b82f6" strokeWidth="1.5" strokeDasharray="4 3" fill="none" filter="url(#vectorGlow)" />
+            <circle cx="210" cy="72" r="3" fill="#3b82f6" />
+            <path d="M210 20 V60 M210 84 V124 M158 72 H202 M218 72 H262" stroke="rgba(59, 130, 246, 0.3)" strokeWidth="1" />
+
+            {/* Zoom brackets */}
+            <path d="M158 36 H168 V46 M262 36 H252 V46 M158 108 H168 V98 M262 108 H252 V98" stroke="#3b82f6" strokeWidth="2" />
+
+            <text x="25" y="30" fill="#3b82f6" fontSize="9" fontWeight="bold" fontFamily="monospace" filter="url(#vectorGlow)">AI SUPER ZOOM ACTIVE</text>
+          </svg>
+        </div>
+      );
+
+    case "multi-camera-grid":
+      return (
+        <div className="relative w-full h-36 rounded-[1.5rem] overflow-hidden border border-white/10 bg-[#06080d] my-3">
+          <svg className="w-full h-full" viewBox="0 0 420 144" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <style>{`
+              @keyframes recPulse {
+                0%, 100% { opacity: 0.2; }
+                50% { opacity: 1; }
+              }
+              .rec-badge { animation: recPulse 1.2s infinite; }
+            `}</style>
+            {renderDefs()}
+            {renderGridBg()}
+
+            {/* Responsive grid split lines */}
+            <line x1="210" y1="10" x2="210" y2="134" stroke="rgba(255,255,255,0.15)" strokeWidth="1.5" />
+            <line x1="20" y1="72" x2="400" y2="72" stroke="rgba(255,255,255,0.15)" strokeWidth="1.5" />
+
+            {/* Split badges */}
+            {/* Top Left */}
+            <text x="35" y="32" fill="#fff" opacity="0.3" fontSize="8" fontWeight="bold" fontFamily="monospace">CAM_01</text>
+            <circle className="rec-badge" cx="200" cy="28" r="3.5" fill="#ef4444" />
+
+            {/* Top Right */}
+            <text x="225" y="32" fill="#fff" opacity="0.3" fontSize="8" fontWeight="bold" fontFamily="monospace">CAM_02</text>
+            <circle className="rec-badge" cx="390" cy="28" r="3.5" fill="#ef4444" />
+
+            {/* Bottom Left */}
+            <text x="35" y="94" fill="#fff" opacity="0.3" fontSize="8" fontWeight="bold" fontFamily="monospace">CAM_03</text>
+            <circle className="rec-badge" cx="200" cy="90" r="3.5" fill="#ef4444" />
+
+            {/* Bottom Right */}
+            <text x="225" y="94" fill="#fff" opacity="0.3" fontSize="8" fontWeight="bold" fontFamily="monospace">CAM_04</text>
+            <circle className="rec-badge" cx="390" cy="90" r="3.5" fill="#ef4444" />
+          </svg>
+        </div>
+      );
+
+    case "multi-ai-quota":
+      return (
+        <div className="relative w-full h-36 rounded-[1.5rem] overflow-hidden border border-white/10 bg-[#06080d] my-3">
+          <svg className="w-full h-full" viewBox="0 0 420 144" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <style>{`
+              @keyframes pathDash {
+                0% { stroke-dashoffset: 30; }
+                100% { stroke-dashoffset: 0; }
+              }
+              .circuit-flow { stroke-dasharray: 6 4; animation: pathDash 2s linear infinite; }
+            `}</style>
+            {renderDefs()}
+            {renderGridBg()}
+
+            {/* Circuit paths */}
+            <path className="circuit-flow" d="M70 72 L180 72 M210 72 L320 72" stroke="#3b82f6" strokeWidth="1.5" filter="url(#vectorGlow)" />
+            <path className="circuit-flow" d="M70 72 Q 140 28, 210 50 Q 280 28, 350 72" stroke="#10b981" strokeWidth="1.2" />
+
+            {/* Integrated Chips */}
+            {/* Gemini */}
+            <g transform="translate(60, 72)">
+              <rect x="-24" y="-14" width="48" height="28" rx="4" fill="rgba(16,185,129,0.15)" stroke="#10b981" strokeWidth="1.5" />
+              <text x="0" y="4" textAnchor="middle" fill="#10b981" fontSize="7" fontWeight="black" fontFamily="monospace">GEMINI</text>
+            </g>
+
+            {/* OpenAI */}
+            <g transform="translate(210, 72)">
+              <rect x="-24" y="-14" width="48" height="28" rx="4" fill="rgba(59,130,246,0.15)" stroke="#3b82f6" strokeWidth="1.5" />
+              <text x="0" y="4" textAnchor="middle" fill="#3b82f6" fontSize="7" fontWeight="black" fontFamily="monospace">OPENAI</text>
+            </g>
+
+            {/* Claude */}
+            <g transform="translate(360, 72)">
+              <rect x="-24" y="-14" width="48" height="28" rx="4" fill="rgba(245,158,11,0.15)" stroke="#f59e0b" strokeWidth="1.5" />
+              <text x="0" y="4" textAnchor="middle" fill="#f59e0b" fontSize="7" fontWeight="black" fontFamily="monospace">CLAUDE</text>
+            </g>
+
+            <text x="25" y="30" fill="#10b981" fontSize="9" fontWeight="bold" fontFamily="monospace" filter="url(#vectorGlow)">MULTI-PROVIDER QUOTA CHAIN</text>
+          </svg>
+        </div>
+      );
+
+    case "hardware-optical-zoom":
+      return (
+        <div className="relative w-full h-36 rounded-[1.5rem] overflow-hidden border border-white/10 bg-[#06080d] my-3">
+          <svg className="w-full h-full" viewBox="0 0 420 144" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <style>{`
+              @keyframes lensSlide {
+                0%, 100% { transform: translateX(-15px); }
+                50% { transform: translateX(25px); }
+              }
+              .camera-lens { animation: lensSlide 4s ease-in-out infinite; }
+            `}</style>
+            {renderDefs()}
+            {renderGridBg()}
+
+            {/* Camera barrel */}
+            <rect x="70" y="46" width="280" height="52" rx="4" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.15)" strokeWidth="1.5" />
+
+            {/* Dotted Lens track */}
+            <line x1="100" y1="72" x2="320" y2="72" stroke="rgba(255,255,255,0.1)" strokeWidth="2" strokeDasharray="3 3" />
+
+            {/* Moving optical lens groups */}
+            <g className="camera-lens" transform="translate(160, 72)">
+              <rect x="-16" y="-22" width="12" height="44" rx="3" fill="#3b82f6" filter="url(#vectorGlow)" opacity="0.75" />
+              <rect x="12" y="-18" width="10" height="36" rx="2" fill="#60a5fa" filter="url(#vectorGlow)" opacity="0.6" />
+              
+              <line x1="-30" y1="-26" x2="-30" y2="26" stroke="#3b82f6" strokeWidth="1.5" />
+              <text x="-40" y="-30" fill="#3b82f6" fontSize="7" fontWeight="bold" fontFamily="monospace">OPTICAL GROUP</text>
+            </g>
+
+            <text x="25" y="30" fill="#3b82f6" fontSize="9" fontWeight="bold" fontFamily="monospace" filter="url(#vectorGlow)">LENS STAGE NEGOTIATING</text>
+          </svg>
+        </div>
+      );
+
+    default:
+      return (
+        <div className="relative w-full h-36 rounded-[1.5rem] overflow-hidden border border-white/10 bg-[#06080d] my-3">
+          <svg className="w-full h-full" viewBox="0 0 420 144" fill="none" xmlns="http://www.w3.org/2000/svg">
+            {renderDefs()}
+            {renderGridBg()}
+            <circle cx="210" cy="72" r="14" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.2)" strokeWidth="1.5" />
+          </svg>
+        </div>
+      );
+  }
 };
