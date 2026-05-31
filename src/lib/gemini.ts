@@ -13,7 +13,9 @@ interface QuotaBucket {
 
 const PROVIDERS = [
   { key: "gemini",      limit: 40 },
+  { key: "gemini_alt",  limit: 40 },
   { key: "groq",        limit: 50 },
+  { key: "groq_alt",    limit: 50 },
   { key: "openrouter",  limit: 50 },
   { key: "openai",      limit: 20 },
   { key: "claude",      limit: 15 },
@@ -127,6 +129,33 @@ const callGemini = async (base64Data: string, prompt: string): Promise<string> =
   return text;
 };
 
+const callGeminiAlt = async (base64Data: string, prompt: string): Promise<string> => {
+  const apiKey = localStorage.getItem("hguard_gemini_api_key_alt");
+  if (!apiKey) throw new Error("No secondary Gemini key configured.");
+
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{
+          parts: [
+            { text: prompt },
+            { inline_data: { mime_type: "image/jpeg", data: base64Data } }
+          ]
+        }]
+      })
+    }
+  );
+
+  if (res.status === 429) { markExhausted("gemini_alt", 40); throw new Error("429"); }
+  const data = await res.json();
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) throw new Error("empty");
+  return text;
+};
+
 const callGroq = async (base64Data: string, prompt: string): Promise<string> => {
   const apiKey = localStorage.getItem("hguard_groq_api_key") || import.meta.env.VITE_GROQ_API_KEY;
   if (!apiKey) throw new Error("No Groq key available. Configure in Settings.");
@@ -151,6 +180,36 @@ const callGroq = async (base64Data: string, prompt: string): Promise<string> => 
   });
 
   if (res.status === 429) { markExhausted("groq", 50); throw new Error("429"); }
+  const data = await res.json();
+  const text = data.choices?.[0]?.message?.content;
+  if (!text) throw new Error("empty");
+  return text;
+};
+
+const callGroqAlt = async (base64Data: string, prompt: string): Promise<string> => {
+  const apiKey = localStorage.getItem("hguard_groq_api_key_alt");
+  if (!apiKey) throw new Error("No secondary Groq key configured.");
+
+  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${apiKey}`
+    },
+    body: JSON.stringify({
+      model: "llama-3.2-11b-vision-preview",
+      max_tokens: 60,
+      messages: [{
+        role: "user",
+        content: [
+          { type: "text", text: prompt },
+          { type: "image_url", image_url: { url: `data:image/jpeg;base64,${base64Data}` } }
+        ]
+      }]
+    })
+  });
+
+  if (res.status === 429) { markExhausted("groq_alt", 50); throw new Error("429"); }
   const data = await res.json();
   const text = data.choices?.[0]?.message?.content;
   if (!text) throw new Error("empty");
@@ -266,7 +325,9 @@ export const analyzeFrame = async (base64Image: string, prompt?: string): Promis
 
   const callers: Array<{ key: ProviderKey; limit: number; fn: (d: string, p: string) => Promise<string> }> = [
     { key: "gemini",     limit: 40, fn: callGemini },
+    { key: "gemini_alt", limit: 40, fn: callGeminiAlt },
     { key: "groq",       limit: 50, fn: callGroq },
+    { key: "groq_alt",   limit: 50, fn: callGroqAlt },
     { key: "openrouter", limit: 50, fn: callOpenRouter },
     { key: "openai",     limit: 20, fn: callOpenAI },
     { key: "claude",     limit: 15, fn: callClaude },

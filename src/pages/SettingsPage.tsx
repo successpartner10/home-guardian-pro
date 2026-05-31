@@ -779,9 +779,10 @@ const SettingsPage = () => {
           </p>
 
           <div className="space-y-4">
+            {/* Groq Key 1 */}
             <div className="p-6 bg-card/40 border-2 border-border/40 rounded-[2rem] space-y-3">
               <div className="flex justify-between items-center">
-                <span className="text-[10px] font-black uppercase tracking-widest text-primary">Groq API Key (100% Free Vision)</span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-primary">Groq API Key (Primary)</span>
                 {localStorage.getItem("hguard_groq_api_key") ? (
                   <span className="text-[8px] bg-green-500/20 text-green-400 font-bold px-2 py-0.5 rounded-full uppercase">Configured</span>
                 ) : (
@@ -806,8 +807,8 @@ const SettingsPage = () => {
                 <Button
                   onClick={() => {
                     toast({
-                      title: "Groq Key Updated",
-                      description: "Your free Groq Vision API key has been saved securely to local storage."
+                      title: "Primary Groq Key Updated",
+                      description: "Primary Groq Key saved successfully."
                     });
                   }}
                   className="h-12 px-6 rounded-xl font-bold text-[10px] uppercase tracking-wider shrink-0"
@@ -815,11 +816,48 @@ const SettingsPage = () => {
                   Save
                 </Button>
               </div>
-              <p className="text-[9px] font-semibold text-muted-foreground uppercase leading-normal">
-                Groq offers 100% free developer keys with massive rate limits for the <strong>Llama 3.2 Vision</strong> model! Get your free key at console.groq.com.
-              </p>
             </div>
 
+            {/* Groq Key 2 */}
+            <div className="p-6 bg-card/40 border-2 border-border/40 rounded-[2rem] space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-[10px] font-black uppercase tracking-widest text-primary">Groq API Key (Secondary)</span>
+                {localStorage.getItem("hguard_groq_api_key_alt") ? (
+                  <span className="text-[8px] bg-green-500/20 text-green-400 font-bold px-2 py-0.5 rounded-full uppercase">Configured</span>
+                ) : (
+                  <span className="text-[8px] bg-white/10 text-white/50 font-bold px-2 py-0.5 rounded-full uppercase">Not Configured</span>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  type="password"
+                  placeholder="gsk_..."
+                  defaultValue={localStorage.getItem("hguard_groq_api_key_alt") || ""}
+                  onChange={(e) => {
+                    const val = e.target.value.trim();
+                    if (val) {
+                      localStorage.setItem("hguard_groq_api_key_alt", val);
+                    } else {
+                      localStorage.removeItem("hguard_groq_api_key_alt");
+                    }
+                  }}
+                  className="h-12 bg-zinc-900/60 border-0 rounded-xl font-mono text-xs px-4"
+                />
+                <Button
+                  onClick={() => {
+                    toast({
+                      title: "Secondary Groq Key Updated",
+                      description: "Secondary Groq Key saved successfully."
+                    });
+                  }}
+                  className="h-12 px-6 rounded-xl font-bold text-[10px] uppercase tracking-wider shrink-0"
+                >
+                  Save
+                </Button>
+              </div>
+            </div>
+
+            {/* OpenRouter Key */}
             <div className="p-6 bg-card/40 border-2 border-border/40 rounded-[2rem] space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-[10px] font-black uppercase tracking-widest text-primary">OpenRouter API Key (Free Vision Option)</span>
@@ -861,6 +899,7 @@ const SettingsPage = () => {
               </p>
             </div>
 
+            {/* OpenAI Key */}
             <div className="p-6 bg-card/40 border-2 border-border/40 rounded-[2rem] space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-[10px] font-black uppercase tracking-widest text-primary">OpenAI API Key (Custom)</span>
@@ -899,9 +938,10 @@ const SettingsPage = () => {
               </div>
             </div>
 
+            {/* Gemini Key 1 */}
             <div className="p-6 bg-card/40 border-2 border-border/40 rounded-[2rem] space-y-3">
               <div className="flex justify-between items-center">
-                <span className="text-[10px] font-black uppercase tracking-widest text-primary">Gemini API Key (Optional)</span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-primary">Gemini API Key (Primary)</span>
                 {localStorage.getItem("hguard_gemini_api_key") ? (
                   <span className="text-[8px] bg-green-500/20 text-green-400 font-bold px-2 py-0.5 rounded-full uppercase">Configured</span>
                 ) : (
@@ -926,8 +966,47 @@ const SettingsPage = () => {
                 <Button
                   onClick={() => {
                     toast({
-                      title: "Gemini Key Updated",
-                      description: "Your custom Gemini key has been saved securely."
+                      title: "Primary Gemini Key Updated",
+                      description: "Primary Gemini key saved successfully."
+                    });
+                  }}
+                  className="h-12 px-6 rounded-xl font-bold text-[10px] uppercase tracking-wider shrink-0"
+                >
+                  Save
+                </Button>
+              </div>
+            </div>
+
+            {/* Gemini Key 2 */}
+            <div className="p-6 bg-card/40 border-2 border-border/40 rounded-[2rem] space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-[10px] font-black uppercase tracking-widest text-primary">Gemini API Key (Secondary)</span>
+                {localStorage.getItem("hguard_gemini_api_key_alt") ? (
+                  <span className="text-[8px] bg-green-500/20 text-green-400 font-bold px-2 py-0.5 rounded-full uppercase">Configured</span>
+                ) : (
+                  <span className="text-[8px] bg-white/10 text-white/50 font-bold px-2 py-0.5 rounded-full uppercase">Not Configured</span>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  type="password"
+                  placeholder="AIzaSy..."
+                  defaultValue={localStorage.getItem("hguard_gemini_api_key_alt") || ""}
+                  onChange={(e) => {
+                    const val = e.target.value.trim();
+                    if (val) {
+                      localStorage.setItem("hguard_gemini_api_key_alt", val);
+                    } else {
+                      localStorage.removeItem("hguard_gemini_api_key_alt");
+                    }
+                  }}
+                  className="h-12 bg-zinc-900/60 border-0 rounded-xl font-mono text-xs px-4"
+                />
+                <Button
+                  onClick={() => {
+                    toast({
+                      title: "Secondary Gemini Key Updated",
+                      description: "Secondary Gemini key saved successfully."
                     });
                   }}
                   className="h-12 px-6 rounded-xl font-bold text-[10px] uppercase tracking-wider shrink-0"
