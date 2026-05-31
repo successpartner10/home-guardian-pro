@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Zap, Shield, Video, Moon, Radio, Share2, HelpCircle, ChevronRight, Info, Mic, Thermometer, Sparkles } from "lucide-react";
+import { Search, Zap, Shield, Video, Moon, Radio, HelpCircle, ChevronRight, Info, Mic, Thermometer, Sparkles, AlertOctagon, BrainCircuit } from "lucide-react";
 import AppLayout from "@/components/AppLayout";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -34,6 +34,22 @@ const features: FeatureHelp[] = [
     category: "AI",
     description: "Tracks movement across your yard by automatically handing off video between adjacent cameras.",
     howItWorks: "As a visitor crosses from one camera's view into another, HGUARD seamlessly lock-negotiates, keeping them focused in a single live feed."
+  },
+  {
+    id: "ai-threat-guard",
+    title: "Predictive AI Threat Guard",
+    icon: BrainCircuit,
+    category: "AI",
+    description: "Calculates real-time danger indexes by evaluating lingering, pathing vectors, and proximity on the edge.",
+    howItWorks: "Differentiates friendly visitors (like postal couriers on clear paths) from slow-lingering actors, instantly alerting you when the score rises."
+  },
+  {
+    id: "siren-defense",
+    title: "Autonomous Security Siren",
+    icon: AlertOctagon,
+    category: "Security",
+    description: "Sound high-decibel audible sirens and trigger strobe flashing spotlights when a persistent threat is verified.",
+    howItWorks: "If the AI Threat Guard locks on a suspicious target lingering in safety hazard zones, it triggers dual acoustic deterrence."
   },
   {
     id: "bridge-mode",
@@ -101,65 +117,61 @@ const features: FeatureHelp[] = [
   }
 ];
 
-// 1. Mini Animated Thermal Core Simulator
+// Helper: draw grid background to make every canvas look like a blueprint schematic illustration
+const drawBlueprintGrid = (ctx: CanvasRenderingContext2D, width: number, height: number) => {
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.04)";
+  ctx.lineWidth = 1;
+  const size = 15;
+  for (let x = 0; x < width; x += size) {
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, height); ctx.stroke();
+  }
+  for (let y = 0; y < height; y += size) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke();
+  }
+};
+
+// 1. Thermal Core Schematic
 const ThermalMiniDemo = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    
     let animationId = 0;
     let time = 0;
-    
     const draw = () => {
       time += 0.04;
-      ctx.fillStyle = "#090514";
+      ctx.fillStyle = "#0c0a15";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
-      
-      // Background cooler noise
-      for (let i = 0; i < 30; i++) {
-        const x = (Math.sin(i + time) * 0.5 + 0.5) * canvas.width;
-        const y = (Math.cos(i * 2 + time) * 0.5 + 0.5) * canvas.height;
-        ctx.fillStyle = "rgba(40, 10, 90, 0.08)";
-        ctx.beginPath();
-        ctx.arc(x, y, 12, 0, Math.PI * 2);
-        ctx.fill();
-      }
+      drawBlueprintGrid(ctx, canvas.width, canvas.height);
 
-      // Hottest core coordinates (walking body)
       const x = canvas.width / 2 + Math.sin(time) * 60;
       const y = canvas.height / 2 + Math.cos(time * 1.5) * 12;
       
       const grad = ctx.createRadialGradient(x, y, 1, x, y, 40);
-      grad.addColorStop(0, "rgba(255, 255, 255, 1.0)");
-      grad.addColorStop(0.25, "rgba(249, 115, 22, 0.85)");
-      grad.addColorStop(0.55, "rgba(239, 68, 68, 0.6)");
-      grad.addColorStop(0.85, "rgba(139, 92, 246, 0.3)");
+      grad.addColorStop(0, "rgba(255, 255, 255, 0.95)");
+      grad.addColorStop(0.25, "rgba(249, 115, 22, 0.8)");
+      grad.addColorStop(0.55, "rgba(239, 68, 68, 0.5)");
+      grad.addColorStop(0.85, "rgba(139, 92, 246, 0.2)");
       grad.addColorStop(1.0, "transparent");
       
       ctx.fillStyle = grad;
-      ctx.beginPath();
-      ctx.arc(x, y, 40, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.beginPath(); ctx.arc(x, y, 40, 0, Math.PI * 2); ctx.fill();
       
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.35)";
+      ctx.strokeStyle = "rgba(249, 115, 22, 0.4)";
       ctx.lineWidth = 1;
       ctx.strokeRect(x - 22, y - 22, 44, 44);
       
-      ctx.fillStyle = "#ff8800";
+      ctx.fillStyle = "#f97316";
       ctx.font = "8px monospace";
-      ctx.fillText(`Target: ${(36.2 + Math.sin(time) * 0.1).toFixed(1)}°C`, x - 20, y - 28);
+      ctx.fillText(`Heat Core: ${(36.2 + Math.sin(time) * 0.1).toFixed(1)}°C`, x - 20, y - 28);
       
       animationId = requestAnimationFrame(draw);
     };
-    
     draw();
     return () => cancelAnimationFrame(animationId);
   }, []);
-  
   return (
     <div className="relative w-full h-36 rounded-[2rem] overflow-hidden border border-white/10 bg-black/40 shadow-inner my-4">
       <canvas ref={canvasRef} width={400} height={144} className="w-full h-full object-cover" />
@@ -170,37 +182,26 @@ const ThermalMiniDemo = () => {
   );
 };
 
-// 2. Mini Animated Grid Tracking Simulator
+// 2. Mesh Tracking Schematic
 const TrackingMiniDemo = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    
     let animationId = 0;
     let angle = 0;
-    
     const draw = () => {
       angle += 0.015;
-      ctx.fillStyle = "#08070b";
+      ctx.fillStyle = "#09090e";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
-      
-      ctx.strokeStyle = "rgba(255,255,255,0.03)";
-      ctx.lineWidth = 1;
-      for (let i = 0; i < canvas.width; i += 20) {
-        ctx.beginPath();
-        ctx.moveTo(i, 0);
-        ctx.lineTo(i, canvas.height);
-        ctx.stroke();
-      }
+      drawBlueprintGrid(ctx, canvas.width, canvas.height);
       
       const cams = [
-        { x: 70, y: 35, color: "#ef4444", name: "Cam-01" },
-        { x: 200, y: 35, color: "#3b82f6", name: "Cam-02" },
-        { x: 330, y: 35, color: "#22c55e", name: "Cam-03" }
+        { x: 70, y: 35, color: "#ef4444", name: "Node-A" },
+        { x: 200, y: 35, color: "#3b82f6", name: "Node-B" },
+        { x: 330, y: 35, color: "#22c55e", name: "Node-C" }
       ];
       
       const tx = 200 + Math.sin(angle) * 110;
@@ -218,47 +219,38 @@ const TrackingMiniDemo = () => {
       
       cams.forEach(c => {
         const isActive = c.name === bestCam.name;
-        ctx.strokeStyle = isActive ? `${c.color}50` : "rgba(255,255,255,0.05)";
-        ctx.fillStyle = isActive ? `${c.color}08` : "rgba(255,255,255,0.01)";
+        ctx.strokeStyle = isActive ? `${c.color}60` : "rgba(255,255,255,0.06)";
+        ctx.fillStyle = isActive ? `${c.color}0c` : "rgba(255,255,255,0.01)";
         ctx.beginPath();
         ctx.moveTo(c.x, c.y);
-        ctx.arc(c.x, c.y, 110, 0.2 * Math.PI, 0.8 * Math.PI);
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
+        ctx.arc(c.x, c.y, 100, 0.2 * Math.PI, 0.8 * Math.PI);
+        ctx.closePath(); ctx.fill(); ctx.stroke();
         
         ctx.fillStyle = isActive ? c.color : "#4b5563";
-        ctx.beginPath();
-        ctx.arc(c.x, c.y, 5, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.beginPath(); ctx.arc(c.x, c.y, 5, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = "#9ca3af";
+        ctx.font = "7px monospace";
+        ctx.fillText(c.name, c.x - 15, c.y - 10);
       });
       
       ctx.strokeStyle = bestCam.color;
       ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.moveTo(bestCam.x, bestCam.y);
-      ctx.lineTo(tx, ty);
-      ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(bestCam.x, bestCam.y); ctx.lineTo(tx, ty); ctx.stroke();
       
       ctx.strokeStyle = bestCam.color;
-      ctx.strokeRect(tx - 12, ty - 12, 24, 24);
-      
+      ctx.strokeRect(tx - 10, ty - 10, 20, 20);
       ctx.fillStyle = bestCam.color;
-      ctx.beginPath();
-      ctx.arc(tx, ty, 4, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.beginPath(); ctx.arc(tx, ty, 3, 0, Math.PI * 2); ctx.fill();
       
-      ctx.fillStyle = "#9ca3af";
+      ctx.fillStyle = "#ffffff";
       ctx.font = "8px monospace";
-      ctx.fillText(`Mesh Active Lock: ${bestCam.name}`, 12, 20);
+      ctx.fillText(`Mesh Active Lock ➔ ${bestCam.name}`, 12, 22);
       
       animationId = requestAnimationFrame(draw);
     };
-    
     draw();
     return () => cancelAnimationFrame(animationId);
   }, []);
-  
   return (
     <div className="relative w-full h-36 rounded-[2rem] overflow-hidden border border-white/10 bg-black/40 shadow-inner my-4">
       <canvas ref={canvasRef} width={400} height={144} className="w-full h-full object-cover" />
@@ -269,7 +261,132 @@ const TrackingMiniDemo = () => {
   );
 };
 
-// 3. Mini Screen Share Mirroring Animation
+// 3. AI Threat Guard Schematic Illustration
+const ThreatGuardMiniDemo = () => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    let animId = 0;
+    let time = 0;
+    const draw = () => {
+      time += 0.02;
+      ctx.fillStyle = "#0c0a09";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      drawBlueprintGrid(ctx, canvas.width, canvas.height);
+      
+      const nodes = [
+        { x: 80, y: 72, label: "Vector In", color: "#3b82f6" },
+        { x: 200, y: 72, label: "Classification Matrix", color: "#f59e0b" },
+        { x: 320, y: 72, label: "Alarm Quotient", color: "#ef4444" }
+      ];
+      
+      ctx.strokeStyle = "rgba(255,255,255,0.06)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(nodes[0].x, nodes[0].y);
+      ctx.lineTo(nodes[1].x, nodes[1].y);
+      ctx.lineTo(nodes[2].x, nodes[2].y);
+      ctx.stroke();
+      
+      nodes.forEach((n, idx) => {
+        const pulse = 7 + Math.abs(Math.sin(time * 3 + idx)) * 8;
+        ctx.strokeStyle = `${n.color}40`;
+        ctx.beginPath(); ctx.arc(n.x, n.y, pulse, 0, Math.PI * 2); ctx.stroke();
+        
+        ctx.fillStyle = n.color;
+        ctx.beginPath(); ctx.arc(n.x, n.y, 4, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = "#ffffff"; ctx.stroke();
+        
+        ctx.fillStyle = "#9ca3af";
+        ctx.font = "7px monospace";
+        ctx.fillText(n.label, n.x - 30, n.y - 14);
+      });
+      
+      const calculatedRisk = (75.4 + Math.sin(time * 4) * 6).toFixed(1);
+      ctx.fillStyle = "#ef4444";
+      ctx.font = "bold 8px monospace";
+      ctx.fillText(`AI Risk Ratio: ${calculatedRisk}% [Looming Alert]`, 12, 22);
+      
+      animId = requestAnimationFrame(draw);
+    };
+    draw();
+    return () => cancelAnimationFrame(animId);
+  }, []);
+  return (
+    <div className="relative w-full h-36 rounded-[2rem] overflow-hidden border border-white/10 bg-black/40 shadow-inner my-4">
+      <canvas ref={canvasRef} width={400} height={144} className="w-full h-full object-cover" />
+      <div className="absolute bottom-3 right-3 px-3 py-1 bg-black/60 backdrop-blur-md rounded-xl text-[8px] text-white/50 font-mono tracking-wider">
+        Blueprint Diagram
+      </div>
+    </div>
+  );
+};
+
+// 4. Siren Deterrent Alternate Flashing Spotlight Wave
+const SirenDefenseMiniDemo = () => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    let animId = 0;
+    let time = 0;
+    const draw = () => {
+      time += 0.08;
+      ctx.fillStyle = "#090514";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      drawBlueprintGrid(ctx, canvas.width, canvas.height);
+      
+      const cx = canvas.width / 2;
+      const cy = canvas.height / 2 + 10;
+      const isRed = Math.floor(time * 1.5) % 2 === 0;
+      
+      ctx.fillStyle = isRed ? "rgba(239, 68, 68, 0.12)" : "rgba(59, 130, 246, 0.12)";
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - 20);
+      ctx.lineTo(cx - 90, cy + 40);
+      ctx.lineTo(cx + 90, cy + 40);
+      ctx.closePath(); ctx.fill();
+      
+      ctx.strokeStyle = isRed ? "rgba(239, 68, 68, 0.4)" : "rgba(59, 130, 246, 0.4)";
+      ctx.lineWidth = 1.5;
+      for (let i = 0; i < 3; i++) {
+        const radius = ((time * 15) + i * 30) % 90;
+        const alpha = 1 - radius / 90;
+        ctx.strokeStyle = isRed ? `rgba(239, 68, 68, ${alpha * 0.6})` : `rgba(59, 130, 246, ${alpha * 0.6})`;
+        ctx.beginPath();
+        ctx.arc(cx, cy - 20, radius, 0.1 * Math.PI, 0.9 * Math.PI);
+        ctx.stroke();
+      }
+      
+      ctx.fillStyle = "#ef4444";
+      ctx.beginPath(); ctx.arc(cx, cy - 20, 8, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = "#ffffff"; ctx.stroke();
+      
+      ctx.fillStyle = isRed ? "#ef4444" : "#3b82f6";
+      ctx.font = "bold 8px monospace";
+      ctx.fillText("Alarm Sound Wave Outflow", 12, 22);
+      
+      animId = requestAnimationFrame(draw);
+    };
+    draw();
+    return () => cancelAnimationFrame(animId);
+  }, []);
+  return (
+    <div className="relative w-full h-36 rounded-[2rem] overflow-hidden border border-white/10 bg-black/40 shadow-inner my-4">
+      <canvas ref={canvasRef} width={400} height={144} className="w-full h-full object-cover" />
+      <div className="absolute bottom-3 right-3 px-3 py-1 bg-black/60 backdrop-blur-md rounded-xl text-[8px] text-white/50 font-mono tracking-wider">
+        Schematic Blueprint
+      </div>
+    </div>
+  );
+};
+
+// 5. Screen Share Mirroring Blueprint
 const BridgeModeMiniDemo = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
@@ -283,6 +400,7 @@ const BridgeModeMiniDemo = () => {
       time += 0.05;
       ctx.fillStyle = "#0c0a09";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
+      drawBlueprintGrid(ctx, canvas.width, canvas.height);
       
       ctx.strokeStyle = "rgba(255,255,255,0.15)";
       ctx.strokeRect(10, 15, canvas.width - 20, canvas.height - 30);
@@ -320,7 +438,7 @@ const BridgeModeMiniDemo = () => {
   );
 };
 
-// 4. Night Vision Booster Animation
+// 6. Night Vision Booster Blueprint
 const NightVisionMiniDemo = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
@@ -334,10 +452,10 @@ const NightVisionMiniDemo = () => {
       time += 0.02;
       ctx.fillStyle = "#090514";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
+      drawBlueprintGrid(ctx, canvas.width, canvas.height);
       
       const divideX = (Math.sin(time) * 0.5 + 0.5) * canvas.width;
       
-      // Raw dark
       ctx.save();
       ctx.rect(0, 0, divideX, canvas.height);
       ctx.clip();
@@ -350,7 +468,6 @@ const NightVisionMiniDemo = () => {
       ctx.fillText("Raw dark input", 15, 20);
       ctx.restore();
       
-      // Boosted
       ctx.save();
       ctx.rect(divideX, 0, canvas.width - divideX, canvas.height);
       ctx.clip();
@@ -372,10 +489,7 @@ const NightVisionMiniDemo = () => {
       
       ctx.strokeStyle = "#ffffff";
       ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.moveTo(divideX, 0);
-      ctx.lineTo(divideX, canvas.height);
-      ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(divideX, 0); ctx.lineTo(divideX, canvas.height); ctx.stroke();
       
       animId = requestAnimationFrame(draw);
     };
@@ -392,7 +506,7 @@ const NightVisionMiniDemo = () => {
   );
 };
 
-// 5. Cloud Recordings Sliding card Film Strip Animation
+// 7. Cloud Recordings Sliding Blueprint
 const ArchiveMiniDemo = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
@@ -406,6 +520,7 @@ const ArchiveMiniDemo = () => {
       time += 0.015;
       ctx.fillStyle = "#0c0a09";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
+      drawBlueprintGrid(ctx, canvas.width, canvas.height);
       
       const cardWidth = 80;
       const cardHeight = 60;
@@ -417,18 +532,14 @@ const ArchiveMiniDemo = () => {
         ctx.fillStyle = "rgba(255,255,255,0.03)";
         ctx.strokeStyle = "rgba(255,255,255,0.15)";
         ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.roundRect(x, 40, cardWidth, cardHeight, 10);
-        ctx.fill();
-        ctx.stroke();
+        ctx.beginPath(); ctx.roundRect(x, 40, cardWidth, cardHeight, 10); ctx.fill(); ctx.stroke();
         
         ctx.fillStyle = "rgba(255,255,255,0.2)";
         ctx.beginPath();
         ctx.moveTo(x + cardWidth/2 - 4, 40 + cardHeight/2 - 6);
         ctx.lineTo(x + cardWidth/2 + 6, 40 + cardHeight/2);
         ctx.lineTo(x + cardWidth/2 - 4, 40 + cardHeight/2 + 6);
-        ctx.closePath();
-        ctx.fill();
+        ctx.closePath(); ctx.fill();
         
         ctx.fillStyle = "rgba(255,255,255,0.3)";
         ctx.font = "6px monospace";
@@ -454,7 +565,7 @@ const ArchiveMiniDemo = () => {
   );
 };
 
-// 6. Access Control Shield and Locks scanner
+// 8. Access Control Shield Blueprint
 const GatekeeperMiniDemo = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
@@ -468,21 +579,19 @@ const GatekeeperMiniDemo = () => {
       time += 0.03;
       ctx.fillStyle = "#0c0a09";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
+      drawBlueprintGrid(ctx, canvas.width, canvas.height);
       
-      // Node 1: Admin
       ctx.fillStyle = "#3b82f6";
       ctx.beginPath(); ctx.arc(100, 72, 12, 0, Math.PI*2); ctx.fill();
       ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1.5; ctx.stroke();
       ctx.fillStyle = "#ffffff"; ctx.font = "7px monospace"; ctx.fillText("ADMIN", 88, 94);
       
-      // Node 2: Locked Guest
       const isScanning = (Math.floor(time / 2) % 2) === 0;
       ctx.fillStyle = isScanning ? "#ef4444" : "#22c55e";
       ctx.beginPath(); ctx.arc(300, 72, 12, 0, Math.PI*2); ctx.fill();
       ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1.5; ctx.stroke();
       ctx.fillStyle = "#ffffff"; ctx.fillText(isScanning ? "LOCKED" : "APPROVED", 278, 94);
       
-      // beam
       ctx.strokeStyle = isScanning ? "rgba(239, 68, 68, 0.4)" : "rgba(34, 197, 94, 0.4)";
       ctx.lineWidth = 1.5;
       ctx.beginPath();
@@ -509,7 +618,7 @@ const GatekeeperMiniDemo = () => {
   );
 };
 
-// 7. Zoom interpolator details vector
+// 9. Zoom vector interpolator Blueprint
 const AIZoomMiniDemo = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
@@ -523,6 +632,7 @@ const AIZoomMiniDemo = () => {
       time += 0.02;
       ctx.fillStyle = "#0c0a09";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
+      drawBlueprintGrid(ctx, canvas.width, canvas.height);
       
       const zoomRatio = 1 + (Math.sin(time) * 0.5 + 0.5) * 3;
       
@@ -572,7 +682,7 @@ const AIZoomMiniDemo = () => {
   );
 };
 
-// 8. Voice static filter waves
+// 10. Voice Static blueprint oscilloscopes
 const NoiseIsolationMiniDemo = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
@@ -586,6 +696,7 @@ const NoiseIsolationMiniDemo = () => {
       time += 0.08;
       ctx.fillStyle = "#0c0a09";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
+      drawBlueprintGrid(ctx, canvas.width, canvas.height);
       
       ctx.strokeStyle = "rgba(239, 68, 68, 0.4)";
       ctx.lineWidth = 1;
@@ -623,7 +734,7 @@ const NoiseIsolationMiniDemo = () => {
   );
 };
 
-// 9. Audio decibel and mic pulsing rings
+// 11. Walkie Talkie Blueprint Wave
 const TwoWayTalkMiniDemo = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
@@ -637,6 +748,7 @@ const TwoWayTalkMiniDemo = () => {
       time += 0.05;
       ctx.fillStyle = "#0c0a09";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
+      drawBlueprintGrid(ctx, canvas.width, canvas.height);
       
       const radiusBase = (time * 20) % 120;
       
@@ -676,7 +788,7 @@ const TwoWayTalkMiniDemo = () => {
   );
 };
 
-// 10. Quota recycle sweeper sweep
+// 12. Storage Quota Sweeper Blueprint
 const DriveQuotaMiniDemo = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
@@ -690,6 +802,7 @@ const DriveQuotaMiniDemo = () => {
       time += 0.02;
       ctx.fillStyle = "#0c0a09";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
+      drawBlueprintGrid(ctx, canvas.width, canvas.height);
       
       const width = 240;
       const height = 24;
@@ -707,10 +820,7 @@ const DriveQuotaMiniDemo = () => {
         ctx.strokeStyle = "#ffffff";
         ctx.lineWidth = 2;
         const sweepX = x + (width - 4) * fillPercentage;
-        ctx.beginPath();
-        ctx.moveTo(sweepX, y);
-        ctx.lineTo(sweepX, y + height);
-        ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(sweepX, y); ctx.lineTo(sweepX, y + height); ctx.stroke();
         
         ctx.fillStyle = "#ef4444";
         ctx.font = "bold 8px monospace";
@@ -751,26 +861,26 @@ const HelpPage = () => {
 
   return (
     <AppLayout>
-      <div className="p-6 max-w-4xl mx-auto pb-32 space-y-12">
+      <div className="p-6 max-w-4xl mx-auto pb-32 space-y-10">
         {/* Header */}
-        <div className="space-y-4 text-center sm:text-left">
-          <div className="flex items-center justify-center sm:justify-start gap-4 text-primary">
-            <HelpCircle className="w-10 h-10" />
-            <h1 className="text-4xl font-black tracking-tight">Help & Tips</h1>
+        <div className="space-y-3 text-center sm:text-left">
+          <div className="flex items-center justify-center sm:justify-start gap-3 text-primary">
+            <HelpCircle className="w-8 h-8" />
+            <h1 className="text-3xl font-black tracking-tight">Help & Tips</h1>
           </div>
-          <p className="text-lg text-muted-foreground font-medium">Simple guides and active simulators for every feature.</p>
+          <p className="text-base text-muted-foreground font-medium">Simple guides and active blueprint simulators for every feature.</p>
         </div>
 
         {/* Search Bar */}
         <div className="relative group">
-          <div className="absolute inset-0 bg-primary/10 blur-2xl group-focus-within:bg-primary/20 transition-all rounded-full" />
+          <div className="absolute inset-0 bg-primary/10 blur-xl group-focus-within:bg-primary/20 transition-all rounded-full" />
           <div className="relative flex items-center">
-            <Search className="absolute left-6 h-5 w-5 text-white/40 group-focus-within:text-primary transition-colors" />
+            <Search className="absolute left-5 h-4 w-4 text-white/40 group-focus-within:text-primary transition-colors" />
             <Input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search simple guides…"
-              className="h-16 pl-16 pr-8 bg-black/40 border-2 border-white/5 rounded-[2rem] text-lg font-bold placeholder:text-white/20 focus:border-primary/50 focus:ring-0 transition-all"
+              className="h-14 pl-14 pr-6 bg-black/40 border-2 border-white/5 rounded-[1.8rem] text-base font-semibold placeholder:text-white/20 focus:border-primary/50 focus:ring-0 transition-all"
             />
           </div>
         </div>
@@ -782,36 +892,36 @@ const HelpPage = () => {
               <motion.div
                 key={f.id}
                 layout
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95 }}
               >
                 <div 
                   onClick={() => setSelectedFeature(selectedFeature?.id === f.id ? null : f)}
                   className={cn(
-                    "group relative overflow-hidden rounded-[2.5rem] border-2 transition-all cursor-pointer p-6",
+                    "group relative overflow-hidden rounded-[2.2rem] border-2 transition-all cursor-pointer p-5",
                     selectedFeature?.id === f.id 
-                      ? "bg-primary border-primary shadow-[0_0_40px_rgba(var(--primary-rgb),0.2)]" 
-                      : "bg-white/[0.03] border-white/5 hover:border-white/20"
+                      ? "bg-primary border-primary shadow-[0_0_35px_rgba(var(--primary-rgb),0.15)]" 
+                      : "bg-white/[0.03] border-white/5 hover:border-white/15"
                   )}
                 >
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-6">
+                    <div className="flex items-center gap-5">
                       <div className={cn(
-                        "h-14 w-14 rounded-2xl flex items-center justify-center transition-colors",
+                        "h-12 w-12 rounded-[1.2rem] flex items-center justify-center transition-colors",
                         selectedFeature?.id === f.id ? "bg-black text-primary" : "bg-primary/10 text-primary"
                       )}>
-                        <f.icon className="h-7 w-7" />
+                        <f.icon className="h-6 w-6" />
                       </div>
-                      <div className="space-y-1">
+                      <div className="space-y-0.5">
                         <p className={cn(
-                          "text-xl font-bold tracking-tight",
+                          "text-[17px] font-bold tracking-tight",
                           selectedFeature?.id === f.id ? "text-black" : "text-white"
                         )}>
                           {f.title}
                         </p>
                         <p className={cn(
-                          "text-xs font-semibold tracking-wide capitalize",
+                          "text-[10px] font-semibold tracking-wide capitalize",
                           selectedFeature?.id === f.id ? "text-black/60" : "text-muted-foreground"
                         )}>
                           {f.category} Features
@@ -819,7 +929,7 @@ const HelpPage = () => {
                       </div>
                     </div>
                     <ChevronRight className={cn(
-                      "h-6 w-6 transition-transform",
+                      "h-5 w-5 transition-transform",
                       selectedFeature?.id === f.id ? "rotate-90 text-black" : "text-white/20"
                     )} />
                   </div>
@@ -832,22 +942,22 @@ const HelpPage = () => {
                         exit={{ height: 0, opacity: 0 }}
                         className="overflow-hidden"
                       >
-                        <div className="pt-8 space-y-6">
-                          <div className="space-y-2">
-                            <p className="text-[10px] font-bold text-black/50">What it does</p>
-                            <p className="text-lg font-bold text-black leading-tight">{f.description}</p>
+                        <div className="pt-6 space-y-5">
+                          <div className="space-y-1.5">
+                            <p className="text-[9px] font-bold text-black/50 uppercase tracking-wider">What it does</p>
+                            <p className="text-sm font-bold text-black leading-snug">{f.description}</p>
                           </div>
                           
                           {/* Animated Demo canvas simulations for all features */}
-                          <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
-                            <p className="text-[10px] font-bold text-black/50">Live simulation feed</p>
+                          <div className="space-y-1.5" onClick={(e) => e.stopPropagation()}>
+                            <p className="text-[9px] font-bold text-black/50 uppercase tracking-wider">Interactive illustration feed</p>
                             
                             {f.id === "thermal-vision" && (
                               <>
                                 <ThermalMiniDemo />
                                 <Button 
                                   onClick={() => setThermalOpen(true)}
-                                  className="w-full h-12 bg-black text-white hover:bg-zinc-900 rounded-2xl font-bold text-xs uppercase tracking-wider"
+                                  className="w-full h-10 bg-black text-white hover:bg-zinc-900 rounded-[1.2rem] font-bold text-[10px] uppercase transition-all tracking-wider"
                                 >
                                   ⚡ Launch live thermal vision mapper
                                 </Button>
@@ -859,9 +969,33 @@ const HelpPage = () => {
                                 <TrackingMiniDemo />
                                 <Button 
                                   onClick={() => setMeshOpen(true)}
-                                  className="w-full h-12 bg-black text-white hover:bg-zinc-900 rounded-2xl font-bold text-xs uppercase tracking-wider"
+                                  className="w-full h-10 bg-black text-white hover:bg-zinc-900 rounded-[1.2rem] font-bold text-[10px] uppercase transition-all tracking-wider"
                                 >
                                   ⚡ Launch cooperative mesh tracking lab
+                                </Button>
+                              </>
+                            )}
+
+                            {f.id === "ai-threat-guard" && (
+                              <>
+                                <ThreatGuardMiniDemo />
+                                <Button 
+                                  onClick={() => navigate("/settings")}
+                                  className="w-full h-10 bg-black text-white hover:bg-zinc-900 rounded-[1.2rem] font-bold text-[10px] uppercase transition-all tracking-wider"
+                                >
+                                  ⚡ Open AI Threat calibration parameters
+                                </Button>
+                              </>
+                            )}
+
+                            {f.id === "siren-defense" && (
+                              <>
+                                <SirenDefenseMiniDemo />
+                                <Button 
+                                  onClick={() => navigate("/settings")}
+                                  className="w-full h-10 bg-black text-white hover:bg-zinc-900 rounded-[1.2rem] font-bold text-[10px] uppercase transition-all tracking-wider"
+                                >
+                                  ⚡ Open siren deterrent rule parameters
                                 </Button>
                               </>
                             )}
@@ -871,7 +1005,7 @@ const HelpPage = () => {
                                 <BridgeModeMiniDemo />
                                 <Button 
                                   onClick={() => navigate("/dashboard")}
-                                  className="w-full h-12 bg-black text-white hover:bg-zinc-900 rounded-2xl font-bold text-xs uppercase tracking-wider"
+                                  className="w-full h-10 bg-black text-white hover:bg-zinc-900 rounded-[1.2rem] font-bold text-[10px] uppercase transition-all tracking-wider"
                                 >
                                   ⚡ Open camera screen cast panel
                                 </Button>
@@ -883,7 +1017,7 @@ const HelpPage = () => {
                                 <NightVisionMiniDemo />
                                 <Button 
                                   onClick={() => navigate("/dashboard")}
-                                  className="w-full h-12 bg-black text-white hover:bg-zinc-900 rounded-2xl font-bold text-xs uppercase tracking-wider"
+                                  className="w-full h-10 bg-black text-white hover:bg-zinc-900 rounded-[1.2rem] font-bold text-[10px] uppercase transition-all tracking-wider"
                                 >
                                   ⚡ Open live stream night filter
                                 </Button>
@@ -895,7 +1029,7 @@ const HelpPage = () => {
                                 <ArchiveMiniDemo />
                                 <Button 
                                   onClick={() => navigate("/archive")}
-                                  className="w-full h-12 bg-black text-white hover:bg-zinc-900 rounded-2xl font-bold text-xs uppercase tracking-wider"
+                                  className="w-full h-10 bg-black text-white hover:bg-zinc-900 rounded-[1.2rem] font-bold text-[10px] uppercase transition-all tracking-wider"
                                 >
                                   ⚡ Open Google Drive recording archive
                                 </Button>
@@ -907,7 +1041,7 @@ const HelpPage = () => {
                                 <GatekeeperMiniDemo />
                                 <Button 
                                   onClick={() => navigate("/settings")}
-                                  className="w-full h-12 bg-black text-white hover:bg-zinc-900 rounded-2xl font-bold text-xs uppercase tracking-wider"
+                                  className="w-full h-10 bg-black text-white hover:bg-zinc-900 rounded-[1.2rem] font-bold text-[10px] uppercase transition-all tracking-wider"
                                 >
                                   ⚡ Open device & security manager
                                 </Button>
@@ -919,7 +1053,7 @@ const HelpPage = () => {
                                 <AIZoomMiniDemo />
                                 <Button 
                                   onClick={() => navigate("/dashboard")}
-                                  className="w-full h-12 bg-black text-white hover:bg-zinc-900 rounded-2xl font-bold text-xs uppercase tracking-wider"
+                                  className="w-full h-10 bg-black text-white hover:bg-zinc-900 rounded-[1.2rem] font-bold text-[10px] uppercase transition-all tracking-wider"
                                 >
                                   ⚡ Open live stream stream booster
                                 </Button>
@@ -931,7 +1065,7 @@ const HelpPage = () => {
                                 <NoiseIsolationMiniDemo />
                                 <Button 
                                   onClick={() => navigate("/settings")}
-                                  className="w-full h-12 bg-black text-white hover:bg-zinc-900 rounded-2xl font-bold text-xs uppercase tracking-wider"
+                                  className="w-full h-10 bg-black text-white hover:bg-zinc-900 rounded-[1.2rem] font-bold text-[10px] uppercase transition-all tracking-wider"
                                 >
                                   ⚡ Configure microphones & filters
                                 </Button>
@@ -943,7 +1077,7 @@ const HelpPage = () => {
                                 <TwoWayTalkMiniDemo />
                                 <Button 
                                   onClick={() => navigate("/dashboard")}
-                                  className="w-full h-12 bg-black text-white hover:bg-zinc-900 rounded-2xl font-bold text-xs uppercase tracking-wider"
+                                  className="w-full h-10 bg-black text-white hover:bg-zinc-900 rounded-[1.2rem] font-bold text-[10px] uppercase transition-all tracking-wider"
                                 >
                                   ⚡ Open voice talkback broadcast
                                 </Button>
@@ -955,7 +1089,7 @@ const HelpPage = () => {
                                 <DriveQuotaMiniDemo />
                                 <Button 
                                   onClick={() => navigate("/settings")}
-                                  className="w-full h-12 bg-black text-white hover:bg-zinc-900 rounded-2xl font-bold text-xs uppercase tracking-wider"
+                                  className="w-full h-10 bg-black text-white hover:bg-zinc-900 rounded-[1.2rem] font-bold text-[10px] uppercase transition-all tracking-wider"
                                 >
                                   ⚡ Open storage & backup quota options
                                 </Button>
@@ -963,9 +1097,9 @@ const HelpPage = () => {
                             )}
                           </div>
 
-                          <div className="p-5 rounded-3xl bg-black/10 border border-black/5 space-y-2">
-                            <p className="text-[10px] font-bold text-black/50">How it works</p>
-                            <p className="text-sm font-medium text-black/80 leading-relaxed italic">
+                          <div className="p-4 rounded-3xl bg-black/10 border border-black/5 space-y-1.5">
+                            <p className="text-[9px] font-bold text-black/50 uppercase tracking-wider">How it works</p>
+                            <p className="text-xs font-medium text-black/80 leading-relaxed italic">
                               "{f.howItWorks}"
                             </p>
                           </div>
@@ -982,8 +1116,8 @@ const HelpPage = () => {
         {/* Empty State */}
         {filteredFeatures.length === 0 && (
           <div className="text-center py-20 space-y-4 opacity-30">
-            <Info className="h-12 w-12 mx-auto" />
-            <p className="text-lg font-bold">No results found for "{searchQuery}"</p>
+            <Info className="h-10 w-10 mx-auto" />
+            <p className="text-base font-bold">No results found for "{searchQuery}"</p>
           </div>
         )}
       </div>
