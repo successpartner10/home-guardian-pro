@@ -27,7 +27,7 @@ import {
   UserCheck, HardDrive, Edit3, Share2, Activity, Moon, Zap, Palette, 
   VolumeX, Smartphone, Music, Calendar, Lock as LockIcon, Unlock as UnlockIcon,
   HardDrive as DiscIcon, Download, CloudOff, Check, Camera as CameraIcon, Monitor, Sun,
-  Radio, ShieldAlert, Heart
+  Radio, ShieldAlert, Heart, ChevronDown, ChevronUp, BellRing, Settings, Thermometer, AlertOctagon
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
@@ -107,6 +107,7 @@ const SettingsPage = () => {
   const [webhookUrl, setWebhookUrl] = useState("");
   const [editingDeviceId, setEditingDeviceId] = useState<string | null>(null);
   const [editingDeviceName, setEditingDeviceName] = useState("");
+  const [expandedCameraId, setExpandedCameraId] = useState<string | null>(null);
 
   // Synchronized Custom AI Keys States
   const [g1, setG1] = useState("");
@@ -522,26 +523,15 @@ const SettingsPage = () => {
           </div>
         </div>
 
-        {/* Civic Mesh — AMBER Alert Participation */}
+        {/* Camera Features Manager */}
         <div className="bg-card border-2 border-primary/20 rounded-2xl p-4 space-y-4">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500">
-              <Radio className="w-5 w-5" />
+            <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+              <Settings className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-xl font-black tracking-tight text-foreground">Civic Mesh — AMBER Alerts</h2>
-              <p className="text-xs text-muted-foreground mt-0.5">Help find missing children & assist law enforcement by sharing your cameras</p>
-            </div>
-          </div>
-
-          <div className="p-4 rounded-2xl bg-amber-500/5 border border-amber-500/20 space-y-2">
-            <div className="flex items-start gap-3">
-              <Heart className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                When you opt in, your camera silently checks for active AMBER Alert subjects in the background while you monitor your home normally.
-                <strong className="text-foreground"> No video ever leaves your device</strong> — only a match notification is sent if a face is detected.
-                Your privacy is fully protected.
-              </p>
+              <h2 className="text-xl font-black tracking-tight text-foreground">Camera Features Manager</h2>
+              <p className="text-xs text-muted-foreground mt-0.5">Toggle advanced on-demand features and settings per camera</p>
             </div>
           </div>
 
@@ -550,39 +540,88 @@ const SettingsPage = () => {
               <p className="text-sm text-muted-foreground text-center py-4">No cameras registered yet.</p>
             )}
             {devices.filter(d => d.type === 'camera').map((device) => {
-              const isOptedIn = (device as any).civic_mesh_enabled ?? false;
+              const isExpanded = expandedCameraId === device.id;
+              const currentSettings = device.settings || {};
+              const isCivicMesh = (device as any).civic_mesh_enabled ?? currentSettings.civic_mesh_enabled ?? false;
+
+              const cameraSettingsList = [
+                { key: "night_vision", label: "Night Vision", desc: "Digital light amplification", icon: Moon, color: "text-blue-400", checked: currentSettings.night_vision ?? false },
+                { key: "ai_active", label: "Smart AI Alerts", desc: "Edge AI scene descriptions", icon: Brain, color: "text-primary", checked: currentSettings.ai_active ?? false },
+                { key: "power_save", label: "Battery Saver", desc: "Dim screen/save power", icon: Zap, color: "text-yellow-500", checked: currentSettings.power_save ?? false },
+                { key: "cloud_recording", label: "Cloud Recording", desc: "Auto-save clips to Drive", icon: Shield, color: "text-green-500", checked: currentSettings.cloud_recording ?? false },
+                { key: "motion_alerts", label: "Motion Alerts", desc: "Send push alerts", icon: BellRing, color: "text-orange-500", checked: currentSettings.motion_alerts ?? false },
+                { key: "civic_mesh_enabled", label: "Civic Mesh", desc: "Silent BOLO alert scanning", icon: Radio, color: "text-amber-500", checked: isCivicMesh },
+                { key: "thermal_mode", label: "Thermal Mapping", desc: "Estimated heat reconstruction", icon: Thermometer, color: "text-red-500", checked: currentSettings.thermal_mode ?? false },
+                { key: "siren_defense", label: "Siren Rules", desc: "Acoustic warning deterrent", icon: AlertOctagon, color: "text-red-400", checked: currentSettings.siren_defense ?? false },
+              ];
+
               return (
-                <div key={device.id} className="flex items-center justify-between p-4 rounded-2xl bg-muted/30 border border-border">
-                  <div className="flex items-center gap-3">
-                    <div className={cn(
-                      "h-8 w-8 rounded-xl flex items-center justify-center shrink-0",
-                      isOptedIn ? "bg-amber-500/20 text-amber-500" : "bg-muted text-muted-foreground"
-                    )}>
-                      <ShieldAlert className="h-4 w-4" />
+                <div key={device.id} className="border border-border rounded-2xl overflow-hidden bg-muted/20">
+                  <button
+                    onClick={() => setExpandedCameraId(isExpanded ? null : device.id)}
+                    className="w-full flex items-center justify-between p-4 bg-muted/40 hover:bg-muted/60 transition-colors text-left"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-primary/10 rounded-xl text-primary">
+                        <CameraIcon className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-foreground">{device.name}</p>
+                        <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider mt-0.5">
+                          {device.status} · {cameraSettingsList.filter(s => s.checked).length} active settings
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm font-bold text-foreground">{device.name}</p>
-                      <p className="text-[10px] text-muted-foreground font-medium">
-                        {isOptedIn ? "✓ Participating in Civic Mesh" : "Not participating"}
-                      </p>
-                    </div>
-                  </div>
-                  <Switch
-                    checked={isOptedIn}
-                    onCheckedChange={async (checked) => {
-                      try {
-                        await updateDoc(doc(db, "devices", device.id), { civic_mesh_enabled: checked });
-                        toast({
-                          title: checked ? "Joined Civic Mesh" : "Left Civic Mesh",
-                          description: checked
-                            ? `${device.name} will now silently scan for AMBER Alert subjects.`
-                            : `${device.name} has been removed from the mesh.`
-                        });
-                      } catch (e) {
-                        toast({ title: "Error", variant: "destructive" });
-                      }
-                    }}
-                  />
+                    {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+                  </button>
+
+                  <AnimatePresence>
+                    {isExpanded && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="overflow-hidden border-t border-border bg-card/30"
+                      >
+                        <div className="p-4 space-y-3">
+                          {cameraSettingsList.map((setting) => (
+                            <div key={setting.key} className="flex items-center justify-between p-3 rounded-xl bg-background/50 border border-border/50 gap-3">
+                              <div className="flex items-center gap-3 min-w-0">
+                                <setting.icon className={cn("h-4 w-4 shrink-0", setting.color)} />
+                                <div className="min-w-0">
+                                  <p className="text-foreground font-bold text-xs leading-tight">{setting.label}</p>
+                                  <p className="text-muted-foreground text-[9px] mt-0.5 leading-tight">{setting.desc}</p>
+                                </div>
+                              </div>
+                              <Switch
+                                checked={setting.checked}
+                                onCheckedChange={async (checked) => {
+                                  try {
+                                    if (setting.key === "civic_mesh_enabled") {
+                                      await updateDoc(doc(db, "devices", device.id), {
+                                        civic_mesh_enabled: checked,
+                                        "settings.civic_mesh_enabled": checked
+                                      });
+                                    } else {
+                                      await updateDoc(doc(db, "devices", device.id), {
+                                        [`settings.${setting.key}`]: checked
+                                      });
+                                    }
+                                    toast({
+                                      title: "Setting Updated",
+                                      description: `${device.name}: ${setting.label} → ${checked ? "ON" : "OFF"}`
+                                    });
+                                  } catch (e) {
+                                    toast({ title: "Failed to save settings", variant: "destructive" });
+                                  }
+                                }}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               );
             })}
