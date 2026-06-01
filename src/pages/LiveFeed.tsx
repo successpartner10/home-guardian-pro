@@ -93,35 +93,42 @@ const LiveFeed = () => {
   const [superZoom, setSuperZoom] = useState<{ image: string; reading: string | null; loading: boolean } | null>(null);
   const [superZoomTab, setSuperZoomTab] = useState<"all" | "identifiers" | "people" | "vehicles" | "context">("all");
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const isSpeakingRef = useRef(false);
 
-  const speakText = (text: string) => {
-    if ('speechSynthesis' in window) {
-      if (isSpeaking) {
-        window.speechSynthesis.cancel();
-        setIsSpeaking(false);
-        return;
-      }
-      const cleanText = text
-        .replace(/\[IDENTIFIERS\]:/gi, "Identifiers: ")
-        .replace(/\[PEOPLE\]:/gi, "People: ")
-        .replace(/\[VEHICLES\]:/gi, "Vehicles: ")
-        .replace(/\[CONTEXT\]:/gi, "Context: ");
-      const utterance = new SpeechSynthesisUtterance(cleanText);
-      utterance.onend = () => setIsSpeaking(false);
-      utterance.onerror = () => setIsSpeaking(false);
-      setIsSpeaking(true);
-      window.speechSynthesis.speak(utterance);
+  const speakText = useCallback((text: string) => {
+    if (!('speechSynthesis' in window)) return;
+    // Always cancel any current speech first
+    window.speechSynthesis.cancel();
+    if (isSpeakingRef.current) {
+      // Was speaking — cancel is enough, toggle off
+      isSpeakingRef.current = false;
+      setIsSpeaking(false);
+      return;
     }
-  };
+    const cleanText = text
+      .replace(/\[IDENTIFIERS\]:/gi, "Identifiers. ")
+      .replace(/\[PEOPLE\]:/gi, "People. ")
+      .replace(/\[VEHICLES\]:/gi, "Vehicles. ")
+      .replace(/\[CONTEXT\]:/gi, "Context. ")
+      .replace(/None\.?/gi, "None detected. ");
+    const utterance = new SpeechSynthesisUtterance(cleanText);
+    utterance.rate = 0.95;
+    utterance.pitch = 1;
+    utterance.onend = () => { isSpeakingRef.current = false; setIsSpeaking(false); };
+    utterance.onerror = () => { isSpeakingRef.current = false; setIsSpeaking(false); };
+    isSpeakingRef.current = true;
+    setIsSpeaking(true);
+    // Small delay so cancel() fully clears before re-queuing (required on some Android WebViews)
+    setTimeout(() => window.speechSynthesis.speak(utterance), 100);
+  }, []);
 
-  const closeSuperZoom = () => {
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-    }
+  const closeSuperZoom = useCallback(() => {
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+    isSpeakingRef.current = false;
     setIsSpeaking(false);
     setSuperZoom(null);
     setSuperZoomTab("all");
-  };
+  }, []);
 
   const { toast } = useToast();
 
@@ -1058,10 +1065,19 @@ const LiveFeed = () => {
                         );
                       }
 
+                      // Split into individual sentences for readability
+                      const sentences = currentVal
+                        .split(/(?<=[.!?])\s+/)
+                        .map(s => s.trim())
+                        .filter(Boolean);
                       return (
-                        <p className="text-[11px] leading-relaxed text-foreground/90 font-bold uppercase tracking-tight">
-                          {currentVal}
-                        </p>
+                        <div className="space-y-1.5">
+                          {sentences.map((sentence, i) => (
+                            <p key={i} className="text-[12px] leading-relaxed text-foreground/90 font-medium">
+                              {sentence}
+                            </p>
+                          ))}
+                        </div>
                       );
                     })()}
                   </div>
