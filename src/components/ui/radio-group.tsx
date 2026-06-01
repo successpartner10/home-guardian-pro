@@ -1,3 +1,5 @@
+// © 2026 HGUARD Elite by Successpartner10. All rights reserved.
+// Unauthorized copying, modification, or distribution is strictly prohibited.
 import * as React from "react";
 import * as RadioGroupPrimitive from "@radix-ui/react-radio-group";
 import { Circle } from "lucide-react";

@@ -1,3 +1,5 @@
+// © 2026 HGUARD Elite by Successpartner10. All rights reserved.
+// Unauthorized copying, modification, or distribution is strictly prohibited.
 import { db } from "@/lib/firebase";
 import { collection, query, where, getDocs, updateDoc, doc } from "firebase/firestore";
 import { googleDrive } from "@/lib/googleDrive";

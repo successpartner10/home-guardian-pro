@@ -1,3 +1,5 @@
+// © 2026 HGUARD Elite by Successpartner10. All rights reserved.
+// Unauthorized copying, modification, or distribution is strictly prohibited.
 import { useState } from "react";
 import { Brain, Zap, Sparkles, Target, Eye, Mic, Thermometer, ArrowRight, ShieldCheck, Microscope } from "lucide-react";
 import AppLayout from "@/components/AppLayout";

@@ -1,3 +1,5 @@
+// © 2026 HGUARD Elite by Successpartner10. All rights reserved.
+// Unauthorized copying, modification, or distribution is strictly prohibited.
 import React, { useEffect, useCallback, useRef, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { db } from "@/lib/firebase";
@@ -103,6 +105,7 @@ const CameraMode = () => {
   const lastFaceAlertRef = useRef(0);
   const [activeBolos, setActiveBolos] = useState<{id: string, label: string, descriptor: Float32Array}[]>([]);
   const lastBoloHitRef = useRef<Record<string, number>>({});
+  const [civicMeshEnabled, setCivicMeshEnabled] = useState(false);
 
   useEffect(() => {
     resolvedDeviceIdRef.current = resolvedDeviceId;
@@ -419,6 +422,7 @@ const CameraMode = () => {
         if (data.settings?.ai_active !== undefined) setShowNarrative(data.settings.ai_active);
         if (data.settings?.auto_night_vision !== undefined) setAutoNightVision(data.settings.auto_night_vision);
         if (data.settings?.power_save !== undefined) setIsPowerSaveMode(data.settings.power_save);
+        setCivicMeshEnabled(data.civic_mesh_enabled ?? false);
       }
     });
     return () => unsubscribe();
@@ -536,8 +540,8 @@ const CameraMode = () => {
               wakeUp();
             }
 
-            // — BOLO / Sentinel matching —
-            if (activeBolos.length > 0) {
+            // — BOLO / Sentinel matching — only if user opted into Civic Mesh —
+            if (civicMeshEnabled && activeBolos.length > 0) {
               detections.forEach(det => {
                 activeBolos.forEach(bolo => {
                   const dist = faceapi.euclideanDistance(det.descriptor, bolo.descriptor);
@@ -585,7 +589,7 @@ const CameraMode = () => {
     };
     detectFaces();
     return () => clearTimeout(timeout);
-  }, [faceModelsLoaded, cameraMode, isActive, isPowerSaveMode, knownFaces, triggerWebhook, wakeUp]);
+  }, [faceModelsLoaded, cameraMode, isActive, isPowerSaveMode, knownFaces, activeBolos, civicMeshEnabled, triggerWebhook, wakeUp, devices]);
 
   useEffect(() => {
     if (viewerConnected) {
@@ -685,7 +689,16 @@ const CameraMode = () => {
         </div>
       )}
 
+      {/* Civic Mesh Badge — shown when opted in */}
+      {civicMeshEnabled && activeBolos.length > 0 && (
+        <div className="absolute top-6 left-6 z-50 flex items-center gap-2 px-3 py-1.5 bg-amber-500/90 backdrop-blur-md rounded-xl border border-amber-400/50 shadow-lg">
+          <div className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
+          <span className="text-[9px] font-black uppercase tracking-widest text-black">Civic Mesh Active</span>
+        </div>
+      )}
+
       {/* Header HUD */}
+
       <div className="absolute top-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2">
         <div className="px-4 py-2 rounded-2xl bg-background/40 backdrop-blur-3xl border border-border flex items-center gap-3 shadow-2xl">
           <div className={cn(

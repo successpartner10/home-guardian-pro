@@ -1,3 +1,5 @@
+// © 2026 HGUARD Elite by Successpartner10. All rights reserved.
+// Unauthorized copying, modification, or distribution is strictly prohibited.
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Check, X, Move, Maximize } from "lucide-react";

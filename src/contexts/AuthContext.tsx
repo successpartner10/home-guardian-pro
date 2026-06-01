@@ -1,3 +1,5 @@
+// © 2026 HGUARD Elite by Successpartner10. All rights reserved.
+// Unauthorized copying, modification, or distribution is strictly prohibited.
 import React, { createContext, useContext, useEffect, useState, useRef } from "react";
 import { Capacitor } from '@capacitor/core';
 import {

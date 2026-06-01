@@ -1,3 +1,5 @@
+// © 2026 HGUARD Elite by Successpartner10. All rights reserved.
+// Unauthorized copying, modification, or distribution is strictly prohibited.
 import { AIProvider, AIResponse } from "../aiOrchestrator";
 
 export class GeminiProvider implements AIProvider {
@@ -69,7 +71,7 @@ IMPORTANT: ALL detected objects (people, animals, notable items) MUST have a box
 
       const data = await response.json();
       const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
-      const cleaned = text.replace(/```json\n?|```\n?/g, "").trim();
+      const cleaned = text.replace(/```json\s*|\s*```/g, "").trim();
       let cleanedJson = "{}";
       const startIdx = cleaned.indexOf('{');
       const endIdx = cleaned.lastIndexOf('}');

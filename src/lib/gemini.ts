@@ -1,3 +1,5 @@
+// © 2026 HGUARD Elite by Successpartner10. All rights reserved.
+// Unauthorized copying, modification, or distribution is strictly prohibited.
 /**
  * Multi-provider AI cascade: Gemini → OpenAI → Claude
  * Each provider has its own 24h quota bucket stored in localStorage.

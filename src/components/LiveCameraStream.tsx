@@ -1,3 +1,5 @@
+// © 2026 HGUARD Elite by Successpartner10. All rights reserved.
+// Unauthorized copying, modification, or distribution is strictly prohibited.
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useWebRTC } from "@/hooks/useWebRTC";
 import { Wifi, WifiOff, Maximize, RefreshCw, Maximize2, Flashlight, FlashlightOff, AlertTriangle, Mic, Moon, Sun, Camera, Brain, Thermometer, ChevronRight, Volume2, VolumeX } from "lucide-react";

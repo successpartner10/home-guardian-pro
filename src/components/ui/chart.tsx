@@ -1,3 +1,5 @@
+// © 2026 HGUARD Elite by Successpartner10. All rights reserved.
+// Unauthorized copying, modification, or distribution is strictly prohibited.
 import * as React from "react";
 import * as RechartsPrimitive from "recharts";
 
@@ -77,11 +79,13 @@ ${colorConfig
     const color = itemConfig.theme?.[theme as keyof typeof itemConfig.theme] || itemConfig.color;
     return color ? `  --color-${key}: ${color};` : null;
   })
-  .join("\n")}
+  .join("
+")}
 }
 `,
           )
-          .join("\n"),
+          .join("
+"),
       }}
     />
   );

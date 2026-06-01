@@ -1,3 +1,5 @@
+// © 2026 HGUARD Elite by Successpartner10. All rights reserved.
+// Unauthorized copying, modification, or distribution is strictly prohibited.
 import { useEffect, useState } from "react";
 import { db, auth } from "@/lib/firebase";
 import {
@@ -24,7 +26,8 @@ import {
   Trash2, Save, LogOut, AlertTriangle, ShieldCheck, Settings2, Shield, Bell, Clock, 
   UserCheck, HardDrive, Edit3, Share2, Activity, Moon, Zap, Palette, 
   VolumeX, Smartphone, Music, Calendar, Lock as LockIcon, Unlock as UnlockIcon,
-  HardDrive as DiscIcon, Download, CloudOff, Check, Camera as CameraIcon, Monitor, Sun
+  HardDrive as DiscIcon, Download, CloudOff, Check, Camera as CameraIcon, Monitor, Sun,
+  Radio, ShieldAlert, Heart
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
@@ -516,6 +519,73 @@ const SettingsPage = () => {
                 )}
               </div>
             ))}
+          </div>
+        </div>
+
+        {/* Civic Mesh — AMBER Alert Participation */}
+        <div className="bg-card border-2 border-primary/20 rounded-2xl p-4 space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500">
+              <Radio className="w-5 w-5" />
+            </div>
+            <div>
+              <h2 className="text-xl font-black tracking-tight text-foreground">Civic Mesh — AMBER Alerts</h2>
+              <p className="text-xs text-muted-foreground mt-0.5">Help find missing children & assist law enforcement by sharing your cameras</p>
+            </div>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-amber-500/5 border border-amber-500/20 space-y-2">
+            <div className="flex items-start gap-3">
+              <Heart className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                When you opt in, your camera silently checks for active AMBER Alert subjects in the background while you monitor your home normally.
+                <strong className="text-foreground"> No video ever leaves your device</strong> — only a match notification is sent if a face is detected.
+                Your privacy is fully protected.
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            {devices.filter(d => d.type === 'camera').length === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-4">No cameras registered yet.</p>
+            )}
+            {devices.filter(d => d.type === 'camera').map((device) => {
+              const isOptedIn = (device as any).civic_mesh_enabled ?? false;
+              return (
+                <div key={device.id} className="flex items-center justify-between p-4 rounded-2xl bg-muted/30 border border-border">
+                  <div className="flex items-center gap-3">
+                    <div className={cn(
+                      "h-8 w-8 rounded-xl flex items-center justify-center shrink-0",
+                      isOptedIn ? "bg-amber-500/20 text-amber-500" : "bg-muted text-muted-foreground"
+                    )}>
+                      <ShieldAlert className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-foreground">{device.name}</p>
+                      <p className="text-[10px] text-muted-foreground font-medium">
+                        {isOptedIn ? "✓ Participating in Civic Mesh" : "Not participating"}
+                      </p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={isOptedIn}
+                    onCheckedChange={async (checked) => {
+                      try {
+                        await updateDoc(doc(db, "devices", device.id), { civic_mesh_enabled: checked });
+                        toast({
+                          title: checked ? "Joined Civic Mesh" : "Left Civic Mesh",
+                          description: checked
+                            ? `${device.name} will now silently scan for AMBER Alert subjects.`
+                            : `${device.name} has been removed from the mesh.`
+                        });
+                      } catch (e) {
+                        toast({ title: "Error", variant: "destructive" });
+                      }
+                    }}
+                  />
+                </div>
+              );
+            })}
           </div>
         </div>
 

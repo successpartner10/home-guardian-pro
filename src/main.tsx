@@ -1,3 +1,5 @@
+// © 2026 HGUARD Elite by Successpartner10. All rights reserved.
+// Unauthorized copying, modification, or distribution is strictly prohibited.
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";

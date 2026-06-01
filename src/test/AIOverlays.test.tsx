@@ -1,3 +1,5 @@
+// © 2026 HGUARD Elite by Successpartner10. All rights reserved.
+// Unauthorized copying, modification, or distribution is strictly prohibited.
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import React from "react";
@@ -44,7 +46,7 @@ describe("AIOverlays component", () => {
       <AIOverlays isMonitoring={true} analysis={analysis} />
     );
     // Should render bounding box divs
-    const boxes = container.querySelectorAll(".absolute.border-\\[1\\.5px\\]");
+    const boxes = container.querySelectorAll(".absolute.border-\[1\.5px\]");
     expect(boxes.length).toBeGreaterThan(0);
   });
 

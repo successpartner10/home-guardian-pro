@@ -1,3 +1,5 @@
+// © 2026 HGUARD Elite by Successpartner10. All rights reserved.
+// Unauthorized copying, modification, or distribution is strictly prohibited.
 import React, { createContext, useContext, useEffect, useState } from "react";
 
 export type ThemeType = "light" | "dark";
@@ -40,4 +42,3 @@ export const useTheme = () => {
     }
     return context;
 };
-

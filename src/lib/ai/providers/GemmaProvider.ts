@@ -1,3 +1,5 @@
+// © 2026 HGUARD Elite by Successpartner10. All rights reserved.
+// Unauthorized copying, modification, or distribution is strictly prohibited.
 import { AIProvider, AIResponse } from "../aiOrchestrator";
 
 export class GemmaProvider implements AIProvider {
@@ -109,7 +111,7 @@ export class GemmaProvider implements AIProvider {
       console.log("[AI] Raw Analysis:", text);
 
       // Clean markdown fences if present, then parse JSON
-      const cleaned = text.replace(/```json\n?|```\n?/g, "").trim();
+      const cleaned = text.replace(/```json\s*|\s*```/g, "").trim();
       let cleanedJson = "{}";
       const startIdx = cleaned.indexOf('{');
       const endIdx = cleaned.lastIndexOf('}');
