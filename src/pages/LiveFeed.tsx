@@ -73,6 +73,9 @@ const LiveFeed = () => {
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [isTalking, setIsTalking] = useState(false);
   const [playAttempted, setPlayAttempted] = useState(false);
+  const [reconnectAttempt, setReconnectAttempt] = useState(0);
+  const [isReconnecting, setIsReconnecting] = useState(false);
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [zoomLevel, setZoomLevel] = useState(1);
   const [zoomCenter, setZoomCenter] = useState({ x: 50, y: 50 });
@@ -306,14 +309,39 @@ const LiveFeed = () => {
     }
   };
 
-  // Auto-connect: wait for both device online + signaling channel ready
+  // Auto-connect with exponential backoff: waits for device online + signaling channel
   useEffect(() => {
     const isOnline = device?.status === "online" || device?.status === "recording";
-    const shouldConnect = connectionState === "new" || connectionState === "closed" || connectionState === "failed" || connectionState === "disconnected";
-    if (isOnline && isChannelReady && shouldConnect) {
-      const delay = connectionState === "new" ? 300 : 2000; // Longer delay for retries
-      const timer = setTimeout(() => connect(), delay);
+    const isTerminal = connectionState === "failed" || connectionState === "disconnected";
+    const isNew = connectionState === "new" || connectionState === "closed";
+
+    if (connectionState === "connected") {
+      // Successfully connected — reset backoff
+      setReconnectAttempt(0);
+      setIsReconnecting(false);
+      if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
+      return;
+    }
+
+    if (!isOnline || !isChannelReady) return;
+
+    if (isNew) {
+      // First connection attempt — short delay
+      const timer = setTimeout(() => connect(), 400);
       return () => clearTimeout(timer);
+    }
+
+    if (isTerminal) {
+      // Exponential backoff: 3s, 6s, 12s, 20s (capped)
+      const attempt = reconnectAttempt + 1;
+      const backoff = Math.min(3000 * Math.pow(2, reconnectAttempt), 20000);
+      setReconnectAttempt(attempt);
+      setIsReconnecting(true);
+      console.log(`[LiveFeed] Reconnect attempt ${attempt} in ${backoff}ms...`);
+      reconnectTimerRef.current = setTimeout(() => {
+        connect();
+      }, backoff);
+      return () => { if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current); };
     }
   }, [device?.status, connectionState, connect, isChannelReady]);
 
@@ -544,12 +572,25 @@ const LiveFeed = () => {
           </>
         ) : isOnline ? (
           <div className="flex h-full items-center justify-center w-full absolute inset-0 text-center space-y-3 z-10">
-            {connectionState === "failed" ? (
-              <div className="flex flex-col items-center gap-3 p-8 bg-background/50 backdrop-blur-md rounded-3xl border border-border">
-                <p className="text-base font-bold text-foreground">Couldn't connect</p>
-                <p className="text-xs text-muted-foreground max-w-[200px]">Make sure the camera app is open and online, then try again.</p>
-                <Button onClick={() => { disconnect(); setTimeout(connect, 500); }} variant="outline" className="gap-2 bg-background/50 backdrop-blur-md border-border/50 mt-1">
-                  <RefreshCw className="h-4 w-4" /> Try again
+            {connectionState === "failed" || (isReconnecting && !isConnected) ? (
+              <div className="flex flex-col items-center gap-3 p-8 bg-background/60 backdrop-blur-md rounded-3xl border border-border shadow-2xl">
+                {isReconnecting ? (
+                  <div className="h-9 w-9 animate-spin rounded-full border-2 border-amber-500 border-t-transparent" />
+                ) : (
+                  <WifiOff className="h-9 w-9 text-red-400" />
+                )}
+                <div className="flex flex-col items-center gap-1 text-center">
+                  <p className="text-sm font-black text-foreground">
+                    {isReconnecting ? `Reconnecting… (attempt ${reconnectAttempt})` : "Connection lost"}
+                  </p>
+                  <p className="text-xs text-muted-foreground max-w-[200px]">
+                    {isReconnecting
+                      ? "Waiting for camera to become reachable. This happens automatically."
+                      : "Make sure the camera app is open and online, then try again."}
+                  </p>
+                </div>
+                <Button onClick={repairConnection} variant="outline" className="gap-2 bg-background/50 backdrop-blur-md border-border/50 mt-1 h-9 text-xs font-bold rounded-xl">
+                  <RefreshCw className="h-3.5 w-3.5" /> Force Retry
                 </Button>
               </div>
             ) : (
