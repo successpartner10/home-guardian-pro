@@ -97,7 +97,7 @@ const LiveFeed = () => {
 
   const speakText = useCallback((text: string) => {
     if (!('speechSynthesis' in window)) return;
-    // Always cancel any current speech first
+    // Cancel any ongoing speech first
     window.speechSynthesis.cancel();
     if (isSpeakingRef.current) {
       // Was speaking — cancel is enough, toggle off
@@ -106,20 +106,23 @@ const LiveFeed = () => {
       return;
     }
     const cleanText = text
-      .replace(/\[IDENTIFIERS\]:/gi, "Identifiers. ")
-      .replace(/\[PEOPLE\]:/gi, "People. ")
-      .replace(/\[VEHICLES\]:/gi, "Vehicles. ")
-      .replace(/\[CONTEXT\]:/gi, "Context. ")
-      .replace(/None\.?/gi, "None detected. ");
+      .replace(/\[IDENTIFIERS\]:/gi, "")
+      .replace(/\[PEOPLE\]:/gi, "")
+      .replace(/\[VEHICLES\]:/gi, "")
+      .replace(/\[CONTEXT\]:/gi, "")
+      // Remove bare None / None. that pollute speech
+      .replace(/\bNone\.?\s*/gi, "")
+      .trim();
+    if (!cleanText) return;
     const utterance = new SpeechSynthesisUtterance(cleanText);
-    utterance.rate = 0.95;
+    utterance.rate = 0.92;
     utterance.pitch = 1;
     utterance.onend = () => { isSpeakingRef.current = false; setIsSpeaking(false); };
     utterance.onerror = () => { isSpeakingRef.current = false; setIsSpeaking(false); };
     isSpeakingRef.current = true;
     setIsSpeaking(true);
-    // Small delay so cancel() fully clears before re-queuing (required on some Android WebViews)
-    setTimeout(() => window.speechSynthesis.speak(utterance), 100);
+    // Must be called synchronously within user gesture — no setTimeout
+    window.speechSynthesis.speak(utterance);
   }, []);
 
   const closeSuperZoom = useCallback(() => {
@@ -1042,7 +1045,13 @@ const LiveFeed = () => {
                       };
 
                       const parsed = parseAI(rawText);
-                      const currentVal = superZoomTab === "all" ? parsed.all : parsed[superZoomTab];
+                      // For "all" tab, strip bare None. lines so only real content shows
+                      const allCleaned = parsed.all
+                        .split(/(?<=[.!?])\s+/)
+                        .map(s => s.trim())
+                        .filter(s => s && !/^none\.?$/i.test(s))
+                        .join(" ");
+                      const currentVal = superZoomTab === "all" ? allCleaned : parsed[superZoomTab];
 
                       if (!currentVal || currentVal.toLowerCase() === "none" || currentVal.trim() === "") {
                         return (
