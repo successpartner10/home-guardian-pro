@@ -12,6 +12,7 @@ import { doc, updateDoc } from "firebase/firestore";
 import { Bell } from "lucide-react";
 import { ThermalLab } from "@/components/ailab/ThermalLab";
 import { MeshTrackingLab } from "@/components/ailab/MeshTrackingLab";
+import { FacialRegistrationLab } from "@/components/ailab/FacialRegistrationLab";
 
 interface AIProposal {
   id: string;
@@ -35,7 +36,7 @@ const proposals: AIProposal[] = [
   {
     id: "facial-identity",
     title: "Edge Facial Recognition",
-    status: "research",
+    status: "available",
     icon: Eye,
     description: "Securely distinguish between family members, known visitors, and strangers locally on your device without using the cloud.",
     potential: "Allows for silent home alarms where sirens only sound for unknown visitors."
@@ -56,12 +57,15 @@ const AILab = () => {
   
   const [thermalOpen, setThermalOpen] = useState(false);
   const [meshOpen, setMeshOpen] = useState(false);
+  const [facialOpen, setFacialOpen] = useState(false);
   
   const handleOpenLab = (id: string) => {
     if (id === "thermal-vision") {
       setThermalOpen(true);
     } else if (id === "mesh-tracking") {
       setMeshOpen(true);
+    } else if (id === "facial-identity") {
+      setFacialOpen(true);
     } else {
       toast({
         title: "Proposal in Research Stage",
@@ -167,7 +171,7 @@ const AILab = () => {
         {/* Interactive Lab Modals */}
         <ThermalLab open={thermalOpen} onOpenChange={setThermalOpen} />
         <MeshTrackingLab open={meshOpen} onOpenChange={setMeshOpen} />
-
+        <FacialRegistrationLab open={facialOpen} onOpenChange={setFacialOpen} />
 
         {isAdmin && (
           <div className="p-6 rounded-[2rem] bg-muted border border-border flex items-center justify-between gap-6">

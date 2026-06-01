@@ -37,6 +37,7 @@ import { googleDrive } from "@/lib/googleDrive";
 import { generateImageSummary } from "@/lib/gemini";
 import { aiOrchestrator, AIResponse } from "@/lib/ai/aiOrchestrator";
 import { AIOverlays } from "@/components/AIOverlays";
+import * as faceapi from "@vladmandic/face-api";
 
 interface PendingAlert {
   type: string;
@@ -96,6 +97,10 @@ const CameraMode = () => {
   const [cameraMode, setCameraMode] = useState<'select' | 'lite' | 'full'>(() => {
     return (localStorage.getItem("hguard_camera_mode") as 'select' | 'lite' | 'full') || 'full';
   });
+
+  const [faceModelsLoaded, setFaceModelsLoaded] = useState(false);
+  const [knownFaces, setKnownFaces] = useState<{name: string, descriptor: Float32Array}[]>([]);
+  const lastFaceAlertRef = useRef(0);
 
   useEffect(() => {
     resolvedDeviceIdRef.current = resolvedDeviceId;
@@ -447,6 +452,85 @@ const CameraMode = () => {
       }
     };
   }, [startCamera, stopCamera, cameraStarted, cameraMode]);
+
+  // Load Face API models and identities
+  useEffect(() => {
+    if (!user) return;
+    let mounted = true;
+    const initFaceApi = async () => {
+      try {
+        await Promise.all([
+          faceapi.nets.ssdMobilenetv1.loadFromUri('/models'),
+          faceapi.nets.faceLandmark68Net.loadFromUri('/models'),
+          faceapi.nets.faceRecognitionNet.loadFromUri('/models')
+        ]);
+        if (mounted) setFaceModelsLoaded(true);
+
+        const snap = await getDocs(collection(db, "profiles", user.uid, "faces"));
+        if (mounted) {
+          setKnownFaces(snap.docs.map(d => ({
+            name: d.data().name,
+            descriptor: new Float32Array(d.data().descriptor)
+          })));
+        }
+      } catch (e) { console.error("FaceAPI Load Error:", e); }
+    };
+    initFaceApi();
+    return () => { mounted = false; };
+  }, [user]);
+
+  // Edge Facial Recognition Loop
+  useEffect(() => {
+    if (!faceModelsLoaded || cameraMode !== 'full' || !isActive || isPowerSaveMode) return;
+    let timeout: any;
+    const detectFaces = async () => {
+      try {
+        if (videoRef.current) {
+          const detections = await faceapi.detectAllFaces(videoRef.current)
+            .withFaceLandmarks()
+            .withFaceDescriptors();
+
+          if (detections.length > 0 && userRef.current && resolvedDeviceIdRef.current) {
+            let names: string[] = [];
+            detections.forEach(det => {
+              let bestMatch = { name: "Unknown Person", distance: 1.0 };
+              knownFaces.forEach(known => {
+                const dist = faceapi.euclideanDistance(det.descriptor, known.descriptor);
+                if (dist < bestMatch.distance) bestMatch = { name: known.name, distance: dist };
+              });
+              if (bestMatch.distance < 0.55) {
+                names.push(bestMatch.name);
+              } else {
+                names.push("Unknown Person");
+              }
+            });
+
+            const uniqueNames = Array.from(new Set(names));
+            const now = Date.now();
+            
+            // Only alert every 15 seconds to avoid spam
+            if (now - lastFaceAlertRef.current > 15000) {
+              lastFaceAlertRef.current = now;
+              const alertData = {
+                device_id: resolvedDeviceIdRef.current,
+                user_id: userRef.current.uid,
+                type: uniqueNames.includes("Unknown Person") ? "unknown_face" : "known_face",
+                message: `Faces detected: ${uniqueNames.join(", ")}`,
+                viewed: false,
+                created_at: serverTimestamp()
+              };
+              addDoc(collection(db, "alerts"), alertData).catch(() => {});
+              triggerWebhook(alertData);
+              wakeUp();
+            }
+          }
+        }
+      } catch (e) { }
+      timeout = setTimeout(detectFaces, 2000); // Check every 2 seconds
+    };
+    detectFaces();
+    return () => clearTimeout(timeout);
+  }, [faceModelsLoaded, cameraMode, isActive, isPowerSaveMode, knownFaces, triggerWebhook, wakeUp]);
 
   useEffect(() => {
     if (viewerConnected) {
