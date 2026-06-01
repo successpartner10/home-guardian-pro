@@ -190,16 +190,55 @@ const CameraMode = () => {
   const getDetailedDeviceName = () => {
     const ua = navigator.userAgent;
     let model = "Unknown Device";
-    if (/Android/i.test(ua)) {
-      const match = ua.match(/Android\s+[\d\.]+;\s+([^;]+)\s+Build/i) || ua.match(/\(([^;]+);\s+Android/i);
-      model = match ? match[1].trim() : "Android Phone";
-    } else if (/iPhone|iPad|iPod/i.test(ua)) {
-      model = /iPad/.test(ua) ? "iPad" : "iPhone";
-    } else if (/Macintosh/i.test(ua)) {
-      model = "MacBook / iMac";
-    } else if (/Windows/i.test(ua)) {
-      model = "Windows PC";
+
+    // Samsung devices
+    const samsungMatch = ua.match(/Samsung[- ]([^\s;)]+)/i) || ua.match(/SM-([A-Z0-9]+)/i);
+    if (samsungMatch) {
+      const smModel = samsungMatch[1].toUpperCase();
+      const knownSamsung: Record<string, string> = {
+        'G960': 'Samsung S9', 'G965': 'Samsung S9+',
+        'G970': 'Samsung S10e', 'G973': 'Samsung S10', 'G975': 'Samsung S10+',
+        'G980': 'Samsung S20', 'G988': 'Samsung S20 Ultra',
+        'G991': 'Samsung S21', 'G998': 'Samsung S21 Ultra',
+        'S901': 'Samsung S22', 'S908': 'Samsung S22 Ultra',
+        'S911': 'Samsung S23', 'S918': 'Samsung S23 Ultra',
+        'S921': 'Samsung S24', 'S928': 'Samsung S24 Ultra',
+        'A515': 'Samsung A51', 'A525': 'Samsung A52', 'A536': 'Samsung A53',
+        'A546': 'Samsung A54', 'A556': 'Samsung A55',
+        'N975': 'Samsung Note 10+', 'N986': 'Samsung Note 20 Ultra',
+      };
+      const prefix = smModel.replace(/^SM-/, '').slice(0, 4);
+      model = knownSamsung[prefix] || `Samsung ${smModel.replace(/^SM-/, '')}`;
     }
+    // iPhone / iPad
+    else if (/iPhone|iPad/i.test(ua)) {
+      const isIPad = /iPad/i.test(ua);
+      model = isIPad ? 'iPad' : 'iPhone';
+    }
+    // Google Pixel
+    else if (/Pixel[- ]?(\d+[a-zA-Z]*)/i.test(ua)) {
+      const pixelMatch = ua.match(/Pixel[- ]?(\d+[a-zA-Z]*)/i);
+      model = pixelMatch ? `Google Pixel ${pixelMatch[1]}` : "Google Pixel";
+    }
+    // OnePlus
+    else if (/OnePlus[- ]?([^\s;)]+)/i.test(ua)) {
+      const opMatch = ua.match(/OnePlus[- ]?([^\s;)]+)/i);
+      model = opMatch ? `OnePlus ${opMatch[1]}` : "OnePlus";
+    }
+    // Xiaomi / Redmi
+    else if (/(Redmi|POCO|Mi)[- ]?([^\s;)]+)/i.test(ua)) {
+      const xiaomiMatch = ua.match(/(Redmi|POCO|Mi)[- ]?([^\s;)]+)/i);
+      model = xiaomiMatch ? `${xiaomiMatch[1]} ${xiaomiMatch[2]}` : "Xiaomi Device";
+    }
+    // Desktop fallbacks
+    else if (/Windows/i.test(ua)) {
+      model = 'Windows PC';
+    } else if (/Macintosh/i.test(ua)) {
+      model = 'Mac';
+    } else if (/Linux/i.test(ua)) {
+      model = 'Linux Device';
+    }
+
     const id = localStorage.getItem("hguard_device_persistent_id") || Math.random().toString(36).substring(2, 12);
     if (!localStorage.getItem("hguard_device_persistent_id")) localStorage.setItem("hguard_device_persistent_id", id);
     return { model, persistentId: id };
