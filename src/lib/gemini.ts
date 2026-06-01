@@ -104,7 +104,7 @@ export const getAIQuotaStatus = (): AIQuotaStatus => {
 export const SECURITY_PROMPT = "You are a security camera AI. Write one specific, natural sentence describing what is happening in this camera frame as a push notification. Be specific about people, actions, and context. If nothing notable: 'No activity detected.'";
 
 /** Used by Super Zoom Capture — maximum detail on anything visible */
-export const DETAIL_PROMPT = "You are an AI vision assistant analyzing a zoomed security camera frame. Describe in maximum detail everything visible: any text (signs, numbers, plates, labels), people (clothing, appearance, actions), vehicles (make, color, any identifiers), objects, and distances. Be specific and thorough. Start immediately with what you see.";
+export const DETAIL_PROMPT = "You are an AI vision assistant analyzing a zoomed security camera frame. Output your analysis using exactly this format:\n[IDENTIFIERS]: List any read text, letters, license plates, signs, labels.\n[PEOPLE]: Describe appearance, clothing, actions of any individuals.\n[VEHICLES]: Describe make, model, color of any vehicles.\n[CONTEXT]: Describe background, objects, distances, setting.\nBe specific, concise, and thorough. If a section has nothing, write None. Start immediately.";
 
 const callGeminiByIndex = async (index: number, base64Data: string, prompt: string): Promise<string> => {
   // Check local storage with backward compatibility for index 1

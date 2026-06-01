@@ -91,6 +91,38 @@ const LiveFeed = () => {
   const [hardwareZoomRange, setHardwareZoomRange] = useState<{ min: number; max: number; step: number } | null>(null);
   const [hwZoomValue, setHwZoomValue] = useState(1);
   const [superZoom, setSuperZoom] = useState<{ image: string; reading: string | null; loading: boolean } | null>(null);
+  const [superZoomTab, setSuperZoomTab] = useState<"all" | "identifiers" | "people" | "vehicles" | "context">("all");
+  const [isSpeaking, setIsSpeaking] = useState(false);
+
+  const speakText = (text: string) => {
+    if ('speechSynthesis' in window) {
+      if (isSpeaking) {
+        window.speechSynthesis.cancel();
+        setIsSpeaking(false);
+        return;
+      }
+      const cleanText = text
+        .replace(/\[IDENTIFIERS\]:/gi, "Identifiers: ")
+        .replace(/\[PEOPLE\]:/gi, "People: ")
+        .replace(/\[VEHICLES\]:/gi, "Vehicles: ")
+        .replace(/\[CONTEXT\]:/gi, "Context: ");
+      const utterance = new SpeechSynthesisUtterance(cleanText);
+      utterance.onend = () => setIsSpeaking(false);
+      utterance.onerror = () => setIsSpeaking(false);
+      setIsSpeaking(true);
+      window.speechSynthesis.speak(utterance);
+    }
+  };
+
+  const closeSuperZoom = () => {
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+    setIsSpeaking(false);
+    setSuperZoom(null);
+    setSuperZoomTab("all");
+  };
+
   const { toast } = useToast();
 
   const handleRemoteStream = useCallback((stream: MediaStream) => {
@@ -877,7 +909,7 @@ const LiveFeed = () => {
                 <span className="text-[11px] font-black text-foreground uppercase tracking-widest">Super Zoom Detail</span>
               </div>
               <button
-                onClick={() => setSuperZoom(null)}
+                onClick={closeSuperZoom}
                 className="h-8 w-8 rounded-full bg-muted/50 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-white/20 transition-all"
               >
                 <X className="h-4 w-4" />
@@ -901,23 +933,142 @@ const LiveFeed = () => {
             </div>
 
             {/* AI Reading panel */}
-            <div className="shrink-0 border-t border-border bg-background px-4 py-4 space-y-2">
-              <div className="flex items-center gap-2">
-                <Brain className="h-3.5 w-3.5 text-purple-400" />
-                <span className="text-[9px] font-bold text-purple-400 uppercase tracking-widest">AI Visual Analysis</span>
+            <div className="shrink-0 border-t border-border bg-background px-4 py-4 space-y-3">
+              {/* Header section with voice readout button */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Brain className="h-3.5 w-3.5 text-purple-400" />
+                  <span className="text-[9px] font-bold text-purple-400 uppercase tracking-widest">AI Visual Analysis</span>
+                </div>
+                {!superZoom.loading && superZoom.reading && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      const rawText = superZoom.reading || "";
+                      const parseAI = (txt: string) => {
+                        const clean = (s: string) => s.trim().replace(/^[:\-\s]+/, "").replace(/None\.?$/i, "None detected");
+                        const idMatch = txt.match(/\[IDENTIFIERS\]:([\s\S]*?)(?=\[PEOPLE\]|\[VEHICLES\]|\[CONTEXT\]|$)/i);
+                        const peopleMatch = txt.match(/\[PEOPLE\]:([\s\S]*?)(?=\[IDENTIFIERS\]|\[VEHICLES\]|\[CONTEXT\]|$)/i);
+                        const vehicleMatch = txt.match(/\[VEHICLES\]:([\s\S]*?)(?=\[IDENTIFIERS\]|\[PEOPLE\]|\[CONTEXT\]|$)/i);
+                        const contextMatch = txt.match(/\[CONTEXT\]:([\s\S]*?)(?=\[IDENTIFIERS\]|\[PEOPLE\]|\[VEHICLES\]|$)/i);
+                        return {
+                          all: txt.replace(/\[IDENTIFIERS\]:|\[PEOPLE\]:|\[VEHICLES\]:|\[CONTEXT\]:/gi, "").trim(),
+                          identifiers: idMatch ? clean(idMatch[1]) : "",
+                          people: peopleMatch ? clean(peopleMatch[1]) : "",
+                          vehicles: vehicleMatch ? clean(vehicleMatch[1]) : "",
+                          context: contextMatch ? clean(contextMatch[1]) : ""
+                        };
+                      };
+                      const parsed = parseAI(rawText);
+                      const speakVal = superZoomTab === "all" ? parsed.all : (parsed[superZoomTab] || "None detected");
+                      speakText(speakVal);
+                    }}
+                    className={cn(
+                      "h-7 px-2.5 rounded-lg border border-border text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all",
+                      isSpeaking ? "bg-purple-500/20 text-purple-300 border-purple-500/40 animate-pulse" : "bg-muted/30 hover:bg-muted text-muted-foreground"
+                    )}
+                  >
+                    {isSpeaking ? <VolumeX className="h-3 w-3" /> : <Volume2 className="h-3 w-3" />}
+                    {isSpeaking ? "Mute" : "Listen"}
+                  </Button>
+                )}
               </div>
 
               {superZoom.loading ? (
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 py-2">
                   <div className="h-4 w-4 rounded-full border-2 border-purple-400 border-t-transparent animate-spin shrink-0" />
                   <p className="text-xs text-muted-foreground italic">Analyzing what's visible in this frame…</p>
                 </div>
               ) : (
-                <p className="text-sm text-foreground/90 leading-relaxed font-medium">
-                  {superZoom.reading}
-                </p>
+                <>
+                  {/* Category Filter Tabs - scrollable horizontally on mobile, saving space */}
+                  <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-4 px-4 scrollbar-none shrink-0">
+                    {[
+                      { id: "all", label: "All", emoji: "👁️" },
+                      { id: "identifiers", label: "Text/Plates", emoji: "📌" },
+                      { id: "people", label: "People", emoji: "👥" },
+                      { id: "vehicles", label: "Vehicles", emoji: "🚗" },
+                      { id: "context", label: "Context", emoji: "📍" },
+                    ].map((tab) => {
+                      const isActive = superZoomTab === tab.id;
+                      return (
+                        <button
+                          key={tab.id}
+                          onClick={() => {
+                            setSuperZoomTab(tab.id as any);
+                            if (isSpeaking && 'speechSynthesis' in window) {
+                              window.speechSynthesis.cancel();
+                              setIsSpeaking(false);
+                            }
+                          }}
+                          className={cn(
+                            "px-3 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider whitespace-nowrap transition-all border",
+                            isActive
+                              ? "bg-purple-500/10 border-purple-500/35 text-purple-300 shadow-sm"
+                              : "bg-muted/20 border-border/40 text-muted-foreground hover:bg-muted/40"
+                          )}
+                        >
+                          {tab.emoji} {tab.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Dynamic description box - Capped/Compact scrollable content area */}
+                  <div className="bg-muted/30 border border-border/40 rounded-xl p-3 max-h-32 overflow-y-auto">
+                    {(() => {
+                      const rawText = superZoom.reading || "";
+                      const parseAI = (txt: string) => {
+                        const clean = (s: string) => s.trim().replace(/^[:\-\s]+/, "").replace(/None\.?$/i, "");
+                        const idMatch = txt.match(/\[IDENTIFIERS\]:([\s\S]*?)(?=\[PEOPLE\]|\[VEHICLES\]|\[CONTEXT\]|$)/i);
+                        const peopleMatch = txt.match(/\[PEOPLE\]:([\s\S]*?)(?=\[IDENTIFIERS\]|\[VEHICLES\]|\[CONTEXT\]|$)/i);
+                        const vehicleMatch = txt.match(/\[VEHICLES\]:([\s\S]*?)(?=\[IDENTIFIERS\]|\[PEOPLE\]|\[CONTEXT\]|$)/i);
+                        const contextMatch = txt.match(/\[CONTEXT\]:([\s\S]*?)(?=\[IDENTIFIERS\]|\[PEOPLE\]|\[VEHICLES\]|$)/i);
+                        return {
+                          all: txt.replace(/\[IDENTIFIERS\]:|\[PEOPLE\]:|\[VEHICLES\]:|\[CONTEXT\]:/gi, "").trim(),
+                          identifiers: idMatch ? clean(idMatch[1]) : "",
+                          people: peopleMatch ? clean(peopleMatch[1]) : "",
+                          vehicles: vehicleMatch ? clean(vehicleMatch[1]) : "",
+                          context: contextMatch ? clean(contextMatch[1]) : ""
+                        };
+                      };
+
+                      const parsed = parseAI(rawText);
+                      const currentVal = superZoomTab === "all" ? parsed.all : parsed[superZoomTab];
+
+                      if (!currentVal || currentVal.toLowerCase() === "none" || currentVal.trim() === "") {
+                        return (
+                          <div className="flex flex-col items-center justify-center py-4 text-center">
+                            <span className="text-[14px]">📭</span>
+                            <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider mt-1">No indicators found</p>
+                            <p className="text-[8px] text-muted-foreground/60 uppercase">AI registered no elements for this category.</p>
+                          </div>
+                        );
+                      }
+
+                      if (superZoomTab === "identifiers") {
+                        return (
+                          <div className="space-y-1">
+                            <span className="text-[9px] font-black uppercase text-purple-400 tracking-wider">Detected Text/Characters:</span>
+                            <p className="text-sm text-foreground font-black tracking-wide font-mono bg-purple-500/5 p-2 rounded-lg border border-purple-500/10">
+                              {currentVal}
+                            </p>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <p className="text-[11px] leading-relaxed text-foreground/90 font-bold uppercase tracking-tight">
+                          {currentVal}
+                        </p>
+                      );
+                    })()}
+                  </div>
+                </>
               )}
 
+              {/* Action trigger footer buttons */}
               <div className="pt-1 flex gap-2">
                 <Button
                   onClick={superZoomCapture}
@@ -926,7 +1077,7 @@ const LiveFeed = () => {
                   <ScanSearch className="h-3.5 w-3.5 mr-1.5" /> Capture Again
                 </Button>
                 <Button
-                  onClick={() => setSuperZoom(null)}
+                  onClick={closeSuperZoom}
                   variant="outline"
                   className="flex-1 h-9 rounded-xl border-border text-[10px] font-bold uppercase tracking-wider"
                 >
