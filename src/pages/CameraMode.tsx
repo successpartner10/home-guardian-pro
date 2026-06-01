@@ -361,6 +361,15 @@ const CameraMode = () => {
       if (msg.action === 'SET_ZOOM' && typeof msg.value === 'number') {
         applyHardwareZoom(msg.value);
       }
+      if (msg.action === 'TOGGLE_POWER_SAVE') {
+        setIsPowerSaveMode(prev => !prev);
+      }
+      if (msg.action === 'SWITCH_SOURCE') {
+        setIsBridgeMode(prev => {
+          setTimeout(restartCamera, 0);
+          return !prev;
+        });
+      }
       if (msg.action === 'TOGGLE_AI') {
         if (cameraMode === 'full') {
           setShowNarrative(prev => !prev);
@@ -432,6 +441,7 @@ const CameraMode = () => {
           isFlashOn: flashOn, isSirenOn: sirenActive, isNightVision: nightVision,
           ambientBrightness, isAiActive: showNarrative,
           hardwareZoomRange: hardwareZoomRange || null,
+          isPowerSaveMode, isBridgeMode
         }
       });
     }
@@ -595,6 +605,26 @@ const CameraMode = () => {
           </span>
         </div>
       </div>
+
+      <AnimatePresence>
+        {isPowerSaveMode && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-[60] bg-black flex flex-col items-center justify-center cursor-pointer"
+            onClick={() => setIsPowerSaveMode(false)}
+          >
+            <div className="flex flex-col items-center gap-6 opacity-40">
+              <Padlock className="h-12 w-12 text-white" />
+              <p className="text-white text-sm font-bold tracking-widest uppercase">Power-Saving Mode</p>
+              <p className="text-white/50 text-xs text-center max-w-[250px]">
+                Camera screen is off to save battery.<br/>Tap anywhere or use Viewer to wake.
+              </p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

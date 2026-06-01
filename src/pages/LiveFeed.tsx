@@ -16,7 +16,7 @@ import {
 } from "firebase/firestore";
 import { useWebRTC } from "@/hooks/useWebRTC";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Wifi, WifiOff, Volume2, VolumeX, Camera, Maximize, RefreshCw, ChevronRight, Share2, Copy, Check, Maximize2, Moon, Sun, Mic, Brain, Thermometer, AlertTriangle, Zap, FlashlightOff, ScanSearch, X } from "lucide-react";
+import { ArrowLeft, Wifi, WifiOff, Volume2, VolumeX, Camera, Maximize, RefreshCw, ChevronRight, Share2, Copy, Check, Maximize2, Moon, Sun, Mic, Brain, Thermometer, AlertTriangle, Zap, FlashlightOff, Flashlight, ScanSearch, X, Monitor, Smartphone, BatteryMedium } from "lucide-react";
 import { getAIQuotaStatus, analyzeFrame } from "@/lib/gemini";
 import {
   Dialog,
@@ -78,6 +78,8 @@ const LiveFeed = () => {
   const [isSirenOn, setIsSirenOn] = useState(false);
   const [isNightVision, setIsNightVision] = useState(false);
   const [isAiActive, setIsAiActive] = useState(false);
+  const [isPowerSaveMode, setIsPowerSaveMode] = useState(false);
+  const [isBridgeMode, setIsBridgeMode] = useState(false);
   const [isThermal, setIsThermal] = useState(false);
   const [aiAnalysis, setAiAnalysis] = useState<any>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -102,6 +104,8 @@ const LiveFeed = () => {
       if (d.isSirenOn !== undefined) setIsSirenOn(d.isSirenOn);
       if (d.isNightVision !== undefined) setIsNightVision(d.isNightVision);
       if (d.isAiActive !== undefined) setIsAiActive(d.isAiActive);
+      if (d.isPowerSaveMode !== undefined) setIsPowerSaveMode(d.isPowerSaveMode);
+      if (d.isBridgeMode !== undefined) setIsBridgeMode(d.isBridgeMode);
       if (d.hardwareZoomRange) setHardwareZoomRange(d.hardwareZoomRange);
     } else if (msg.type === "AI_ANALYSIS") {
       setAiAnalysis(msg.data);
@@ -125,6 +129,8 @@ const LiveFeed = () => {
       case 'TOGGLE_NIGHT_VISION': setIsNightVision(prev => !prev); break;
       case 'TOGGLE_SIREN': setIsSirenOn(prev => !prev); break;
       case 'TOGGLE_AI': setIsAiActive(prev => !prev); break;
+      case 'TOGGLE_POWER_SAVE': setIsPowerSaveMode(prev => !prev); break;
+      case 'SWITCH_SOURCE': setIsBridgeMode(prev => !prev); break;
     }
 
     // 1. Try WebRTC Data Channel for lowest latency
@@ -751,6 +757,8 @@ const LiveFeed = () => {
                 </DrawerSection>
 
                 <DrawerSection label="Camera">
+                  <DrawerBtn icon={isBridgeMode ? <Monitor className="h-4 w-4" /> : <Smartphone className="h-4 w-4" />} label={isBridgeMode ? "Mode: Screen Share" : "Mode: Camera"} active={isBridgeMode} activeClass="bg-blue-500/20 text-blue-300 border border-blue-400/30" onClick={() => sendCommand('SWITCH_SOURCE')} disabled={!isConnected} />
+                  <DrawerBtn icon={isPowerSaveMode ? <BatteryMedium className="h-4 w-4 text-green-400" /> : <BatteryMedium className="h-4 w-4" />} label={isPowerSaveMode ? "Camera is Asleep" : "Sleep Camera"} active={isPowerSaveMode} activeClass="bg-green-500/20 text-green-400 border border-green-400/30" onClick={() => sendCommand('TOGGLE_POWER_SAVE')} disabled={!isConnected} />
                   <DrawerBtn icon={isFlashOn ? <Flashlight className="h-4 w-4" /> : <FlashlightOff className="h-4 w-4" />} label="Flashlight" active={isFlashOn} activeClass="bg-yellow-400/20 text-yellow-300 border border-yellow-400/30" onClick={() => sendCommand('TOGGLE_FLASH')} disabled={!isConnected} />
                   <DrawerBtn icon={isNightVision ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />} label="Night Mode" active={isNightVision} activeClass="bg-green-500/20 text-green-400 border border-green-400/30" onClick={() => sendCommand('TOGGLE_NIGHT_VISION')} disabled={!isConnected} />
                   <DrawerBtn icon={<Camera className="h-4 w-4" />} label="Take Snapshot" onClick={() => sendData({ type: 'COMMAND', action: 'TAKE_SNAPSHOT' })} disabled={!isConnected} />
