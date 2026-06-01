@@ -184,10 +184,10 @@ const MultiLiveFeed = () => {
 
     if (loading) {
         return (
-            <div className="flex min-h-screen items-center justify-center bg-black flex-col">
+            <div className="flex min-h-screen items-center justify-center bg-background flex-col">
                 <div className="h-16 w-16 animate-spin rounded-full border-4 border-green-500 border-t-transparent" />
-                <h1 className="text-white mt-8 text-2xl font-bold">Loading your cameras…</h1>
-                <p className="text-white/50 mt-4">This is taking a while. Check your internet connection and try refreshing.</p>
+                <h1 className="text-foreground mt-8 text-2xl font-bold">Loading your cameras…</h1>
+                <p className="text-muted-foreground mt-4">This is taking a while. Check your internet connection and try refreshing.</p>
                 <div className="mt-8 text-red-500 font-mono text-xs">
                     User: {user?.email} <br/>
                     UID: {user?.uid}
@@ -209,7 +209,7 @@ const MultiLiveFeed = () => {
                     "grid-cols-2 md:grid-cols-3 lg:grid-cols-4";
 
     return (
-        <div className="relative flex min-h-screen flex-col bg-black overflow-hidden select-none">
+        <div className="relative flex min-h-screen flex-col bg-background overflow-hidden select-none">
             {/* Minimal top bar — no logo, just back + count + grid toggle */}
             <div className="absolute left-0 right-0 top-0 flex items-center justify-between px-4 pt-4 pb-10 z-40 bg-gradient-to-b from-black/80 to-transparent">
                 <div className="flex items-center gap-3">
@@ -218,33 +218,33 @@ const MultiLiveFeed = () => {
                             if (fullscreenCameraId) setFullscreenCameraId(null);
                             else navigate("/dashboard");
                         }}
-                        className="flex h-9 w-9 items-center justify-center rounded-full bg-black/50 hover:bg-white/20 border border-white/10 backdrop-blur-md transition-colors"
+                        className="flex h-9 w-9 items-center justify-center rounded-full bg-background/50 hover:bg-white/20 border border-border backdrop-blur-md transition-colors"
                     >
-                        <ArrowLeft className="h-4 w-4 text-white" />
+                        <ArrowLeft className="h-4 w-4 text-foreground" />
                     </button>
-                    <div className="flex items-center gap-2 px-3 py-1.5 bg-black/50 border border-white/10 rounded-full backdrop-blur-md">
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-background/50 border border-border rounded-full backdrop-blur-md">
                         <LayoutGrid className="h-3 w-3 text-primary" />
-                        <span className="text-[11px] font-bold text-white/80">{cameras.length} Camera{cameras.length !== 1 ? 's' : ''}</span>
+                        <span className="text-[11px] font-bold text-foreground/80">{cameras.length} Camera{cameras.length !== 1 ? 's' : ''}</span>
                     </div>
                 </div>
 
                 <div className="flex items-center gap-2">
                     <button
                         onClick={() => window.location.reload()}
-                        className="h-9 w-9 flex items-center justify-center rounded-full bg-black/50 border border-white/10 text-white/40 hover:text-white transition-all"
+                        className="h-9 w-9 flex items-center justify-center rounded-full bg-background/50 border border-border text-muted-foreground hover:text-foreground transition-all"
                     >
                         <RefreshCw className="h-3.5 w-3.5" />
                     </button>
 
                     {!fullscreenCameraId && (
-                        <div className="flex items-center gap-1 p-1 rounded-full bg-black/50 border border-white/10 backdrop-blur-md">
+                        <div className="flex items-center gap-1 p-1 rounded-full bg-background/50 border border-border backdrop-blur-md">
                             {[1, 2, 4].map((size) => (
                                 <button
                                     key={size}
                                     onClick={() => setGridSize(size)}
                                     className={cn(
                                         "px-3 py-1.5 rounded-full text-[10px] font-bold transition-all",
-                                        effectiveGridSize === size ? "bg-primary text-black" : "text-white/30 hover:text-white"
+                                        effectiveGridSize === size ? "bg-primary text-black" : "text-foreground/30 hover:text-foreground"
                                     )}
                                 >
                                     {size === 1 ? '1' : size === 2 ? '2' : '4'}
@@ -260,7 +260,7 @@ const MultiLiveFeed = () => {
                 {cameras.length === 0 ? (
                     <div className="h-full w-full flex flex-col items-center justify-center text-center">
                         <LayoutGrid className="h-16 w-16 text-muted-foreground/30 mb-4" />
-                        <h2 className="text-xl font-bold tracking-tight text-white">No cameras online</h2>
+                        <h2 className="text-xl font-bold tracking-tight text-foreground">No cameras online</h2>
                         <p className="text-sm text-muted-foreground">Open HGUARD on a phone or tablet, tap Use as camera, then come back here to watch.</p>
                     </div>
                 ) : fullscreenCameraId ? (
@@ -303,7 +303,7 @@ const MultiLiveFeed = () => {
                     initial={{ opacity: 0, x: 24 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: 24 }}
-                    className="bg-black/85 backdrop-blur-2xl border border-white/10 rounded-2xl p-2 flex flex-col gap-0.5 shadow-2xl w-48 max-h-[75vh] overflow-y-auto mr-1"
+                    className="bg-background/85 backdrop-blur-2xl border border-border rounded-2xl p-2 flex flex-col gap-0.5 shadow-2xl w-48 max-h-[75vh] overflow-y-auto mr-1"
                   >
                     <motion.div 
                         initial={{ opacity: 0 }} 
@@ -311,7 +311,7 @@ const MultiLiveFeed = () => {
                         className="px-2 py-2 mb-1"
                     >
                         <span className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">All cameras</span>
-                        <p className="text-[7px] text-white/30 font-bold">Controls every camera at once</p>
+                        <p className="text-[7px] text-foreground/30 font-bold">Controls every camera at once</p>
                     </motion.div>
 
                     <DrawerSection label="Camera controls">
@@ -334,7 +334,7 @@ const MultiLiveFeed = () => {
 
               <button
                 onClick={() => setIsDrawerOpen(p => !p)}
-                className="h-24 w-8 bg-black/60 backdrop-blur-md border border-white/10 border-r-0 rounded-l-2xl flex flex-col items-center justify-center gap-2 text-white/40 hover:bg-white/10 hover:text-white/80 transition-all shadow-2xl"
+                className="h-24 w-8 bg-background/60 backdrop-blur-md border border-border border-r-0 rounded-l-2xl flex flex-col items-center justify-center gap-2 text-muted-foreground hover:bg-muted/50 hover:text-foreground/80 transition-all shadow-2xl"
               >
                 <ChevronRight className={cn("h-4 w-4 transition-transform duration-300", isDrawerOpen && "rotate-180")} />
                 <span
@@ -355,19 +355,19 @@ const MultiLiveFeed = () => {
                                 exit={{ opacity: 0, y: 10 }}
                                 className="px-4 py-1.5 bg-red-500 rounded-full shadow-2xl border border-red-400"
                             >
-                                <span className="text-[10px] font-black text-white uppercase tracking-[0.3em] animate-pulse">Talking to all cameras</span>
+                                <span className="text-[10px] font-black text-foreground uppercase tracking-[0.3em] animate-pulse">Talking to all cameras</span>
                             </motion.div>
                         )}
                     </AnimatePresence>
                     <Button
                         onClick={() => isBroadcasting ? stopIntercom() : startIntercom()}
                         className={`h-20 w-20 rounded-full shadow-[0_0_30px_rgba(0,0,0,0.5)] border-4 transition-all duration-300 flex flex-col items-center justify-center -ml-0 ${isBroadcasting
-                            ? 'bg-primary border-primary/50 text-white scale-110 shadow-[0_0_50px_hsl(var(--primary))]'
-                            : 'bg-black/80 border-white/20 text-white backdrop-blur-md hover:bg-black hover:border-white/40'
+                            ? 'bg-primary border-primary/50 text-foreground scale-110 shadow-[0_0_50px_hsl(var(--primary))]'
+                            : 'bg-background/80 border-border text-foreground backdrop-blur-md hover:bg-background hover:border-white/40'
                             }`}
                         title={isBroadcasting ? "Stop talking" : "Talk to all cameras"}
                     >
-                        {isBroadcasting ? <Mic className="h-8 w-8 animate-pulse text-white fill-white" /> : <MicOff className="h-8 w-8 opacity-50" />}
+                        {isBroadcasting ? <Mic className="h-8 w-8 animate-pulse text-foreground fill-white" /> : <MicOff className="h-8 w-8 opacity-50" />}
                     </Button>
                 </div>
             )}

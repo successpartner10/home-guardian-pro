@@ -349,7 +349,7 @@ export const MeshTrackingLab = ({ open, onOpenChange }: MeshTrackingLabProps) =>
                 className="w-full aspect-[500/280] cursor-crosshair"
               />
               
-              <div className="absolute top-4 right-4 px-3 py-1.5 bg-black/60 backdrop-blur-md rounded-xl border border-white/5 font-mono text-[8px] text-stone-400 uppercase tracking-widest">
+              <div className="absolute top-4 right-4 px-3 py-1.5 bg-background/60 backdrop-blur-md rounded-xl border border-border font-mono text-[8px] text-stone-400 uppercase tracking-widest">
                 💡 Click anywhere on map to guide target manually
               </div>
             </div>
@@ -372,7 +372,7 @@ export const MeshTrackingLab = ({ open, onOpenChange }: MeshTrackingLabProps) =>
                       <div className={`h-2 w-2 rounded-full ${isActive ? "bg-emerald-500 animate-ping" : "bg-stone-700"}`} />
                     </div>
                     
-                    <div className="h-16 rounded-2xl bg-black/60 border border-stone-800/80 flex items-center justify-center font-mono text-[9px] relative overflow-hidden">
+                    <div className="h-16 rounded-2xl bg-background/60 border border-stone-800/80 flex items-center justify-center font-mono text-[9px] relative overflow-hidden">
                       {isActive ? (
                         <div className="absolute inset-0 flex flex-col justify-center items-center text-center p-2 bg-sky-950/20">
                           <span className="font-black text-sky-400 animate-pulse">TRACKING</span>
@@ -419,8 +419,8 @@ export const MeshTrackingLab = ({ open, onOpenChange }: MeshTrackingLabProps) =>
                   </div>
                 </div>
 
-                <div className="p-3 bg-black/40 rounded-2xl border border-stone-800/80 font-mono text-[9px] text-emerald-400/90 leading-tight">
-                  <span className="font-bold uppercase text-white">System Response:</span>
+                <div className="p-3 bg-background/40 rounded-2xl border border-stone-800/80 font-mono text-[9px] text-emerald-400/90 leading-tight">
+                  <span className="font-bold uppercase text-foreground">System Response:</span>
                   <p className="mt-1">{targetInfo.action}</p>
                 </div>
               </div>
@@ -430,7 +430,7 @@ export const MeshTrackingLab = ({ open, onOpenChange }: MeshTrackingLabProps) =>
                 <div className="flex gap-2">
                   <Button
                     onClick={() => setIsPlaying(!isPlaying)}
-                    className="flex-1 rounded-2xl h-12 text-xs font-black uppercase border border-stone-800 bg-stone-900 hover:bg-stone-850 text-white"
+                    className="flex-1 rounded-2xl h-12 text-xs font-black uppercase border border-stone-800 bg-stone-900 hover:bg-stone-850 text-foreground"
                   >
                     {isPlaying ? (
                       <span className="flex items-center gap-2"><Pause className="h-4 w-4 text-amber-500" /> Pause Loop</span>
@@ -500,7 +500,7 @@ export const MeshTrackingLab = ({ open, onOpenChange }: MeshTrackingLabProps) =>
             <div className="space-y-2 border-t border-stone-900 pt-4 flex-1 flex flex-col min-h-[160px]">
               <label className="text-[10px] font-black uppercase tracking-wider text-stone-500">Cooperative Node Console</label>
               
-              <div className="flex-1 bg-black/60 border border-stone-900 rounded-2xl p-4 font-mono text-[8px] space-y-2 overflow-y-auto max-h-[220px]">
+              <div className="flex-1 bg-background/60 border border-stone-900 rounded-2xl p-4 font-mono text-[8px] space-y-2 overflow-y-auto max-h-[220px]">
                 {logs.length === 0 ? (
                   <div className="text-stone-700 italic">Console starting...</div>
                 ) : (

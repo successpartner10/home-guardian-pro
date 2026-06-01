@@ -97,14 +97,14 @@ const Login = () => {
         <div className="flex flex-col items-center gap-6">
           <Logo size="xl" className="h-48 drop-shadow-[0_20px_50px_rgba(0,0,0,0.5)] animate-float" />
           <div className="text-center space-y-1">
-            <h1 className="text-4xl font-extrabold tracking-tight text-white">HGUARD</h1>
+            <h1 className="text-4xl font-extrabold tracking-tight text-foreground">HGUARD</h1>
             <p className="text-sm text-muted-foreground">Turn old phones into home security cameras</p>
           </div>
         </div>
 
-        <Card className="border-white/5 bg-white/[0.02] backdrop-blur-2xl shadow-2xl relative overflow-hidden rounded-[2.5rem] p-4">
+        <Card className="border-border bg-muted/20 backdrop-blur-2xl shadow-2xl relative overflow-hidden rounded-[2.5rem] p-4">
           <CardHeader className="space-y-1 text-center pb-6 pt-6">
-            <CardTitle className="text-xl font-bold tracking-tight text-white">Welcome Back</CardTitle>
+            <CardTitle className="text-xl font-bold tracking-tight text-foreground">Welcome Back</CardTitle>
             <CardDescription className="text-sm text-muted-foreground">Sign in to watch and manage your cameras</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4 pb-8 flex flex-col items-center px-6">
@@ -133,9 +133,9 @@ const Login = () => {
 
             {/* Divider */}
             <div className="flex items-center w-full gap-3">
-              <div className="flex-1 h-px bg-white/10" />
-              <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest">or</span>
-              <div className="flex-1 h-px bg-white/10" />
+              <div className="flex-1 h-px bg-muted/50" />
+              <span className="text-[10px] font-bold text-foreground/30 uppercase tracking-widest">or</span>
+              <div className="flex-1 h-px bg-muted/50" />
             </div>
 
             {/* Email/Password Toggle */}
@@ -144,7 +144,7 @@ const Login = () => {
               id="email-toggle-btn"
               variant="ghost"
               onClick={() => setShowEmailForm(!showEmailForm)}
-              className="w-full h-12 border border-white/10 rounded-2xl text-white/60 hover:text-white hover:bg-white/5 flex items-center justify-center gap-2 text-sm font-semibold tracking-tight"
+              className="w-full h-12 border border-border rounded-2xl text-muted-foreground hover:text-foreground hover:bg-muted flex items-center justify-center gap-2 text-sm font-semibold tracking-tight"
             >
               <Mail className="w-4 h-4" />
               Sign in with Email
@@ -169,7 +169,7 @@ const Login = () => {
                     placeholder="Email address"
                     value={email}
                     onChange={e => setEmail(e.target.value)}
-                    className="h-12 bg-white/5 border-white/10 text-white placeholder:text-white/30 rounded-xl focus:border-primary"
+                    className="h-12 bg-muted border-border text-foreground placeholder:text-foreground/30 rounded-xl focus:border-primary"
                     autoComplete="email"
                   />
                   <Input
@@ -178,7 +178,7 @@ const Login = () => {
                     placeholder="Password"
                     value={password}
                     onChange={e => setPassword(e.target.value)}
-                    className="h-12 bg-white/5 border-white/10 text-white placeholder:text-white/30 rounded-xl focus:border-primary"
+                    className="h-12 bg-muted border-border text-foreground placeholder:text-foreground/30 rounded-xl focus:border-primary"
                     autoComplete="current-password"
                   />
                   <Button
@@ -196,7 +196,7 @@ const Login = () => {
                       </>
                     )}
                   </Button>
-                  <p className="text-center text-[10px] text-white/30">
+                  <p className="text-center text-[10px] text-foreground/30">
                     New user? Enter your email + a password to auto-register.
                   </p>
                 </motion.form>
@@ -214,13 +214,13 @@ const Login = () => {
           <Button
             variant="link"
             onClick={handleHardReset}
-            className="text-[9px] font-bold text-white/20 hover:text-white/40 uppercase tracking-widest transition-colors"
+            className="text-[9px] font-bold text-foreground/20 hover:text-muted-foreground uppercase tracking-widest transition-colors"
           >
             Stuck signing in? Reset app data
           </Button>
           <div className="flex items-center justify-center gap-2">
             <div className="h-1 w-1 rounded-full bg-green-500 animate-pulse" />
-            <p className="text-[8px] font-bold text-white/10 tracking-wide">HGUARD v2.5.2</p>
+            <p className="text-[8px] font-bold text-foreground/10 tracking-wide">HGUARD v2.5.2</p>
           </div>
         </div>
       </motion.div>
@@ -229,12 +229,12 @@ const Login = () => {
 };
 
 const FeatureCard = ({ icon, title, desc }: { icon: React.ReactNode, title: string, desc: string }) => (
-  <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 backdrop-blur-3xl flex flex-col gap-2 hover:bg-white/[0.05] transition-all duration-300 group">
-    <div className="bg-white/5 w-fit p-2 rounded-lg group-hover:bg-primary/10 group-hover:text-primary transition-all">
+  <div className="p-4 rounded-2xl bg-muted/20 border border-border backdrop-blur-3xl flex flex-col gap-2 hover:bg-white/[0.05] transition-all duration-300 group">
+    <div className="bg-muted w-fit p-2 rounded-lg group-hover:bg-primary/10 group-hover:text-primary transition-all">
       {icon}
     </div>
     <div>
-      <h3 className="text-xs font-bold text-white tracking-tight">{title}</h3>
+      <h3 className="text-xs font-bold text-foreground tracking-tight">{title}</h3>
       <p className="text-[10px] text-muted-foreground leading-tight">{desc}</p>
     </div>
   </div>

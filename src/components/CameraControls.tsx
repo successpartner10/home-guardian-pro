@@ -3,9 +3,9 @@ import { cn } from "@/lib/utils";
 
 export const DrawerSection = ({ label, children, isLast = false }: { label: string; children: React.ReactNode; isLast?: boolean }) => (
   <div className="flex flex-col gap-0.5">
-    <span className="text-[8px] font-black uppercase tracking-[0.18em] text-white/30 px-2 pt-2 pb-0.5">{label}</span>
+    <span className="text-[8px] font-black uppercase tracking-[0.18em] text-foreground/30 px-2 pt-2 pb-0.5">{label}</span>
     {children}
-    {!isLast && <div className="h-px bg-white/5 mx-2 mt-1.5" />}
+    {!isLast && <div className="h-px bg-muted mx-2 mt-1.5" />}
   </div>
 );
 
@@ -22,7 +22,7 @@ export const DrawerBtn = ({
       "w-full flex items-center gap-2.5 px-2 py-2 rounded-xl text-left transition-all",
       active
         ? (activeClass || "bg-primary/20 text-primary border border-primary/30")
-        : "text-white/55 hover:bg-white/10 hover:text-white",
+        : "text-foreground/55 hover:bg-muted/50 hover:text-foreground",
       disabled && "opacity-30 pointer-events-none"
     )}
   >

@@ -131,7 +131,7 @@ const UserManagement = () => {
                                         <div className="flex items-center gap-6">
                                             <div className={cn(
                                                 "h-16 w-16 rounded-3xl flex items-center justify-center text-3xl font-black shadow-xl",
-                                                profile.is_approved ? "bg-primary text-white" : "bg-muted text-muted-foreground"
+                                                profile.is_approved ? "bg-primary text-foreground" : "bg-muted text-muted-foreground"
                                             )}>
                                                 {profile.display_name?.[0]?.toUpperCase() || "N"}
                                             </div>

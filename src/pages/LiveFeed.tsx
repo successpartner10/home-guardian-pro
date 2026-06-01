@@ -446,7 +446,7 @@ const LiveFeed = () => {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-black">
+      <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-6">
           <div className="h-16 w-16 animate-spin rounded-full border-4 border-primary border-t-transparent shadow-glow" />
             <div className="space-y-4 text-center">
@@ -454,7 +454,7 @@ const LiveFeed = () => {
               <Button 
                 variant="ghost" 
                 size="sm" 
-                className="text-[8px] uppercase tracking-widest text-white/20 hover:text-white/60"
+                className="text-[8px] uppercase tracking-widest text-foreground/20 hover:text-muted-foreground"
                 onClick={() => window.location.reload()}
               >
                 Force Hard Reload
@@ -477,7 +477,7 @@ const LiveFeed = () => {
   }[connectionState] || connectionState;
 
   return (
-    <div className="relative flex min-h-screen flex-col bg-black overflow-hidden" onClick={handlePlayRequest}>
+    <div className="relative flex min-h-screen flex-col bg-background overflow-hidden" onClick={handlePlayRequest}>
       {/* Video area */}
       <div className="relative flex-1 flex items-center justify-center overflow-hidden">
         {isConnected && remoteStream ? (
@@ -514,7 +514,7 @@ const LiveFeed = () => {
               />
 ) : isAiActive ? (
                 <div className="absolute top-24 inset-x-4 z-40 max-w-2xl mx-auto" style={{ transform: `scale(${1/zoomLevel})` }}>
-                  <div className="mx-auto w-fit bg-black/80 backdrop-blur-3xl border border-purple-500/30 px-6 py-3 rounded-full flex items-center gap-3 shadow-[0_0_30px_rgba(168,85,247,0.3)] animate-pulse">
+                  <div className="mx-auto w-fit bg-background/80 backdrop-blur-3xl border border-purple-500/30 px-6 py-3 rounded-full flex items-center gap-3 shadow-[0_0_30px_rgba(168,85,247,0.3)] animate-pulse">
                     <div className="h-4 w-4 border-2 border-purple-400 border-t-transparent rounded-full animate-spin" />
                     <span className="text-xs tracking-wide font-bold text-purple-300">Looking for people and objects…</span>
                   </div>
@@ -529,13 +529,13 @@ const LiveFeed = () => {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/40 backdrop-blur-sm cursor-pointer"
+                        className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-background/40 backdrop-blur-sm cursor-pointer"
                         onClick={(e) => { e.stopPropagation(); handlePlayRequest(); }}
                     >
-                        <div className="h-20 w-20 rounded-full bg-white/10 border border-white/20 flex items-center justify-center backdrop-blur-2xl shadow-2xl animate-pulse">
-                            <Maximize2 className="h-8 w-8 text-white" />
+                        <div className="h-20 w-20 rounded-full bg-muted/50 border border-border flex items-center justify-center backdrop-blur-2xl shadow-2xl animate-pulse">
+                            <Maximize2 className="h-8 w-8 text-foreground" />
                         </div>
-                        <span className="absolute bottom-32 text-[10px] font-bold text-white/50 tracking-wide">Tap to watch</span>
+                        <span className="absolute bottom-32 text-[10px] font-bold text-muted-foreground tracking-wide">Tap to watch</span>
                     </motion.div>
                 )}
             </AnimatePresence>
@@ -543,31 +543,31 @@ const LiveFeed = () => {
         ) : isOnline ? (
           <div className="flex h-full items-center justify-center w-full absolute inset-0 text-center space-y-3 z-10">
             {connectionState === "failed" ? (
-              <div className="flex flex-col items-center gap-3 p-8 bg-black/50 backdrop-blur-md rounded-3xl border border-white/5">
-                <p className="text-base font-bold text-white">Couldn't connect</p>
-                <p className="text-xs text-white/50 max-w-[200px]">Make sure the camera app is open and online, then try again.</p>
+              <div className="flex flex-col items-center gap-3 p-8 bg-background/50 backdrop-blur-md rounded-3xl border border-border">
+                <p className="text-base font-bold text-foreground">Couldn't connect</p>
+                <p className="text-xs text-muted-foreground max-w-[200px]">Make sure the camera app is open and online, then try again.</p>
                 <Button onClick={() => { disconnect(); setTimeout(connect, 500); }} variant="outline" className="gap-2 bg-background/50 backdrop-blur-md border-border/50 mt-1">
                   <RefreshCw className="h-4 w-4" /> Try again
                 </Button>
               </div>
             ) : (
-              <div className="flex flex-col items-center gap-4 p-8 bg-black/50 backdrop-blur-md rounded-3xl border border-white/5">
+              <div className="flex flex-col items-center gap-4 p-8 bg-background/50 backdrop-blur-md rounded-3xl border border-border">
                 <div className="h-8 w-8 mx-auto animate-spin rounded-full border-2 border-primary border-t-transparent" />
                 <div className="flex flex-col items-center gap-1">
                   <p className="text-[10px] font-black uppercase tracking-widest text-primary">
                     {connectionState === "new" ? "Finding camera…" : "Connecting…"}
                   </p>
-                  <p className="text-sm text-white/70">
+                  <p className="text-sm text-foreground/70">
                     {connectionState === "new" ? "Open the camera app on your other device if you haven't yet." : "Video should appear in a moment."}
                   </p>
-                  <span className="text-[10px] uppercase tracking-widest text-white/30 mt-1">{device?.name}</span>
+                  <span className="text-[10px] uppercase tracking-widest text-foreground/30 mt-1">{device?.name}</span>
                 </div>
               </div>
             )}
           </div>
         ) : (
           <div className="flex h-full items-center justify-center w-full absolute inset-0 z-10">
-            <div className="text-center space-y-3 bg-card/10 p-8 rounded-3xl backdrop-blur-md border border-white/5">
+            <div className="text-center space-y-3 bg-card/10 p-8 rounded-3xl backdrop-blur-md border border-border">
               <WifiOff className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
               <p className="text-xl font-medium text-foreground tracking-tight">{device?.name}</p>
               <p className="text-sm text-muted-foreground">Camera is offline</p>
@@ -578,12 +578,12 @@ const LiveFeed = () => {
         {/* Top bar — minimal: back + device pill + share */}
         <div className="absolute left-0 right-0 top-0 flex items-center justify-between px-3 pt-4 pb-10 z-40 bg-gradient-to-b from-black/70 to-transparent">
           {/* Back */}
-          <button onClick={() => navigate("/dashboard")} className="flex h-9 w-9 items-center justify-center rounded-full bg-black/50 hover:bg-white/20 border border-white/10 backdrop-blur-md transition-colors">
-            <ArrowLeft className="h-4 w-4 text-white" />
+          <button onClick={() => navigate("/dashboard")} className="flex h-9 w-9 items-center justify-center rounded-full bg-background/50 hover:bg-white/20 border border-border backdrop-blur-md transition-colors">
+            <ArrowLeft className="h-4 w-4 text-foreground" />
           </button>
 
           {/* Center: device name + live status */}
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-black/50 border border-white/10 rounded-full backdrop-blur-md">
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-background/50 border border-border rounded-full backdrop-blur-md">
             {isConnected ? (
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
@@ -592,19 +592,19 @@ const LiveFeed = () => {
             ) : (
               <div className="h-2 w-2 rounded-full bg-zinc-600" />
             )}
-            <span className="text-[11px] font-bold text-white/80 max-w-[120px] truncate">{device?.name || "Camera"}</span>
-            <span className="text-[10px] text-white/30">·</span>
-            <span className="text-[10px] font-bold text-white/50">{isConnected ? "Live" : connectionLabel}</span>
+            <span className="text-[11px] font-bold text-foreground/80 max-w-[120px] truncate">{device?.name || "Camera"}</span>
+            <span className="text-[10px] text-foreground/30">·</span>
+            <span className="text-[10px] font-bold text-muted-foreground">{isConnected ? "Live" : connectionLabel}</span>
           </div>
 
           <Dialog>
             <DialogTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full bg-white/10 hover:bg-white/20 border border-white/10 backdrop-blur-md transition-colors shadow-lg">
-                <Share2 className="h-5 w-5 text-white" />
+              <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full bg-muted/50 hover:bg-white/20 border border-border backdrop-blur-md transition-colors shadow-lg">
+                <Share2 className="h-5 w-5 text-foreground" />
               </Button>
             </DialogTrigger>
-            <DialogContent className="bg-zinc-950 border border-zinc-800 text-white rounded-3xl max-w-[380px] w-[95vw] max-h-[90vh] overflow-y-auto custom-scrollbar overflow-x-hidden">
-              <DialogHeader className="sticky top-0 bg-zinc-950 z-10 pb-4">
+            <DialogContent className="bg-background border border-zinc-800 text-foreground rounded-3xl max-w-[380px] w-[95vw] max-h-[90vh] overflow-y-auto custom-scrollbar overflow-x-hidden">
+              <DialogHeader className="sticky top-0 bg-background z-10 pb-4">
                 <DialogTitle className="text-xl font-black uppercase tracking-tighter">Share Stream</DialogTitle>
                 <DialogDescription className="text-zinc-400 font-medium text-xs">
                   Create a temporary link for others to view this camera.
@@ -617,10 +617,10 @@ const LiveFeed = () => {
                     <div className="space-y-2">
                         <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-300">Access Duration</label>
                       <Select onValueChange={(val) => generateShareLink(parseInt(val))}>
-                        <SelectTrigger className="bg-zinc-900 border-zinc-800 rounded-xl text-white h-12">
+                        <SelectTrigger className="bg-zinc-900 border-zinc-800 rounded-xl text-foreground h-12">
                           <SelectValue placeholder="Select duration" />
                         </SelectTrigger>
-                        <SelectContent className="bg-zinc-900 border-zinc-800 text-white">
+                        <SelectContent className="bg-zinc-900 border-zinc-800 text-foreground">
                           <SelectItem value="5">5 Minutes</SelectItem>
                           <SelectItem value="60">1 Hour</SelectItem>
                           <SelectItem value="1440">24 Hours</SelectItem>
@@ -649,13 +649,13 @@ const LiveFeed = () => {
                         </Button>
                       </div>
 
-                      <div className="space-y-3 bg-white/5 p-4 rounded-2xl border border-white/10 w-full overflow-hidden">
+                      <div className="space-y-3 bg-muted p-4 rounded-2xl border border-border w-full overflow-hidden">
                         <label className="text-[10px] font-black uppercase tracking-widest text-primary">Pair with TV</label>
                         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                           <input
                             id="tv-code"
                             placeholder="Enter 6-digit code"
-                            className="bg-black/40 border border-white/10 rounded-xl px-4 h-12 text-sm flex-1 text-white focus:outline-none focus:border-primary placeholder:text-zinc-600 text-center tracking-[0.2em] font-black"
+                            className="bg-background/40 border border-border rounded-xl px-4 h-12 text-sm flex-1 text-foreground focus:outline-none focus:border-primary placeholder:text-zinc-600 text-center tracking-[0.2em] font-black"
                             maxLength={6}
                             onKeyUp={(e) => {
                               if (e.key === 'Enter') pairWithTV((e.target as HTMLInputElement).value);
@@ -672,13 +672,13 @@ const LiveFeed = () => {
 
                       <div className="grid grid-cols-2 gap-2">
                         <Button
-                          className="bg-[#25D366] hover:bg-[#128C7E] h-12 text-white rounded-xl font-black uppercase tracking-widest text-[9px]"
+                          className="bg-[#25D366] hover:bg-[#128C7E] h-12 text-foreground rounded-xl font-black uppercase tracking-widest text-[9px]"
                           onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent('Watch my security camera live: ' + shareUrl)}`, '_blank')}
                         >
                           WhatsApp
                         </Button>
                         <Button
-                          className="bg-primary hover:bg-primary/90 h-12 text-white rounded-xl font-black uppercase tracking-widest text-[9px]"
+                          className="bg-primary hover:bg-primary/90 h-12 text-foreground rounded-xl font-black uppercase tracking-widest text-[9px]"
                           onClick={() => window.open(`sms:?body=${encodeURIComponent('Watch my security camera live: ' + shareUrl)}`)}
                         >
                           SMS
@@ -687,7 +687,7 @@ const LiveFeed = () => {
 
                       <Button
                         variant="ghost"
-                        className="w-full text-zinc-300 text-[10px] font-black uppercase hover:bg-transparent hover:text-white"
+                        className="w-full text-zinc-300 text-[10px] font-black uppercase hover:bg-transparent hover:text-foreground"
                         onClick={() => setShareUrl(null)}
                       >
                         New Link
@@ -715,13 +715,13 @@ const LiveFeed = () => {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 24 }}
                 transition={{ type: "spring", damping: 26, stiffness: 320 }}
-                className="bg-black/85 backdrop-blur-2xl border border-white/10 rounded-2xl p-2 flex flex-col gap-0.5 shadow-2xl w-52 max-h-[78vh] overflow-y-auto mr-1"
+                className="bg-background/85 backdrop-blur-2xl border border-border rounded-2xl p-2 flex flex-col gap-0.5 shadow-2xl w-52 max-h-[78vh] overflow-y-auto mr-1"
               >
                 <DrawerSection label="View">
                   <div className="flex items-center justify-between px-2 py-1">
-                    <button onClick={handleZoomOut} disabled={zoomLevel <= 1} className="h-8 w-8 rounded-xl bg-white/10 text-white hover:bg-white/25 disabled:opacity-25 transition-all flex items-center justify-center font-bold text-lg">−</button>
-                    <span className="text-xs font-black text-white/60">{zoomLevel.toFixed(1)}×</span>
-                    <button onClick={handleZoomIn} disabled={zoomLevel >= 4} className="h-8 w-8 rounded-xl bg-white/10 text-white hover:bg-white/25 disabled:opacity-25 transition-all flex items-center justify-center font-bold text-lg">+</button>
+                    <button onClick={handleZoomOut} disabled={zoomLevel <= 1} className="h-8 w-8 rounded-xl bg-muted/50 text-foreground hover:bg-white/25 disabled:opacity-25 transition-all flex items-center justify-center font-bold text-lg">−</button>
+                    <span className="text-xs font-black text-muted-foreground">{zoomLevel.toFixed(1)}×</span>
+                    <button onClick={handleZoomIn} disabled={zoomLevel >= 4} className="h-8 w-8 rounded-xl bg-muted/50 text-foreground hover:bg-white/25 disabled:opacity-25 transition-all flex items-center justify-center font-bold text-lg">+</button>
                   </div>
 
                   {/* Hardware optical zoom slider */}
@@ -729,7 +729,7 @@ const LiveFeed = () => {
                     <div className="px-2 py-1 space-y-1">
                       <div className="flex items-center justify-between">
                         <span className="text-[8px] font-bold text-primary/80 uppercase tracking-wider">📡 Optical Zoom</span>
-                        <span className="text-[9px] font-black text-white/60">{hwZoomValue.toFixed(1)}×</span>
+                        <span className="text-[9px] font-black text-muted-foreground">{hwZoomValue.toFixed(1)}×</span>
                       </div>
                       <input
                         type="range"
@@ -745,8 +745,8 @@ const LiveFeed = () => {
                         className="w-full h-1.5 rounded-full accent-primary cursor-pointer"
                       />
                       <div className="flex justify-between">
-                        <span className="text-[7px] text-white/25">{hardwareZoomRange.min}×</span>
-                        <span className="text-[7px] text-white/25">{hardwareZoomRange.max}×</span>
+                        <span className="text-[7px] text-foreground/25">{hardwareZoomRange.min}×</span>
+                        <span className="text-[7px] text-foreground/25">{hardwareZoomRange.max}×</span>
                       </div>
                     </div>
                   )}
@@ -807,7 +807,7 @@ const LiveFeed = () => {
           {/* Pull Tab */}
           <button
             onClick={() => setIsDrawerOpen(p => !p)}
-            className="h-32 w-9 bg-black/60 backdrop-blur-md border border-white/10 border-r-0 rounded-l-2xl flex flex-col items-center justify-center gap-2 text-white/40 hover:bg-white/10 hover:text-white/80 transition-all shadow-2xl"
+            className="h-32 w-9 bg-background/60 backdrop-blur-md border border-border border-r-0 rounded-l-2xl flex flex-col items-center justify-center gap-2 text-muted-foreground hover:bg-muted/50 hover:text-foreground/80 transition-all shadow-2xl"
           >
             <ChevronRight className={cn("h-4 w-4 transition-transform duration-300", isDrawerOpen && "rotate-180")} />
             <span
@@ -825,17 +825,17 @@ const LiveFeed = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] bg-black flex flex-col"
+            className="fixed inset-0 z-[100] bg-background flex flex-col"
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 bg-black/80 border-b border-white/10 shrink-0">
+            <div className="flex items-center justify-between px-4 py-3 bg-background/80 border-b border-border shrink-0">
               <div className="flex items-center gap-2">
                 <ScanSearch className="h-4 w-4 text-primary" />
-                <span className="text-[11px] font-black text-white uppercase tracking-widest">Super Zoom Detail</span>
+                <span className="text-[11px] font-black text-foreground uppercase tracking-widest">Super Zoom Detail</span>
               </div>
               <button
                 onClick={() => setSuperZoom(null)}
-                className="h-8 w-8 rounded-full bg-white/10 flex items-center justify-center text-white/50 hover:text-white hover:bg-white/20 transition-all"
+                className="h-8 w-8 rounded-full bg-muted/50 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-white/20 transition-all"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -858,7 +858,7 @@ const LiveFeed = () => {
             </div>
 
             {/* AI Reading panel */}
-            <div className="shrink-0 border-t border-white/10 bg-zinc-950 px-4 py-4 space-y-2">
+            <div className="shrink-0 border-t border-border bg-background px-4 py-4 space-y-2">
               <div className="flex items-center gap-2">
                 <Brain className="h-3.5 w-3.5 text-purple-400" />
                 <span className="text-[9px] font-bold text-purple-400 uppercase tracking-widest">AI Visual Analysis</span>
@@ -867,10 +867,10 @@ const LiveFeed = () => {
               {superZoom.loading ? (
                 <div className="flex items-center gap-3">
                   <div className="h-4 w-4 rounded-full border-2 border-purple-400 border-t-transparent animate-spin shrink-0" />
-                  <p className="text-xs text-white/50 italic">Analyzing what's visible in this frame…</p>
+                  <p className="text-xs text-muted-foreground italic">Analyzing what's visible in this frame…</p>
                 </div>
               ) : (
-                <p className="text-sm text-white/90 leading-relaxed font-medium">
+                <p className="text-sm text-foreground/90 leading-relaxed font-medium">
                   {superZoom.reading}
                 </p>
               )}
@@ -885,7 +885,7 @@ const LiveFeed = () => {
                 <Button
                   onClick={() => setSuperZoom(null)}
                   variant="outline"
-                  className="flex-1 h-9 rounded-xl border-white/10 text-[10px] font-bold uppercase tracking-wider"
+                  className="flex-1 h-9 rounded-xl border-border text-[10px] font-bold uppercase tracking-wider"
                 >
                   Close
                 </Button>

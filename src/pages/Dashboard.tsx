@@ -164,7 +164,7 @@ const Dashboard = () => {
       toast({ 
         title: "Switching camera", 
         description: `Opening live view for ${activeTarget.name}…`,
-        className: "bg-blue-600 text-white border-none shadow-2xl"
+        className: "bg-blue-600 text-foreground border-none shadow-2xl"
       });
       // Small delay to allow user to see the toast before switching
       const timer = setTimeout(() => navigate(`/live/${activeTarget.id}`), 1000);
@@ -197,7 +197,7 @@ const Dashboard = () => {
       toast({ 
         title: "Fleet Command Sent", 
         description: `Successfully updated ${devices.length} cameras.`,
-        className: "bg-blue-600 text-white border-none"
+        className: "bg-blue-600 text-foreground border-none"
       });
     } catch (e) {
       toast({ title: "Error", description: "Failed to update fleet.", variant: "destructive" });

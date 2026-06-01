@@ -527,7 +527,7 @@ const CameraMode = () => {
   };
 
   return (
-    <div className="relative h-screen w-screen bg-black overflow-hidden select-none">
+    <div className="relative h-screen w-screen bg-background overflow-hidden select-none">
       <video
         ref={videoRef}
         className={cn(
@@ -541,21 +541,21 @@ const CameraMode = () => {
       {/* Broadcast Status */}
       {isReceivingAudio && (
         <div className="absolute top-6 right-6 z-50 flex items-center gap-3 px-4 py-2 bg-red-600/90 backdrop-blur-md rounded-2xl animate-pulse shadow-[0_0_20px_rgba(220,38,38,0.4)] border border-red-500/50">
-          <Mic className="h-4 w-4 text-white" />
-          <span className="text-[10px] font-black uppercase tracking-widest text-white">Viewer is talking</span>
+          <Mic className="h-4 w-4 text-foreground" />
+          <span className="text-[10px] font-black uppercase tracking-widest text-foreground">Viewer is talking</span>
         </div>
       )}
 
       {/* Header HUD */}
       <div className="absolute top-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2">
-        <div className="px-4 py-2 rounded-2xl bg-black/40 backdrop-blur-3xl border border-white/10 flex items-center gap-3 shadow-2xl">
+        <div className="px-4 py-2 rounded-2xl bg-background/40 backdrop-blur-3xl border border-border flex items-center gap-3 shadow-2xl">
           <div className={cn(
             "h-2 w-2 rounded-full animate-pulse",
             !resolvedDeviceId ? "bg-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.8)]" : 
             viewerConnected ? "bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.8)]" :
             "bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.8)]"
           )} />
-          <span className="text-[9px] font-black uppercase tracking-[0.2em] text-white/80">
+          <span className="text-[9px] font-black uppercase tracking-[0.2em] text-foreground/80">
             {!resolvedDeviceId ? "Setting up…" : viewerConnected ? "Someone is watching" : "Ready to watch"}
           </span>
         </div>
@@ -606,17 +606,17 @@ const CameraMode = () => {
       {/* Camera is now a pure viewer node; all controls are managed remotely via WebRTC */}
 
       <div className="absolute top-6 left-6 z-50 flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => { localStorage.removeItem("hguard_role"); navigate("/dashboard"); }} className="h-12 w-12 rounded-2xl bg-white/10 backdrop-blur-3xl border border-white/20 text-white">
+        <Button variant="ghost" size="icon" onClick={() => { localStorage.removeItem("hguard_role"); navigate("/dashboard"); }} className="h-12 w-12 rounded-2xl bg-muted/50 backdrop-blur-3xl border border-border text-foreground">
           <ArrowLeft className="h-5 w-5" />
         </Button>
       </div>
 
       <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2">
-        <div className="px-4 py-2 rounded-2xl bg-black/40 backdrop-blur-3xl border border-white/10 shadow-2xl flex items-center gap-3">
-          <BatteryIcon className={cn("h-4 w-4", battery.isCharging ? "text-green-400" : "text-white/60")} />
-          <span className="text-[10px] font-black text-white/80">{battery.level}%</span>
+        <div className="px-4 py-2 rounded-2xl bg-background/40 backdrop-blur-3xl border border-border shadow-2xl flex items-center gap-3">
+          <BatteryIcon className={cn("h-4 w-4", battery.isCharging ? "text-green-400" : "text-muted-foreground")} />
+          <span className="text-[10px] font-black text-foreground/80">{battery.level}%</span>
           <div className="w-[1px] h-3 bg-white/20" />
-          <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">
+          <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
             {deviceName || "Camera Node"}
           </span>
         </div>
@@ -628,13 +628,13 @@ const CameraMode = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 z-[60] bg-black flex flex-col items-center justify-center cursor-pointer"
+            className="absolute inset-0 z-[60] bg-background flex flex-col items-center justify-center cursor-pointer"
             onClick={() => setIsPowerSaveMode(false)}
           >
             <div className="flex flex-col items-center gap-6 opacity-40">
-              <Padlock className="h-12 w-12 text-white" />
-              <p className="text-white text-sm font-bold tracking-widest uppercase">Power-Saving Mode</p>
-              <p className="text-white/50 text-xs text-center max-w-[250px]">
+              <Padlock className="h-12 w-12 text-foreground" />
+              <p className="text-foreground text-sm font-bold tracking-widest uppercase">Power-Saving Mode</p>
+              <p className="text-muted-foreground text-xs text-center max-w-[250px]">
                 Camera screen is off to save battery.<br/>Tap anywhere or use Viewer to wake.
               </p>
             </div>

@@ -32,7 +32,7 @@ export const FeatureIllustration: React.FC<Props> = ({ featureId }) => {
   const p = featureId.replace(/[^a-z0-9]/g, "-");
 
   const Wrap = ({ children }: { children: React.ReactNode }) => (
-    <div className="relative w-full h-36 rounded-[1.5rem] overflow-hidden border border-white/10 bg-[#06080d] my-3">
+    <div className="relative w-full h-36 rounded-[1.5rem] overflow-hidden border border-border bg-[#06080d] my-3">
       <svg className="w-full h-full" viewBox="0 0 420 144" fill="none" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <pattern id={`${p}-grid`} width="18" height="18" patternUnits="userSpaceOnUse">
@@ -46,7 +46,7 @@ export const FeatureIllustration: React.FC<Props> = ({ featureId }) => {
         <rect width="420" height="144" fill={`url(#${p}-grid)`} />
         {children}
       </svg>
-      <div className="absolute bottom-2 right-3 px-2 py-0.5 bg-black/50 backdrop-blur rounded-lg text-[7px] text-white/30 font-mono tracking-wider">Blueprint</div>
+      <div className="absolute bottom-2 right-3 px-2 py-0.5 bg-background/50 backdrop-blur rounded-lg text-[7px] text-foreground/30 font-mono tracking-wider">Blueprint</div>
     </div>
   );
 

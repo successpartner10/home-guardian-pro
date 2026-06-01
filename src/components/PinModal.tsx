@@ -50,7 +50,7 @@ const PinModal = ({ isOpen, onClose, onSuccess, correctPin, title = "Security Ve
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="absolute inset-0 bg-black/90 backdrop-blur-xl"
+                        className="absolute inset-0 bg-background/90 backdrop-blur-xl"
                         onClick={onClose}
                     />
 
@@ -63,11 +63,11 @@ const PinModal = ({ isOpen, onClose, onSuccess, correctPin, title = "Security Ve
                             x: error ? [0, -10, 10, -10, 10, 0] : 0
                         }}
                         exit={{ scale: 0.9, opacity: 0, y: 20 }}
-                        className="relative w-full max-w-sm bg-card border-2 border-white/10 rounded-[2.5rem] p-8 space-y-8 shadow-2xl"
+                        className="relative w-full max-w-sm bg-card border-2 border-border rounded-[2.5rem] p-8 space-y-8 shadow-2xl"
                     >
                         <button
                             onClick={onClose}
-                            className="absolute top-6 right-6 p-2 rounded-full hover:bg-white/5 text-white/40"
+                            className="absolute top-6 right-6 p-2 rounded-full hover:bg-muted text-muted-foreground"
                         >
                             <X className="w-6 h-6" />
                         </button>
@@ -86,7 +86,7 @@ const PinModal = ({ isOpen, onClose, onSuccess, correctPin, title = "Security Ve
                                     key={i}
                                     className={cn(
                                         "w-4 h-4 rounded-full border-2 transition-all duration-300",
-                                        i < pin.length ? "bg-primary border-primary scale-125" : "border-white/20",
+                                        i < pin.length ? "bg-primary border-primary scale-125" : "border-border",
                                         error && "bg-destructive border-destructive"
                                     )}
                                 />
@@ -98,7 +98,7 @@ const PinModal = ({ isOpen, onClose, onSuccess, correctPin, title = "Security Ve
                                 <button
                                     key={num}
                                     onClick={() => handleKeyPress(num.toString())}
-                                    className="h-16 rounded-2xl bg-white/5 border border-white/5 text-2xl font-black hover:bg-white/10 active:scale-90 transition-all"
+                                    className="h-16 rounded-2xl bg-muted border border-border text-2xl font-black hover:bg-muted/50 active:scale-90 transition-all"
                                 >
                                     {num}
                                 </button>
@@ -106,13 +106,13 @@ const PinModal = ({ isOpen, onClose, onSuccess, correctPin, title = "Security Ve
                             <div />
                             <button
                                 onClick={() => handleKeyPress("0")}
-                                className="h-16 rounded-2xl bg-white/5 border border-white/5 text-2xl font-black hover:bg-white/10 active:scale-90 transition-all"
+                                className="h-16 rounded-2xl bg-muted border border-border text-2xl font-black hover:bg-muted/50 active:scale-90 transition-all"
                             >
                                 0
                             </button>
                             <button
                                 onClick={handleBackspace}
-                                className="h-16 rounded-2xl flex items-center justify-center text-white/40 hover:text-white transition-colors"
+                                className="h-16 rounded-2xl flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
                             >
                                 <Delete className="w-8 h-8" />
                             </button>

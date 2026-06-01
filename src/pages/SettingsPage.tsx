@@ -446,7 +446,7 @@ const SettingsPage = () => {
         </div>
 
         {/* My Cameras & Viewers — Rename Section */}
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-4">
+        <div className="bg-muted border border-border rounded-2xl p-4 space-y-4">
           <div className="flex items-center gap-3 text-primary">
             <CameraIcon className="w-8 h-8" />
             <div>
@@ -482,7 +482,7 @@ const SettingsPage = () => {
                         }
                         if (e.key === 'Escape') setEditingDeviceId(null);
                       }}
-                      className="w-full bg-transparent border-b-2 border-primary text-base font-bold outline-none py-0.5 text-white"
+                      className="w-full bg-transparent border-b-2 border-primary text-base font-bold outline-none py-0.5 text-foreground"
                       placeholder="Enter a custom name…"
                     />
                   ) : (
@@ -490,7 +490,7 @@ const SettingsPage = () => {
                       className="text-left w-full"
                       onClick={() => { setEditingDeviceId(device.id); setEditingDeviceName(device.name); }}
                     >
-                      <p className="text-base font-bold text-white truncate group-hover:text-primary transition-colors">{device.name || 'Unnamed device'}</p>
+                      <p className="text-base font-bold text-foreground truncate group-hover:text-primary transition-colors">{device.name || 'Unnamed device'}</p>
                       <p className="text-xs text-muted-foreground capitalize">{device.type} · {device.status}</p>
                     </button>
                   )}
@@ -509,7 +509,7 @@ const SettingsPage = () => {
                 ) : (
                   <button
                     onClick={() => { setEditingDeviceId(device.id); setEditingDeviceName(device.name); }}
-                    className="p-2 rounded-xl opacity-0 group-hover:opacity-100 bg-white/5 text-white/40 hover:text-white hover:bg-white/10 transition-all"
+                    className="p-2 rounded-xl opacity-0 group-hover:opacity-100 bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all"
                   >
                     <Edit3 className="w-4 h-4" />
                   </button>
@@ -520,7 +520,7 @@ const SettingsPage = () => {
         </div>
 
         {/* Alert Preferences */}
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-4">
+        <div className="bg-muted border border-border rounded-2xl p-4 space-y-4">
           <div className="flex items-center gap-3 text-primary">
             <Bell className="w-8 h-8" />
             <h2 className="text-xl font-black uppercase tracking-tight">Alert Preferences</h2>
@@ -566,7 +566,7 @@ const SettingsPage = () => {
         </div>
 
         {/* Detection Schedule */}
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-4">
+        <div className="bg-muted border border-border rounded-2xl p-4 space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3 text-primary">
               <Clock className="w-8 h-8" />
@@ -592,7 +592,7 @@ const SettingsPage = () => {
                 type="time"
                 value={schedule.start}
                 onChange={(e) => saveSchedule({ ...schedule, start: e.target.value })}
-                className="h-12 bg-zinc-900/60 border-0 text-xl font-black rounded-xl"
+                className="h-12 bg-muted border-0 text-xl font-black rounded-xl"
                 disabled={!schedule.enabled}
               />
             </div>
@@ -608,7 +608,7 @@ const SettingsPage = () => {
                 type="time"
                 value={schedule.end}
                 onChange={(e) => saveSchedule({ ...schedule, end: e.target.value })}
-                className="h-12 bg-zinc-900/60 border-0 text-xl font-black rounded-xl"
+                className="h-12 bg-muted border-0 text-xl font-black rounded-xl"
                 disabled={!schedule.enabled}
               />
             </div>
@@ -633,7 +633,7 @@ const SettingsPage = () => {
         </div>
 
         {/* Access Control & PIN */}
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-4">
+        <div className="bg-muted border border-border rounded-2xl p-4 space-y-4">
           <div className="flex items-center gap-3 text-primary">
             <LockIcon className="w-8 h-8" />
             <h2 className="text-xl font-black tracking-tight">Security & PIN</h2>
@@ -648,7 +648,7 @@ const SettingsPage = () => {
                 {securityPin ? (
                   <UnlockIcon className="w-8 h-8 text-green-500" />
                 ) : (
-                  <LockIcon className="w-8 h-8 text-white/20" />
+                  <LockIcon className="w-8 h-8 text-foreground/20" />
                 )}
               </div>
 
@@ -660,7 +660,7 @@ const SettingsPage = () => {
                   value={newPin}
                   onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ""))}
                   placeholder={securityPin ? "Change PIN (4 digits)" : "Set PIN (4 digits)"}
-                  className="h-14 font-black text-xl tracking-[0.5em] text-center rounded-2xl bg-zinc-900/70 border-2"
+                  className="h-14 font-black text-xl tracking-[0.5em] text-center rounded-2xl bg-muted border-2"
                 />
                 <Button onClick={savePin} disabled={loading || newPin.length !== 4} size="lg" className="h-14 px-8 rounded-2xl font-black">
                   {securityPin ? "Update" : "Set"}
@@ -684,7 +684,7 @@ const SettingsPage = () => {
         </div>
 
         {/* Storage Limits Dashboard */}
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-4">
+        <div className="bg-muted border border-border rounded-2xl p-4 space-y-4">
           <div className="flex items-center gap-3 text-primary">
             <HardDrive className="w-8 h-8" />
             <h2 className="text-xl font-black tracking-tight">Storage Control</h2>
@@ -699,15 +699,15 @@ const SettingsPage = () => {
                     type="number"
                     value={archiveLimit}
                     onChange={(e) => saveArchiveLimit([parseInt(e.target.value) || 0])}
-                    className="w-20 h-10 bg-black/40 border-white/10 text-center font-black rounded-xl"
+                    className="w-20 h-10 bg-background/40 border-border text-center font-black rounded-xl"
                   />
-                  <span className="text-[10px] font-black text-white/40 uppercase">GB</span>
+                  <span className="text-[10px] font-black text-muted-foreground uppercase">GB</span>
                 </div>
               </div>
               
               <p className="text-xs font-bold opacity-80 tracking-tight">Set how much Google Drive space to use. Older videos will be automatically deleted when this limit is reached.</p>
 
-              <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-[1.5rem]">
+              <div className="flex items-center justify-between p-4 bg-muted border border-border rounded-[1.5rem]">
                 <div className="flex items-center gap-3">
                   <div className="p-2.5 rounded-xl bg-primary/10 text-primary">
                     <DiscIcon className="h-5 w-5" />
@@ -737,7 +737,7 @@ const SettingsPage = () => {
                   <span className="text-primary">Drive Usage</span>
                   <span className="opacity-60">{Math.round(driveQuota.used / 1024 / 1024 / 1024 * 10) / 10} GB / {Math.round(driveQuota.limit / 1024 / 1024 / 1024)} GB</span>
                 </div>
-                <div className="h-2 bg-muted/40 rounded-full overflow-hidden border border-white/5">
+                <div className="h-2 bg-muted/40 rounded-full overflow-hidden border border-border">
                   <div 
                     className={cn(
                       "h-full transition-all duration-1000",
@@ -757,7 +757,7 @@ const SettingsPage = () => {
         </div>
 
         {/* Google Drive Connection */}
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-4">
+        <div className="bg-muted border border-border rounded-2xl p-4 space-y-4">
           <div className="flex items-center gap-3 text-primary">
             <ShieldCheck className="w-8 h-8" />
             <h2 className="text-xl font-black uppercase tracking-tight">Account Sync</h2>
@@ -786,7 +786,7 @@ const SettingsPage = () => {
         </div>
 
         {/* AI Intelligence Brain */}
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-4">
+        <div className="bg-muted border border-border rounded-2xl p-4 space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3 text-primary">
               <Brain className="w-8 h-8" />
@@ -845,7 +845,7 @@ const SettingsPage = () => {
         </div>
 
         {/* Custom AI Keys Settings Card */}
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-4">
+        <div className="bg-muted border border-border rounded-2xl p-4 space-y-4">
           <div className="flex items-center gap-3 text-primary">
             <Brain className="w-8 h-8" />
             <h2 className="text-xl font-black uppercase tracking-tight">Custom AI Keys</h2>
@@ -862,7 +862,7 @@ const SettingsPage = () => {
                 {gr1 ? (
                   <span className="text-[8px] bg-green-500/20 text-green-400 font-bold px-2 py-0.5 rounded-full uppercase">Configured</span>
                 ) : (
-                  <span className="text-[8px] bg-white/10 text-white/50 font-bold px-2 py-0.5 rounded-full uppercase">Not Configured</span>
+                  <span className="text-[8px] bg-muted/50 text-muted-foreground font-bold px-2 py-0.5 rounded-full uppercase">Not Configured</span>
                 )}
               </div>
               <div className="flex gap-2">
@@ -871,7 +871,7 @@ const SettingsPage = () => {
                   placeholder="gsk_..."
                   value={gr1}
                   onChange={(e) => setGr1(e.target.value)}
-                  className="h-12 bg-zinc-900/60 border-0 rounded-xl font-mono text-xs px-4"
+                  className="h-12 bg-muted border-0 rounded-xl font-mono text-xs px-4"
                 />
                 <Button
                   onClick={() => saveCustomKey("hguard_groq_api_key", gr1, "Primary Groq Key Updated", "Primary Groq Key saved successfully & synced.")}
@@ -889,7 +889,7 @@ const SettingsPage = () => {
                 {gr2 ? (
                   <span className="text-[8px] bg-green-500/20 text-green-400 font-bold px-2 py-0.5 rounded-full uppercase">Configured</span>
                 ) : (
-                  <span className="text-[8px] bg-white/10 text-white/50 font-bold px-2 py-0.5 rounded-full uppercase">Not Configured</span>
+                  <span className="text-[8px] bg-muted/50 text-muted-foreground font-bold px-2 py-0.5 rounded-full uppercase">Not Configured</span>
                 )}
               </div>
               <div className="flex gap-2">
@@ -898,7 +898,7 @@ const SettingsPage = () => {
                   placeholder="gsk_..."
                   value={gr2}
                   onChange={(e) => setGr2(e.target.value)}
-                  className="h-12 bg-zinc-900/60 border-0 rounded-xl font-mono text-xs px-4"
+                  className="h-12 bg-muted border-0 rounded-xl font-mono text-xs px-4"
                 />
                 <Button
                   onClick={() => saveCustomKey("hguard_groq_api_key_alt", gr2, "Secondary Groq Key Updated", "Secondary Groq Key saved successfully & synced.")}
@@ -916,7 +916,7 @@ const SettingsPage = () => {
                 {or ? (
                   <span className="text-[8px] bg-green-500/20 text-green-400 font-bold px-2 py-0.5 rounded-full uppercase">Configured</span>
                 ) : (
-                  <span className="text-[8px] bg-white/10 text-white/50 font-bold px-2 py-0.5 rounded-full uppercase">Not Configured</span>
+                  <span className="text-[8px] bg-muted/50 text-muted-foreground font-bold px-2 py-0.5 rounded-full uppercase">Not Configured</span>
                 )}
               </div>
               <div className="flex gap-2">
@@ -925,7 +925,7 @@ const SettingsPage = () => {
                   placeholder="sk-or-v1-..."
                   value={or}
                   onChange={(e) => setOr(e.target.value)}
-                  className="h-12 bg-zinc-900/60 border-0 rounded-xl font-mono text-xs px-4"
+                  className="h-12 bg-muted border-0 rounded-xl font-mono text-xs px-4"
                 />
                 <Button
                   onClick={() => saveCustomKey("hguard_openrouter_api_key", or, "OpenRouter Key Updated", "Your free OpenRouter Vision API key has been saved and synced.")}
@@ -946,7 +946,7 @@ const SettingsPage = () => {
                 {op ? (
                   <span className="text-[8px] bg-green-500/20 text-green-400 font-bold px-2 py-0.5 rounded-full uppercase">Configured</span>
                 ) : (
-                  <span className="text-[8px] bg-white/10 text-white/50 font-bold px-2 py-0.5 rounded-full uppercase">Not Configured</span>
+                  <span className="text-[8px] bg-muted/50 text-muted-foreground font-bold px-2 py-0.5 rounded-full uppercase">Not Configured</span>
                 )}
               </div>
               <div className="flex gap-2">
@@ -955,7 +955,7 @@ const SettingsPage = () => {
                   placeholder="sk-proj-..."
                   value={op}
                   onChange={(e) => setOp(e.target.value)}
-                  className="h-12 bg-zinc-900/60 border-0 rounded-xl font-mono text-xs px-4"
+                  className="h-12 bg-muted border-0 rounded-xl font-mono text-xs px-4"
                 />
                 <Button
                   onClick={() => saveCustomKey("hguard_openai_api_key", op, "OpenAI Key Updated", "Your custom OpenAI key has been saved and synced.")}
@@ -982,7 +982,7 @@ const SettingsPage = () => {
                   placeholder="AIzaSy..."
                   value={g1}
                   onChange={(e) => setG1(e.target.value)}
-                  className="h-12 bg-zinc-900/60 border-0 rounded-xl font-mono text-xs px-4"
+                  className="h-12 bg-muted border-0 rounded-xl font-mono text-xs px-4"
                 />
                 <Button
                   onClick={() => {
@@ -1003,7 +1003,7 @@ const SettingsPage = () => {
                 {g2 ? (
                   <span className="text-[8px] bg-green-500/20 text-green-400 font-bold px-2 py-0.5 rounded-full uppercase">Configured</span>
                 ) : (
-                  <span className="text-[8px] bg-white/10 text-white/50 font-bold px-2 py-0.5 rounded-full uppercase">Not Configured</span>
+                  <span className="text-[8px] bg-muted/50 text-muted-foreground font-bold px-2 py-0.5 rounded-full uppercase">Not Configured</span>
                 )}
               </div>
               <div className="flex gap-2">
@@ -1012,7 +1012,7 @@ const SettingsPage = () => {
                   placeholder="AIzaSy..."
                   value={g2}
                   onChange={(e) => setG2(e.target.value)}
-                  className="h-12 bg-zinc-900/60 border-0 rounded-xl font-mono text-xs px-4"
+                  className="h-12 bg-muted border-0 rounded-xl font-mono text-xs px-4"
                 />
                 <Button
                   onClick={() => saveCustomKey("hguard_gemini_api_key_2", g2, "Gemini Key #2 Updated", "Gemini key #2 saved and synced.")}
@@ -1030,7 +1030,7 @@ const SettingsPage = () => {
                 {g3 ? (
                   <span className="text-[8px] bg-green-500/20 text-green-400 font-bold px-2 py-0.5 rounded-full uppercase">Configured</span>
                 ) : (
-                  <span className="text-[8px] bg-white/10 text-white/50 font-bold px-2 py-0.5 rounded-full uppercase">Not Configured</span>
+                  <span className="text-[8px] bg-muted/50 text-muted-foreground font-bold px-2 py-0.5 rounded-full uppercase">Not Configured</span>
                 )}
               </div>
               <div className="flex gap-2">
@@ -1039,7 +1039,7 @@ const SettingsPage = () => {
                   placeholder="AIzaSy..."
                   value={g3}
                   onChange={(e) => setG3(e.target.value)}
-                  className="h-12 bg-zinc-900/60 border-0 rounded-xl font-mono text-xs px-4"
+                  className="h-12 bg-muted border-0 rounded-xl font-mono text-xs px-4"
                 />
                 <Button
                   onClick={() => saveCustomKey("hguard_gemini_api_key_3", g3, "Gemini Key #3 Updated", "Gemini key #3 saved and synced.")}
@@ -1057,7 +1057,7 @@ const SettingsPage = () => {
                 {g4 ? (
                   <span className="text-[8px] bg-green-500/20 text-green-400 font-bold px-2 py-0.5 rounded-full uppercase">Configured</span>
                 ) : (
-                  <span className="text-[8px] bg-white/10 text-white/50 font-bold px-2 py-0.5 rounded-full uppercase">Not Configured</span>
+                  <span className="text-[8px] bg-muted/50 text-muted-foreground font-bold px-2 py-0.5 rounded-full uppercase">Not Configured</span>
                 )}
               </div>
               <div className="flex gap-2">
@@ -1066,7 +1066,7 @@ const SettingsPage = () => {
                   placeholder="AIzaSy..."
                   value={g4}
                   onChange={(e) => setG4(e.target.value)}
-                  className="h-12 bg-zinc-900/60 border-0 rounded-xl font-mono text-xs px-4"
+                  className="h-12 bg-muted border-0 rounded-xl font-mono text-xs px-4"
                 />
                 <Button
                   onClick={() => saveCustomKey("hguard_gemini_api_key_4", g4, "Gemini Key #4 Updated", "Gemini key #4 saved and synced.")}
@@ -1096,15 +1096,15 @@ const SettingsPage = () => {
                   Remove all cameras
                 </Button>
               </AlertDialogTrigger>
-              <AlertDialogContent className="bg-zinc-950 border-destructive/50">
+              <AlertDialogContent className="bg-background border-destructive/50">
                 <AlertDialogHeader>
                   <AlertDialogTitle className="text-xl font-black text-destructive italic underline">Confirm reset</AlertDialogTitle>
-                  <AlertDialogDescription className="text-white/70 font-bold uppercase tracking-widest leading-loose">
+                  <AlertDialogDescription className="text-foreground/70 font-bold uppercase tracking-widest leading-loose">
                     This permanently removes all cameras from your account. You'll need to set them up again.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel className="rounded-2xl border-white/10 font-black">Cancel</AlertDialogCancel>
+                  <AlertDialogCancel className="rounded-2xl border-border font-black">Cancel</AlertDialogCancel>
                   <AlertDialogAction 
                     onClick={async () => {
                       if (!user) return;
@@ -1113,7 +1113,7 @@ const SettingsPage = () => {
                       for (const d of snap.docs) await deleteDoc(doc(db, "devices", d.id));
                       window.location.reload();
                     }}
-                    className="bg-destructive text-white rounded-2xl font-black"
+                    className="bg-destructive text-foreground rounded-2xl font-black"
                   >
                     Remove all cameras
                   </AlertDialogAction>
@@ -1124,19 +1124,19 @@ const SettingsPage = () => {
         </div>
 
         {/* Webhooks & Automation */}
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-4">
+        <div className="bg-muted border border-border rounded-2xl p-4 space-y-4">
           <div className="flex items-center gap-3 text-primary">
             <Zap className="h-8 w-8" />
             <h2 className="text-xl font-black uppercase tracking-tight">Automation</h2>
           </div>
           <div className="p-8 bg-card/40 border-2 border-border/40 rounded-[2.5rem] space-y-4">
-            <p className="text-[10px] font-black uppercase tracking-widest text-white/70">Real-time Webhook URL</p>
+            <p className="text-[10px] font-black uppercase tracking-widest text-foreground/70">Real-time Webhook URL</p>
             <div className="flex gap-3">
               <Input 
                 placeholder="https://your-webhook-endpoint.com" 
                 value={webhookUrl}
                 onChange={(e) => setWebhookUrl(e.target.value)}
-                className="h-14 bg-zinc-900/70 border-0 rounded-2xl font-bold px-6 text-primary"
+                className="h-14 bg-muted border-0 rounded-2xl font-bold px-6 text-primary"
               />
               <Button onClick={saveWebhook} className="h-14 px-8 rounded-2xl font-black uppercase tracking-widest">
                 SAVE
@@ -1165,15 +1165,15 @@ const SettingsPage = () => {
                   Log out all devices
                 </Button>
               </AlertDialogTrigger>
-              <AlertDialogContent className="bg-zinc-950 border-orange-500/40">
+              <AlertDialogContent className="bg-background border-orange-500/40">
                 <AlertDialogHeader>
                   <AlertDialogTitle className="text-xl font-black text-orange-400">Force Global Logout?</AlertDialogTitle>
-                  <AlertDialogDescription className="text-white/70 font-bold uppercase tracking-widest leading-loose">
+                  <AlertDialogDescription className="text-foreground/70 font-bold uppercase tracking-widest leading-loose">
                     This will immediately sign out ALL devices connected to your account, clear their local caches, and redirect them to the login screen. You will also be signed out.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel className="rounded-2xl border-white/10 font-black">Cancel</AlertDialogCancel>
+                  <AlertDialogCancel className="rounded-2xl border-border font-black">Cancel</AlertDialogCancel>
                   <AlertDialogAction
                     onClick={async () => {
                       await forceLogoutAllDevices();
@@ -1187,7 +1187,7 @@ const SettingsPage = () => {
                       }
                       window.location.href = "/login";
                     }}
-                    className="bg-orange-500 text-white rounded-2xl font-black hover:bg-orange-600"
+                    className="bg-orange-500 text-foreground rounded-2xl font-black hover:bg-orange-600"
                   >
                     CONFIRM — LOGOUT ALL
                   </AlertDialogAction>

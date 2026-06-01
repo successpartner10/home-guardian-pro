@@ -229,7 +229,7 @@ const HelpPage = () => {
             "w-full rounded-[2rem] border-2 transition-all cursor-pointer overflow-hidden",
             open
               ? "bg-primary border-primary shadow-[0_0_30px_rgba(var(--primary-rgb),0.15)]"
-              : "bg-white/[0.03] border-white/5 hover:border-white/15"
+              : "bg-white/[0.03] border-border hover:border-white/15"
           )}
         >
           {/* Header row */}
@@ -237,12 +237,12 @@ const HelpPage = () => {
             <div className="flex items-center gap-4">
               <div className={cn(
                 "h-11 w-11 shrink-0 rounded-[1rem] flex items-center justify-center",
-                open ? "bg-black text-primary" : "bg-primary/10 text-primary"
+                open ? "bg-background text-primary" : "bg-primary/10 text-primary"
               )}>
                 <f.icon className="h-5 w-5" />
               </div>
               <div>
-                <p className={cn("text-[15px] font-bold leading-tight", open ? "text-black" : "text-white")}>
+                <p className={cn("text-[15px] font-bold leading-tight", open ? "text-black" : "text-foreground")}>
                   {f.title}
                 </p>
                 <p className={cn("text-[10px] font-semibold capitalize mt-0.5", open ? "text-black/50" : "text-muted-foreground")}>
@@ -250,7 +250,7 @@ const HelpPage = () => {
                 </p>
               </div>
             </div>
-            <ChevronRight className={cn("h-4 w-4 shrink-0 transition-transform", open ? "rotate-90 text-black/50" : "text-white/20")} />
+            <ChevronRight className={cn("h-4 w-4 shrink-0 transition-transform", open ? "rotate-90 text-black/50" : "text-foreground/20")} />
           </div>
 
           {/* Expanded content */}
@@ -274,13 +274,13 @@ const HelpPage = () => {
                   {/* Action button */}
                   <Button
                     onClick={(e) => handleAction(f, e)}
-                    className="w-full h-10 bg-black text-white hover:bg-zinc-900 rounded-[1rem] font-bold text-[10px] uppercase tracking-wider"
+                    className="w-full h-10 bg-background text-foreground hover:bg-zinc-900 rounded-[1rem] font-bold text-[10px] uppercase tracking-wider"
                   >
                     ⚡ {f.actionLabel}
                   </Button>
 
                   {/* How it works */}
-                  <div className="p-3.5 rounded-2xl bg-black/10 border border-black/5">
+                  <div className="p-3.5 rounded-2xl bg-background/10 border border-black/5">
                     <p className="text-[9px] font-bold text-black/40 uppercase tracking-wider mb-1">How it works</p>
                     <p className="text-xs text-black/70 leading-relaxed italic">"{f.howItWorks}"</p>
                   </div>
@@ -307,12 +307,12 @@ const HelpPage = () => {
 
         {/* Search */}
         <div className="relative">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-foreground/30" />
           <Input
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             placeholder="Search guides…"
-            className="h-12 pl-11 bg-white/[0.04] border border-white/8 rounded-2xl text-sm font-medium placeholder:text-white/20 focus:border-primary/40 focus:ring-0"
+            className="h-12 pl-11 bg-white/[0.04] border border-white/8 rounded-2xl text-sm font-medium placeholder:text-foreground/20 focus:border-primary/40 focus:ring-0"
           />
         </div>
 
@@ -332,8 +332,8 @@ const HelpPage = () => {
                 >
                   <f.icon className="h-4 w-4 text-primary shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-xs font-bold text-white">{f.title}</p>
-                    <p className="text-[10px] text-white/50 leading-snug mt-0.5">{f.recommendedReason}</p>
+                    <p className="text-xs font-bold text-foreground">{f.title}</p>
+                    <p className="text-[10px] text-muted-foreground leading-snug mt-0.5">{f.recommendedReason}</p>
                   </div>
                 </button>
               ))}
@@ -343,7 +343,7 @@ const HelpPage = () => {
 
         {/* All features */}
         <div className="space-y-3">
-          {!searchQuery && <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest">All Features</p>}
+          {!searchQuery && <p className="text-[10px] font-bold text-foreground/30 uppercase tracking-widest">All Features</p>}
           <AnimatePresence mode="popLayout">
             {(searchQuery ? filtered : [...recommended, ...rest]).map(f => (
               <FeatureCard key={f.id} f={f} />

@@ -53,15 +53,15 @@ export const ZonePicker = ({ onConfirm, onCancel, initialZone }: ZonePickerProps
     };
 
     return (
-        <div className="absolute inset-0 z-50 bg-black/40 backdrop-blur-sm flex flex-col items-center justify-center p-4">
+        <div className="absolute inset-0 z-50 bg-background/40 backdrop-blur-sm flex flex-col items-center justify-center p-4">
             <div className="mb-6 text-center space-y-2">
-                <h2 className="text-2xl font-black text-white uppercase tracking-tighter">Set Detection Zone</h2>
-                <p className="text-xs font-bold text-white/60 uppercase tracking-widest">Only detect motion inside the box</p>
+                <h2 className="text-2xl font-black text-foreground uppercase tracking-tighter">Set Detection Zone</h2>
+                <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Only detect motion inside the box</p>
             </div>
 
             <div
                 ref={containerRef}
-                className="relative aspect-video w-full max-w-2xl bg-black/20 rounded-3xl border-2 border-white/10 overflow-hidden shadow-2xl"
+                className="relative aspect-video w-full max-w-2xl bg-background/20 rounded-3xl border-2 border-border overflow-hidden shadow-2xl"
                 onPointerMove={handlePointerMove}
             >
                 {/* The Draggable Zone Box */}
@@ -80,7 +80,7 @@ export const ZonePicker = ({ onConfirm, onCancel, initialZone }: ZonePickerProps
                         onPointerDown={(e) => handlePointerDown(e, 'drag')}
                         onPointerUp={handlePointerUp}
                     >
-                        <Move className="text-white/40 w-8 h-8 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <Move className="text-muted-foreground w-8 h-8 opacity-0 group-hover:opacity-100 transition-opacity" />
                     </div>
 
                     {/* Resize Handle */}
@@ -90,12 +90,12 @@ export const ZonePicker = ({ onConfirm, onCancel, initialZone }: ZonePickerProps
                         onPointerUp={handlePointerUp}
                     >
                         <div className="bg-primary w-6 h-6 rounded-tl-xl flex items-center justify-center">
-                            <Maximize className="w-3 h-3 text-white" />
+                            <Maximize className="w-3 h-3 text-foreground" />
                         </div>
                     </div>
 
                     {/* Label */}
-                    <div className="absolute top-0 left-0 bg-primary text-white text-[10px] font-black uppercase px-3 py-1 rounded-br-lg shadow-lg">
+                    <div className="absolute top-0 left-0 bg-primary text-foreground text-[10px] font-black uppercase px-3 py-1 rounded-br-lg shadow-lg">
                         Focus Zone
                     </div>
                 </div>
@@ -104,7 +104,7 @@ export const ZonePicker = ({ onConfirm, onCancel, initialZone }: ZonePickerProps
             <div className="mt-8 flex gap-4 w-full max-w-sm">
                 <Button
                     variant="outline"
-                    className="flex-1 h-14 rounded-2xl border-2 border-white/10 bg-white/5 text-white font-black uppercase tracking-widest hover:bg-white/10"
+                    className="flex-1 h-14 rounded-2xl border-2 border-border bg-muted text-foreground font-black uppercase tracking-widest hover:bg-muted/50"
                     onClick={onCancel}
                 >
                     <X className="mr-2 h-5 w-5" /> Cancel

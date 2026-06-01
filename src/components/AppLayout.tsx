@@ -40,28 +40,28 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
       {/* ── HEADER ── */}
       {isDashboard ? (
         // Dashboard: big centered logo
-        <header className="glass-panel sticky top-0 z-50 flex h-20 items-center justify-center px-6 border-b border-white/5 relative">
+        <header className="glass-panel sticky top-0 z-50 flex h-20 items-center justify-center px-6 border-b relative">
           <Link to="/dashboard" className="flex items-center justify-center gap-3">
             <Logo size="lg" className="h-12 w-12" />
-            <span className="text-2xl font-black tracking-tight text-white">
+            <span className="text-2xl font-black tracking-tight text-foreground">
               HGUARD <span className="text-primary">Elite</span>
             </span>
           </Link>
           {/* Sign out */}
           <button
             onClick={signOut}
-            className="absolute right-5 flex h-10 w-10 items-center justify-center rounded-2xl bg-white/5 text-muted-foreground hover:bg-white/10 hover:text-white transition-all"
+            className="absolute right-5 flex h-10 w-10 items-center justify-center rounded-2xl bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground transition-all"
           >
             <LogOut className="h-4 w-4" />
           </button>
         </header>
       ) : (
         // Other pages: compact top-left logo + hamburger menu
-        <header className="glass-panel sticky top-0 z-50 flex h-14 items-center px-4 border-b border-white/5 gap-3">
+        <header className="glass-panel sticky top-0 z-50 flex h-14 items-center px-4 border-b gap-3">
           {/* Hamburger */}
           <button
             onClick={() => setMenuOpen(true)}
-            className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/5 text-muted-foreground hover:bg-white/10 hover:text-white transition-all"
+            className="flex h-9 w-9 items-center justify-center rounded-xl bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground transition-all"
           >
             <Menu className="h-4 w-4" />
           </button>
@@ -69,19 +69,19 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
           {/* Logo */}
           <Link to="/dashboard" className="flex items-center gap-2 shrink-0">
             <Logo size="sm" className="h-7 w-7" />
-            <span className="text-base font-black tracking-tight text-white">
+            <span className="text-base font-black tracking-tight text-foreground">
               HGUARD <span className="text-primary">Elite</span>
             </span>
           </Link>
 
           {/* Page title pill */}
           <div className="ml-auto flex items-center gap-3">
-            <span className="text-[9px] font-bold text-white/20 tracking-widest hidden sm:block">
+            <span className="text-[9px] font-bold text-muted-foreground tracking-widest hidden sm:block">
               {(window as any).hGuard_Version || "v2.6.0"}
             </span>
             <button
               onClick={signOut}
-              className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/5 text-muted-foreground hover:bg-white/10 hover:text-white transition-all"
+              className="flex h-9 w-9 items-center justify-center rounded-xl bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground transition-all"
             >
               <LogOut className="h-4 w-4" />
             </button>
@@ -99,7 +99,7 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setMenuOpen(false)}
-              className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
+              className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm"
             />
             {/* Drawer */}
             <motion.div
@@ -107,25 +107,25 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
               animate={{ x: 0 }}
               exit={{ x: "-100%" }}
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              className="fixed inset-y-0 left-0 z-50 w-72 bg-zinc-950 border-r border-white/8 flex flex-col p-6 safe-area-pt"
+              className="fixed inset-y-0 left-0 z-50 w-72 bg-card border-r flex flex-col p-6 safe-area-pt shadow-2xl"
             >
               {/* Menu header */}
               <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-2.5">
                   <Logo size="sm" className="h-8 w-8" />
                   <div>
-                    <p className="text-sm font-black text-white leading-none">HGUARD Elite</p>
+                    <p className="text-sm font-black text-foreground leading-none">HGUARD Elite</p>
                     <p className="text-[9px] text-primary font-bold mt-0.5">{isAdmin ? "Administrator" : "Viewer"}</p>
                   </div>
                 </div>
-                <button onClick={() => setMenuOpen(false)} className="h-8 w-8 rounded-xl bg-white/5 flex items-center justify-center text-white/50 hover:text-white transition-colors">
+                <button onClick={() => setMenuOpen(false)} className="h-8 w-8 rounded-xl bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
                   <X className="h-4 w-4" />
                 </button>
               </div>
 
               {/* Menu items */}
               <div className="space-y-1.5 flex-1">
-                <p className="text-[9px] font-bold text-white/25 uppercase tracking-widest px-2 mb-3">Navigation</p>
+                <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest px-2 mb-3">Navigation</p>
                 {filteredMenu.map(({ to, icon: Icon, label }) => (
                   <Link
                     key={to}
@@ -135,7 +135,7 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
                       "flex items-center justify-between px-3 py-2.5 rounded-xl transition-all group",
                       location.pathname === to
                         ? "bg-primary/10 text-primary"
-                        : "text-white/60 hover:bg-white/5 hover:text-white"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
                     )}
                   >
                     <div className="flex items-center gap-3">
@@ -153,16 +153,16 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
                       <Zap className="h-3.5 w-3.5 text-primary" />
                       <span className="text-[10px] font-bold text-primary uppercase tracking-wide">AI Lab Active</span>
                     </div>
-                    <p className="text-[10px] text-white/40 leading-snug">Thermal vision & mesh tracking are live. View proposals for upcoming features.</p>
+                    <p className="text-[10px] text-muted-foreground leading-snug">Thermal vision & auto-tracking are live. View proposals for upcoming features.</p>
                   </div>
                 )}
               </div>
 
               {/* Footer */}
-              <div className="pt-4 border-t border-white/5">
+              <div className="pt-4 border-t">
                 <button
                   onClick={() => { signOut(); setMenuOpen(false); }}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-white/40 hover:bg-white/5 hover:text-white transition-all"
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground transition-all"
                 >
                   <LogOut className="h-4 w-4" />
                   <span className="text-sm font-semibold">Sign Out</span>
@@ -178,7 +178,7 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
 
       {/* ── BOTTOM NAVIGATION ── */}
       <nav 
-        className="glass-panel fixed bottom-0 left-0 right-0 z-40 grid h-18 items-center px-2 safe-area-pb border-t border-white/5"
+        className="glass-panel fixed bottom-0 left-0 right-0 z-40 grid h-18 items-center px-2 safe-area-pb border-t"
         style={{ gridTemplateColumns: `repeat(${filteredBottom.length}, minmax(0, 1fr))` }}
       >
         {filteredBottom.map(({ to, icon: Icon, label }) => {
@@ -189,7 +189,7 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
               to={to}
               className={cn(
                 "flex flex-col items-center justify-center gap-1 py-2 rounded-xl transition-all",
-                active ? "text-primary bg-primary/10" : "text-muted-foreground hover:bg-white/5"
+                active ? "text-primary bg-primary/10" : "text-muted-foreground hover:bg-muted"
               )}
             >
               <Icon className={cn("h-5 w-5", active && "glow-primary")} />

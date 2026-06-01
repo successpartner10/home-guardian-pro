@@ -126,9 +126,9 @@ const VideoThumbnail = ({ url, onClick, providerToken }: { url: string | null | 
         </div>
       )}
       {/* Play Icon Overlay */}
-      <div className="absolute inset-0 bg-zinc-900/60 opacity-0 group-hover/thumb:opacity-100 transition-opacity flex items-center justify-center">
+      <div className="absolute inset-0 bg-muted opacity-0 group-hover/thumb:opacity-100 transition-opacity flex items-center justify-center">
         <div className="h-14 w-14 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30">
-          <Play className="text-white w-7 h-7 ml-1" fill="white" />
+          <Play className="text-foreground w-7 h-7 ml-1" fill="white" />
         </div>
       </div>
     </div>
@@ -181,18 +181,18 @@ const VideoModal = ({ alert, onClose, providerToken }: { alert: Alert; onClose: 
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-10 bg-zinc-950/95 backdrop-blur-xl"
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-10 bg-background/95 backdrop-blur-xl"
       onClick={onClose}
     >
       <motion.div
         initial={{ scale: 0.9, y: 20 }}
         animate={{ scale: 1, y: 0 }}
         exit={{ scale: 0.9, y: 20 }}
-        className="relative max-w-5xl w-full aspect-video bg-zinc-950 rounded-[2.5rem] overflow-hidden shadow-2xl border-2 border-white/10"
+        className="relative max-w-5xl w-full aspect-video bg-background rounded-[2.5rem] overflow-hidden shadow-2xl border-2 border-border"
         onClick={(e) => e.stopPropagation()}
       >
         {loading ? (
-          <div className="w-full h-full flex flex-col items-center justify-center gap-4 text-white/70">
+          <div className="w-full h-full flex flex-col items-center justify-center gap-4 text-foreground/70">
             <div className="h-12 w-12 border-2 border-primary border-t-transparent rounded-full animate-spin" />
             <p className="text-sm font-black uppercase tracking-widest">Loading Video...</p>
           </div>
@@ -214,14 +214,14 @@ const VideoModal = ({ alert, onClose, providerToken }: { alert: Alert; onClose: 
                 className="absolute inset-0 flex items-center justify-center cursor-pointer"
                 onClick={togglePlay}
               >
-                <div className="h-24 w-24 rounded-full bg-white/10 backdrop-blur-xl flex items-center justify-center border-2 border-white/20 hover:bg-white/20 transition-all">
-                  <Play className="text-white w-12 h-12 ml-2" fill="white" />
+                <div className="h-24 w-24 rounded-full bg-muted/50 backdrop-blur-xl flex items-center justify-center border-2 border-border hover:bg-white/20 transition-all">
+                  <Play className="text-foreground w-12 h-12 ml-2" fill="white" />
                 </div>
               </div>
             )}
           </div>
         ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center gap-4 text-white/60">
+          <div className="w-full h-full flex flex-col items-center justify-center gap-4 text-muted-foreground">
             <AlertTriangle className="w-20 h-20" />
             <p className="text-xl font-black uppercase tracking-widest">Video unavailable</p>
           </div>
@@ -231,7 +231,7 @@ const VideoModal = ({ alert, onClose, providerToken }: { alert: Alert; onClose: 
           <Button
             variant="outline"
             size="icon"
-            className="h-12 w-12 rounded-2xl bg-zinc-900/70 border-2 border-white/20 hover:bg-white/10 hover:border-white/40 text-white backdrop-blur-md"
+            className="h-12 w-12 rounded-2xl bg-muted border-2 border-border hover:bg-muted/50 hover:border-white/40 text-foreground backdrop-blur-md"
             onClick={onClose}
           >
             <X className="h-6 w-6" />
@@ -242,10 +242,10 @@ const VideoModal = ({ alert, onClose, providerToken }: { alert: Alert; onClose: 
           <div className="flex items-end justify-between gap-4">
             <div className="space-y-1">
               <p className="text-xs font-black uppercase tracking-[0.2em] text-primary mb-2">Security Event Log</p>
-              <h2 className="text-3xl font-black text-white uppercase tracking-tighter leading-none">
+              <h2 className="text-3xl font-black text-foreground uppercase tracking-tighter leading-none">
                 {alert.type.includes('motion') ? 'Motion' : 'Sound'} Detected
               </h2>
-              <p className="text-lg font-bold text-white/60 tracking-tight">
+              <p className="text-lg font-bold text-muted-foreground tracking-tight">
                 {alert.device_name || "Unknown Camera"} · {new Date(alert.created_at?.toDate ? alert.created_at.toDate() : alert.created_at).toLocaleString()}
               </p>
               {alert.summary && (
@@ -259,7 +259,7 @@ const VideoModal = ({ alert, onClose, providerToken }: { alert: Alert; onClose: 
             <div className="flex gap-3">
               <Button
                 variant="outline"
-                className="h-14 px-6 rounded-2xl font-black uppercase tracking-widest bg-white/5 border-2 border-white/10 hover:bg-white/10 text-white"
+                className="h-14 px-6 rounded-2xl font-black uppercase tracking-widest bg-muted border-2 border-border hover:bg-muted/50 text-foreground"
                 onClick={shareAlert}
               >
                 <Share2 className="h-5 w-5" />
@@ -507,7 +507,7 @@ const Alerts = () => {
                     <CardContent className="p-0 flex flex-col sm:flex-row items-stretch">
                       {/* Video Thumbnail Container */}
                       <div
-                        className="relative w-full sm:w-40 aspect-video sm:aspect-auto bg-zinc-950 shrink-0 overflow-hidden"
+                        className="relative w-full sm:w-40 aspect-video sm:aspect-auto bg-background shrink-0 overflow-hidden"
                       >
                         <VideoThumbnail url={alert.thumbnail_url} onClick={() => setSelectedAlert(alert)} providerToken={providerToken} />
                       </div>

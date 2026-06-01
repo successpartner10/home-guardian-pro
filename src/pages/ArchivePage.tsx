@@ -118,20 +118,20 @@ const ArchivePage = () => {
   return (
     <AppLayout>
       <div className="p-6 max-w-6xl mx-auto space-y-8">
-        <div className="flex items-center justify-between pb-2 border-b border-white/10">
-          <h1 className="text-2xl font-bold tracking-tight text-white">Events</h1>
-          <Button onClick={fetchArchive} variant="ghost" size="icon" className="rounded-full text-white/70 hover:text-white hover:bg-white/10">
+        <div className="flex items-center justify-between pb-2 border-b border-border">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">Events</h1>
+          <Button onClick={fetchArchive} variant="ghost" size="icon" className="rounded-full text-foreground/70 hover:text-foreground hover:bg-muted/50">
             <RefreshCcw className="h-5 w-5" />
           </Button>
         </div>
 
         <div className="space-y-4">
-          <div className="bg-black/40 border border-white/10 backdrop-blur-xl rounded-[2rem] overflow-hidden">
+          <div className="bg-background/40 border border-border backdrop-blur-xl rounded-[2rem] overflow-hidden">
             <div className="p-0">
-              <div className="p-6 border-b border-white/5 bg-white/[0.02]">
+              <div className="p-6 border-b border-border bg-muted/20">
                   <div className="flex items-center gap-2">
                     <Video className="h-4 w-4 text-primary" />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-white/60">Recent Clips</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Recent Clips</span>
                   </div>
                 </div>
                 
@@ -149,21 +149,21 @@ const ArchivePage = () => {
                   ) : (
                     <div className="divide-y divide-white/5">
                       {recordings.map((rec) => (
-                        <div key={rec.id} className="flex flex-col gap-2 p-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors">
+                        <div key={rec.id} className="flex flex-col gap-2 p-4 border-b border-border hover:bg-muted/20 transition-colors">
                           <button
                             onClick={() => playVideo(rec.id)}
                             className="flex items-start gap-4 text-left group w-full"
                           >
-                            <div className="relative h-20 w-32 bg-black/50 rounded-lg overflow-hidden border border-white/10 flex-shrink-0 group-hover:border-primary/50 transition-colors">
+                            <div className="relative h-20 w-32 bg-background/50 rounded-lg overflow-hidden border border-border flex-shrink-0 group-hover:border-primary/50 transition-colors">
                               <div className="absolute inset-0 flex items-center justify-center">
-                                <Play className="h-8 w-8 text-white/50 group-hover:text-primary transition-colors" />
+                                <Play className="h-8 w-8 text-muted-foreground group-hover:text-primary transition-colors" />
                               </div>
                             </div>
                             <div className="flex-1 min-w-0 py-1">
-                              <h3 className="text-sm font-semibold text-white truncate">{rec.name.replace('.webm', '').replace('hguard_', 'Event ')}</h3>
-                              <p className="text-xs text-white/50 mt-1">{formatDate(rec.createdTime)}</p>
+                              <h3 className="text-sm font-semibold text-foreground truncate">{rec.name.replace('.webm', '').replace('hguard_', 'Event ')}</h3>
+                              <p className="text-xs text-muted-foreground mt-1">{formatDate(rec.createdTime)}</p>
                               <div className="flex items-center gap-2 mt-2">
-                                <Badge variant="outline" className="text-[9px] border-white/10 text-white/40">{formatSize(rec.size)}</Badge>
+                                <Badge variant="outline" className="text-[9px] border-border text-muted-foreground">{formatSize(rec.size)}</Badge>
                                 <Badge variant="outline" className="text-[9px] border-primary/20 text-primary/80 bg-primary/5">Motion</Badge>
                               </div>
                             </div>
@@ -176,10 +176,10 @@ const ArchivePage = () => {
                                 initial={{ opacity: 0, height: 0 }}
                                 animate={{ opacity: 1, height: 'auto' }}
                                 exit={{ opacity: 0, height: 0 }}
-                                className="w-full mt-2 rounded-xl overflow-hidden bg-black border border-white/10 relative"
+                                className="w-full mt-2 rounded-xl overflow-hidden bg-background border border-border relative"
                               >
                                 <video src={selectedVideo.url} controls autoPlay className="w-full aspect-video" />
-                                <div className="p-3 bg-white/[0.02] flex items-center justify-between border-t border-white/5">
+                                <div className="p-3 bg-muted/20 flex items-center justify-between border-t border-border">
                                   <a href={selectedVideo.url} download={rec.name} className="flex items-center gap-2 text-xs text-primary hover:underline">
                                     <Download className="h-4 w-4" /> Save to device
                                   </a>

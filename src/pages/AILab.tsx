@@ -90,7 +90,7 @@ const AILab = () => {
         <div className="space-y-4 text-center sm:text-left">
           <div className="flex items-center justify-center sm:justify-start gap-4 text-primary">
             <Microscope className="w-10 h-10" />
-            <h1 className="text-4xl font-black tracking-tight leading-none">HGUARD <span className="text-white">AI Lab</span></h1>
+            <h1 className="text-4xl font-black tracking-tight leading-none">HGUARD <span className="text-foreground">AI Lab</span></h1>
           </div>
           <p className="text-lg text-muted-foreground font-medium">Future intelligence proposals and active AI research.</p>
         </div>
@@ -118,10 +118,10 @@ const AILab = () => {
               transition={{ delay: idx * 0.1 }}
               onClick={() => handleOpenLab(p.id)}
               className={cn(
-                "group relative overflow-hidden p-8 rounded-[3rem] bg-white/[0.03] border-2 border-white/5 transition-all duration-500",
+                "group relative overflow-hidden p-8 rounded-[3rem] bg-white/[0.03] border-2 border-border transition-all duration-500",
                 p.status === "available"
                   ? "cursor-pointer hover:border-primary/40 hover:bg-white/[0.06] shadow-lg"
-                  : "border-white/5 opacity-80"
+                  : "border-border opacity-80"
               )}
             >
               <div className="flex flex-col sm:flex-row gap-8 items-start">
@@ -142,7 +142,7 @@ const AILab = () => {
                     </span>
                   </div>
                   
-                  <p className="text-lg text-white/60 font-medium leading-tight">
+                  <p className="text-lg text-muted-foreground font-medium leading-tight">
                     {p.description}
                   </p>
                   
@@ -170,14 +170,14 @@ const AILab = () => {
 
 
         {isAdmin && (
-          <div className="p-6 rounded-[2rem] bg-white/5 border border-white/10 flex items-center justify-between gap-6">
+          <div className="p-6 rounded-[2rem] bg-muted border border-border flex items-center justify-between gap-6">
             <div className="flex items-center gap-4">
               <div className="p-3 bg-blue-500/10 text-blue-400 rounded-2xl">
                 <Bell className="w-6 h-6" />
               </div>
               <div>
                 <h3 className="text-xl font-bold tracking-tight">Admin AI Alerts</h3>
-                <p className="text-sm font-bold text-white/50">Get notified immediately when new Lab features go live.</p>
+                <p className="text-sm font-bold text-muted-foreground">Get notified immediately when new Lab features go live.</p>
               </div>
             </div>
             <Switch 
@@ -189,7 +189,7 @@ const AILab = () => {
         )}
 
         <div className="text-center pt-12">
-          <p className="text-[10px] font-bold text-white/20 tracking-wider">System Intelligence v2.5.5 • Experimental Build</p>
+          <p className="text-[10px] font-bold text-foreground/20 tracking-wider">System Intelligence v2.5.5 • Experimental Build</p>
         </div>
       </div>
     </AppLayout>

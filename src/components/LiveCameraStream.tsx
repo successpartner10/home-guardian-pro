@@ -153,7 +153,7 @@ const LiveCameraStream: React.FC<LiveCameraStreamProps> = ({ device, onFullscree
         <div
             ref={containerRef}
             onClick={handlePlayRequest}
-            className="relative w-full h-full bg-neutral-950 rounded-[2rem] overflow-hidden border border-white/5 group shadow-2xl cursor-pointer"
+            className="relative w-full h-full bg-neutral-950 rounded-[2rem] overflow-hidden border border-border group shadow-2xl cursor-pointer"
         >
             {/* ── Video / Status ── */}
             {isConnected && remoteStream ? (
@@ -177,7 +177,7 @@ const LiveCameraStream: React.FC<LiveCameraStreamProps> = ({ device, onFullscree
                     {/* Person pill — tiny, bottom-left */}
                     {aiAnalysis?.detected_objects?.some((obj: any) => obj.label?.toLowerCase().includes('person')) && (
                       <div className="absolute bottom-3 left-3 z-40 pointer-events-none">
-                        <span className="bg-red-600/90 text-white text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full animate-pulse">
+                        <span className="bg-red-600/90 text-foreground text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full animate-pulse">
                           Person
                         </span>
                       </div>
@@ -188,15 +188,15 @@ const LiveCameraStream: React.FC<LiveCameraStreamProps> = ({ device, onFullscree
                     {connectionState === "failed" ? (
                         <div className="flex flex-col items-center gap-3">
                             <AlertTriangle className="h-5 w-5 text-destructive" />
-                            <p className="text-[10px] text-white/50">Connection lost</p>
-                            <Button onClick={() => { disconnect(); setTimeout(connect, 500); }} variant="ghost" size="sm" className="h-7 px-4 text-[10px] rounded-full border border-white/10 hover:bg-white/10">
+                            <p className="text-[10px] text-muted-foreground">Connection lost</p>
+                            <Button onClick={() => { disconnect(); setTimeout(connect, 500); }} variant="ghost" size="sm" className="h-7 px-4 text-[10px] rounded-full border border-border hover:bg-muted/50">
                                 <RefreshCw className="h-3 w-3 mr-1.5" /> Retry
                             </Button>
                         </div>
                     ) : (
                         <div className="flex flex-col items-center gap-2">
                             <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                            <p className="text-[9px] text-white/30 uppercase tracking-widest">
+                            <p className="text-[9px] text-foreground/30 uppercase tracking-widest">
                                 {connectionState === "new" ? "Finding…" : "Connecting…"}
                             </p>
                         </div>
@@ -204,8 +204,8 @@ const LiveCameraStream: React.FC<LiveCameraStreamProps> = ({ device, onFullscree
                 </div>
             ) : (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-neutral-900/40 z-10 gap-2">
-                    <WifiOff className="h-5 w-5 text-white/10" />
-                    <p className="text-[9px] text-white/20 tracking-wide">Offline</p>
+                    <WifiOff className="h-5 w-5 text-foreground/10" />
+                    <p className="text-[9px] text-foreground/20 tracking-wide">Offline</p>
                 </div>
             )}
 
@@ -226,9 +226,9 @@ const LiveCameraStream: React.FC<LiveCameraStreamProps> = ({ device, onFullscree
                         <div className="rounded-full h-1.5 w-1.5 bg-white/20" />
                     )}
                 </div>
-                <span className="text-[9px] font-semibold text-white/60 drop-shadow truncate max-w-[130px]">{device.name}</span>
+                <span className="text-[9px] font-semibold text-muted-foreground drop-shadow truncate max-w-[130px]">{device.name}</span>
                 {device.battery_level !== undefined && (
-                  <span className={cn("text-[9px] font-bold", device.is_charging ? "text-green-400" : device.battery_level < 20 ? "text-red-400" : "text-white/30")}>
+                  <span className={cn("text-[9px] font-bold", device.is_charging ? "text-green-400" : device.battery_level < 20 ? "text-red-400" : "text-foreground/30")}>
                     {device.battery_level}%{device.is_charging ? "⚡" : ""}
                   </span>
                 )}
@@ -237,7 +237,7 @@ const LiveCameraStream: React.FC<LiveCameraStreamProps> = ({ device, onFullscree
             {/* ── Unread alert badge (always visible) ── */}
             {(device.unread_alerts || 0) > 0 && (
               <div className="absolute top-2 right-2 z-30 h-4 w-4 rounded-full bg-red-500 flex items-center justify-center pointer-events-none shadow-lg">
-                <span className="text-[7px] font-black text-white">{device.unread_alerts}</span>
+                <span className="text-[7px] font-black text-foreground">{device.unread_alerts}</span>
               </div>
             )}
 
@@ -254,13 +254,13 @@ const LiveCameraStream: React.FC<LiveCameraStreamProps> = ({ device, onFullscree
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: 20 }}
                     transition={{ type: "spring", damping: 28, stiffness: 340 }}
-                    className="bg-black/85 backdrop-blur-2xl border border-white/10 rounded-2xl p-2 flex flex-col gap-0.5 shadow-2xl w-48 max-h-[75vh] overflow-y-auto mr-1"
+                    className="bg-background/85 backdrop-blur-2xl border border-border rounded-2xl p-2 flex flex-col gap-0.5 shadow-2xl w-48 max-h-[75vh] overflow-y-auto mr-1"
                   >
                     <DrawerSection label="View">
                       <div className="flex items-center justify-between px-2 py-1">
-                        <button onClick={(e) => { e.stopPropagation(); setZoomLevel(prev => Math.max(prev - 0.5, 1)); }} disabled={zoomLevel <= 1} className="h-8 w-8 rounded-xl bg-white/10 text-white hover:bg-white/25 disabled:opacity-25 transition-all flex items-center justify-center font-bold text-lg">−</button>
-                        <span className="text-xs font-black text-white/60">{zoomLevel.toFixed(1)}×</span>
-                        <button onClick={(e) => { e.stopPropagation(); setZoomLevel(prev => Math.min(prev + 0.5, 4)); }} disabled={zoomLevel >= 4} className="h-8 w-8 rounded-xl bg-white/10 text-white hover:bg-white/25 disabled:opacity-25 transition-all flex items-center justify-center font-bold text-lg">+</button>
+                        <button onClick={(e) => { e.stopPropagation(); setZoomLevel(prev => Math.max(prev - 0.5, 1)); }} disabled={zoomLevel <= 1} className="h-8 w-8 rounded-xl bg-muted/50 text-foreground hover:bg-white/25 disabled:opacity-25 transition-all flex items-center justify-center font-bold text-lg">−</button>
+                        <span className="text-xs font-black text-muted-foreground">{zoomLevel.toFixed(1)}×</span>
+                        <button onClick={(e) => { e.stopPropagation(); setZoomLevel(prev => Math.min(prev + 0.5, 4)); }} disabled={zoomLevel >= 4} className="h-8 w-8 rounded-xl bg-muted/50 text-foreground hover:bg-white/25 disabled:opacity-25 transition-all flex items-center justify-center font-bold text-lg">+</button>
                       </div>
                       <DrawerBtn icon={<Maximize className="h-4 w-4" />} label="Fullscreen" onClick={handleFullscreenInternal} />
                     </DrawerSection>
@@ -288,7 +288,7 @@ const LiveCameraStream: React.FC<LiveCameraStreamProps> = ({ device, onFullscree
               {/* Slim tab — visible on hover */}
               <button
                 onClick={(e) => { e.stopPropagation(); setIsDrawerOpen(p => !p); }}
-                className="h-14 w-5 bg-black/50 backdrop-blur-md border border-white/10 border-r-0 rounded-l-xl flex items-center justify-center text-white/25 hover:bg-white/10 hover:text-white/60 transition-all"
+                className="h-14 w-5 bg-background/50 backdrop-blur-md border border-border border-r-0 rounded-l-xl flex items-center justify-center text-foreground/25 hover:bg-muted/50 hover:text-muted-foreground transition-all"
               >
                 <ChevronRight className={cn("h-3 w-3 transition-transform duration-200", isDrawerOpen && "rotate-180")} />
               </button>
