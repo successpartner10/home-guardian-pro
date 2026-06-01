@@ -409,6 +409,9 @@ const CameraMode = () => {
         const data = snap.data();
         setIgnoreZones(data.settings?.ignore_zones || []);
         setDeviceName(data.name || "");
+        if (data.settings?.ai_active !== undefined) setShowNarrative(data.settings.ai_active);
+        if (data.settings?.auto_night_vision !== undefined) setAutoNightVision(data.settings.auto_night_vision);
+        if (data.settings?.power_save !== undefined) setIsPowerSaveMode(data.settings.power_save);
       }
     });
     return () => unsubscribe();

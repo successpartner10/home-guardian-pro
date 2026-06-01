@@ -73,6 +73,7 @@ const Dashboard = () => {
   const [registering, setRegistering] = useState(false);
   const [isMeshTracking, setIsMeshTracking] = useState(false);
   const [gridSelectMode, setGridSelectMode] = useState(false);
+  const [isFleetControlOpen, setIsFleetControlOpen] = useState(false);
   const [selectedCameras, setSelectedCameras] = useState<Set<string>>(new Set());
   const [customName, setCustomName] = useState(
     localStorage.getItem("hguard_preferred_name") || 
@@ -180,6 +181,26 @@ const Dashboard = () => {
       });
     } catch (e) {
       toast({ title: "Error", variant: "destructive", description: "Failed to update camera setting" });
+    }
+  };
+
+  const handleGlobalSetting = async (key: string, value: boolean) => {
+    if (devices.length === 0) {
+      toast({ title: "No Cameras", description: "Add a camera first.", variant: "destructive" });
+      return;
+    }
+    try {
+      const promises = devices.map(cam => 
+        updateDoc(doc(db, "devices", cam.id), { [`settings.${key}`]: value })
+      );
+      await Promise.all(promises);
+      toast({ 
+        title: "Fleet Command Sent", 
+        description: `Successfully updated ${devices.length} cameras.`,
+        className: "bg-blue-600 text-white border-none"
+      });
+    } catch (e) {
+      toast({ title: "Error", description: "Failed to update fleet.", variant: "destructive" });
     }
   };
 
@@ -435,6 +456,14 @@ const Dashboard = () => {
           </div>
           
           <div className="flex items-center gap-2 shrink-0">
+            {/* Fleet Command */}
+            <Button
+              onClick={() => setIsFleetControlOpen(true)}
+              className="h-8 bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 border border-blue-500/30 rounded-full font-bold text-[10px] px-3 mr-1"
+            >
+              <Target className="h-3.5 w-3.5 mr-1" /> Fleet Command
+            </Button>
+
             {/* Grid view select */}
             {devices.length >= 2 && (
               gridSelectMode ? (
@@ -608,6 +637,77 @@ const Dashboard = () => {
         )}
 
       </div>
+
+      {/* Global Fleet Control Modal */}
+      <AnimatePresence>
+        {isFleetControlOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+            onClick={() => setIsFleetControlOpen(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-[#111] border border-white/10 w-full max-w-md rounded-3xl overflow-hidden shadow-2xl"
+            >
+              <div className="p-6 border-b border-white/5 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center">
+                    <Target className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-white font-bold text-lg">Fleet Command</h2>
+                    <p className="text-white/40 text-xs">Push updates to all {devices.length} cameras instantly.</p>
+                  </div>
+                </div>
+                <button onClick={() => setIsFleetControlOpen(false)} className="text-white/40 hover:text-white">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-4">
+                <div className="flex items-center justify-between p-4 bg-white/[0.02] border border-white/5 rounded-2xl">
+                  <div>
+                    <p className="text-white font-bold text-sm">AI Security Guard</p>
+                    <p className="text-white/40 text-[10px]">Enable Gemini AI narrative descriptions globally.</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={() => handleGlobalSetting('ai_active', true)} className="h-7 text-[10px] bg-green-500/20 text-green-400 hover:bg-green-500/30 border border-green-500/30">ON</Button>
+                    <Button size="sm" onClick={() => handleGlobalSetting('ai_active', false)} className="h-7 text-[10px] bg-white/5 text-white hover:bg-white/10">OFF</Button>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between p-4 bg-white/[0.02] border border-white/5 rounded-2xl">
+                  <div>
+                    <p className="text-white font-bold text-sm">Auto Night Vision</p>
+                    <p className="text-white/40 text-[10px]">Cameras engage Night Vision automatically in low light.</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={() => handleGlobalSetting('auto_night_vision', true)} className="h-7 text-[10px] bg-green-500/20 text-green-400 hover:bg-green-500/30 border border-green-500/30">ON</Button>
+                    <Button size="sm" onClick={() => handleGlobalSetting('auto_night_vision', false)} className="h-7 text-[10px] bg-white/5 text-white hover:bg-white/10">OFF</Button>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between p-4 bg-white/[0.02] border border-white/5 rounded-2xl">
+                  <div>
+                    <p className="text-white font-bold text-sm">Force Sleep (Power Save)</p>
+                    <p className="text-white/40 text-[10px]">Turn off all camera screens to save maximum battery.</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={() => handleGlobalSetting('power_save', true)} className="h-7 text-[10px] bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 border border-blue-500/30">SLEEP</Button>
+                    <Button size="sm" onClick={() => handleGlobalSetting('power_save', false)} className="h-7 text-[10px] bg-white/5 text-white hover:bg-white/10">WAKE</Button>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </AppLayout>
   );
 };
