@@ -101,6 +101,8 @@ const CameraMode = () => {
   const [faceModelsLoaded, setFaceModelsLoaded] = useState(false);
   const [knownFaces, setKnownFaces] = useState<{name: string, descriptor: Float32Array}[]>([]);
   const lastFaceAlertRef = useRef(0);
+  const [activeBolos, setActiveBolos] = useState<{id: string, label: string, descriptor: Float32Array}[]>([]);
+  const lastBoloHitRef = useRef<Record<string, number>>({});
 
   useEffect(() => {
     resolvedDeviceIdRef.current = resolvedDeviceId;
@@ -479,7 +481,22 @@ const CameraMode = () => {
     return () => { mounted = false; };
   }, [user]);
 
-  // Edge Facial Recognition Loop
+  // Listen for active BOLO alerts pushed from Sentinel Command Center
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, "bolo_alerts"), snap => {
+      const bolos = snap.docs
+        .filter(d => d.data().status === "active")
+        .map(d => ({
+          id: d.id,
+          label: d.data().label,
+          descriptor: new Float32Array(d.data().descriptor)
+        }));
+      setActiveBolos(bolos);
+    });
+    return () => unsub();
+  }, []);
+
+  // Edge Facial Recognition Loop (Personal + BOLO)
   useEffect(() => {
     if (!faceModelsLoaded || cameraMode !== 'full' || !isActive || isPowerSaveMode) return;
     let timeout: any;
@@ -491,6 +508,10 @@ const CameraMode = () => {
             .withFaceDescriptors();
 
           if (detections.length > 0 && userRef.current && resolvedDeviceIdRef.current) {
+            const now = Date.now();
+            const deviceName = devices.find((d: any) => d.id === resolvedDeviceIdRef.current)?.name || "Unknown Camera";
+
+            // — Personal identity matching —
             let names: string[] = [];
             detections.forEach(det => {
               let bestMatch = { name: "Unknown Person", distance: 1.0 };
@@ -498,30 +519,64 @@ const CameraMode = () => {
                 const dist = faceapi.euclideanDistance(det.descriptor, known.descriptor);
                 if (dist < bestMatch.distance) bestMatch = { name: known.name, distance: dist };
               });
-              if (bestMatch.distance < 0.55) {
-                names.push(bestMatch.name);
-              } else {
-                names.push("Unknown Person");
-              }
+              names.push(bestMatch.distance < 0.55 ? bestMatch.name : "Unknown Person");
             });
-
-            const uniqueNames = Array.from(new Set(names));
-            const now = Date.now();
-            
-            // Only alert every 15 seconds to avoid spam
             if (now - lastFaceAlertRef.current > 15000) {
               lastFaceAlertRef.current = now;
               const alertData = {
                 device_id: resolvedDeviceIdRef.current,
                 user_id: userRef.current.uid,
-                type: uniqueNames.includes("Unknown Person") ? "unknown_face" : "known_face",
-                message: `Faces detected: ${uniqueNames.join(", ")}`,
+                type: Array.from(new Set(names)).includes("Unknown Person") ? "unknown_face" : "known_face",
+                message: `Faces detected: ${Array.from(new Set(names)).join(", ")}`,
                 viewed: false,
                 created_at: serverTimestamp()
               };
               addDoc(collection(db, "alerts"), alertData).catch(() => {});
               triggerWebhook(alertData);
               wakeUp();
+            }
+
+            // — BOLO / Sentinel matching —
+            if (activeBolos.length > 0) {
+              detections.forEach(det => {
+                activeBolos.forEach(bolo => {
+                  const dist = faceapi.euclideanDistance(det.descriptor, bolo.descriptor);
+                  const confidence = Math.max(0, 1 - dist);
+                  const lastHit = lastBoloHitRef.current[bolo.id] || 0;
+                  
+                  // Fire hit if confidence > 60% and not hit in last 20 seconds
+                  if (confidence > 0.60 && now - lastHit > 20000) {
+                    lastBoloHitRef.current[bolo.id] = now;
+
+                    // Try to get GPS coords
+                    const hitPayload: any = {
+                      boloId: bolo.id,
+                      boloLabel: bolo.label,
+                      deviceId: resolvedDeviceIdRef.current,
+                      deviceName,
+                      confidence,
+                      timestamp: serverTimestamp()
+                    };
+
+                    const fireHit = (payload: any) => {
+                      addDoc(collection(db, "bolo_hits"), payload).catch(() => {});
+                      // Also update hit count on the BOLO
+                      updateDoc(doc(db, "bolo_alerts", bolo.id), { hitCount: (increment as any)(1) }).catch(() => {});
+                      wakeUp();
+                    };
+
+                    if ("geolocation" in navigator) {
+                      navigator.geolocation.getCurrentPosition(
+                        pos => fireHit({ ...hitPayload, lat: pos.coords.latitude, lng: pos.coords.longitude }),
+                        () => fireHit(hitPayload),
+                        { timeout: 3000 }
+                      );
+                    } else {
+                      fireHit(hitPayload);
+                    }
+                  }
+                });
+              });
             }
           }
         }

@@ -21,6 +21,7 @@ import Onboarding from "./pages/Onboarding";
 import ArchivePage from "./pages/ArchivePage";
 import HelpPage from "./pages/HelpPage";
 import AILab from "./pages/AILab";
+import SentinelPage from "./pages/SentinelPage";
 import NotFound from "./pages/NotFound";
 import InstallPrompt from "./components/InstallPrompt";
 
@@ -60,6 +61,7 @@ const App = () => (
               <Route path="/archive" element={<ProtectedRoute><ArchivePage /></ProtectedRoute>} />
               <Route path="/help" element={<ProtectedRoute><HelpPage /></ProtectedRoute>} />
               <Route path="/ai-lab" element={<ProtectedRoute><AILab /></ProtectedRoute>} />
+              <Route path="/sentinel" element={<ProtectedRoute><SentinelPage /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
             <InstallPrompt />

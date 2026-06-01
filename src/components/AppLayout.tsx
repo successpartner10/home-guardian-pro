@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { LayoutDashboard, Camera, Bell, Settings, LogOut, Shield, Users, HelpCircle, Brain, Menu, X, ChevronRight, Archive, Zap } from "lucide-react";
+import { LayoutDashboard, Camera, Bell, Settings, LogOut, Shield, Users, HelpCircle, Brain, Menu, X, ChevronRight, Archive, Zap, ShieldAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Logo } from "./Logo";
 import { motion, AnimatePresence } from "framer-motion";
@@ -20,6 +20,7 @@ const bottomNavItems = [
 const menuItems = [
   { to: "/users", icon: Users, label: "Users & Access", adminOnly: true },
   { to: "/ai-lab", icon: Brain, label: "AI Lab", adminOnly: true },
+  { to: "/sentinel", icon: ShieldAlert, label: "Sentinel Command", adminOnly: true },
   { to: "/archive", icon: Archive, label: "Recording Archive" },
 ];
 
