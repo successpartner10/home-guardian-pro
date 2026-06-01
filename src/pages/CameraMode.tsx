@@ -72,7 +72,7 @@ const CameraMode = () => {
 
   const [analysis, setAnalysis] = useState<AIResponse | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [showNarrative, setShowNarrative] = useState(false);
+  const [showNarrative, setShowNarrative] = useState(true);
   const [devices, setDevices] = useState<any[]>([]);
   const [isMonitoring, setIsMonitoring] = useState(true);
   const [referenceImage, setReferenceImage] = useState<string | null>(localStorage.getItem("hguard_reference_image"));
@@ -356,7 +356,10 @@ const CameraMode = () => {
     if (msg.type === 'COMMAND') {
       if (msg.action === 'TOGGLE_FLASH') toggleFlash();
       if (msg.action === 'TOGGLE_SIREN') toggleSiren();
-      if (msg.action === 'TOGGLE_NIGHT_VISION') { setAutoNightVision(false); setNightVision(prev => !prev); }
+      if (msg.action === 'TOGGLE_NIGHT_VISION') { 
+        setAutoNightVision(false); 
+        setNightVision(prev => !prev); 
+      }
       if (msg.action === 'TAKE_SNAPSHOT') takeSnapshot();
       if (msg.action === 'SET_ZOOM' && typeof msg.value === 'number') {
         applyHardwareZoom(msg.value);
@@ -418,6 +421,16 @@ const CameraMode = () => {
     }, 15000);
     return () => clearInterval(heartbeat);
   }, [resolvedDeviceId, battery]);
+
+  useEffect(() => {
+    if (autoNightVision) {
+      if (ambientBrightness < 15 && !nightVision) {
+        setNightVision(true);
+      } else if (ambientBrightness > 30 && nightVision) {
+        setNightVision(false);
+      }
+    }
+  }, [ambientBrightness, autoNightVision, nightVision]);
 
   useEffect(() => {
     if (cameraMode !== 'select' && !cameraStarted) {
