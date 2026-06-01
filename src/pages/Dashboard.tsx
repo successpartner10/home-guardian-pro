@@ -445,9 +445,9 @@ const Dashboard = () => {
       <div className="p-4 sm:p-6 h-full flex flex-col max-w-5xl mx-auto space-y-6">
         
         {/* Top Actions — Alfred-inspired clean header */}
-        <div className="flex items-center justify-between gap-3 bg-white/[0.02] border border-white/5 rounded-2xl px-4 py-3">
+        <div className="flex items-center justify-between gap-3 bg-muted/20 border border-border rounded-2xl px-4 py-3">
           <div className="min-w-0">
-            <h1 className="text-lg font-bold tracking-tight text-white flex items-center gap-2">
+            <h1 className="text-lg font-bold tracking-tight text-foreground flex items-center gap-2">
               <Camera className="h-4 w-4 text-primary shrink-0" /> My Cameras
             </h1>
             <p className="text-[10px] text-muted-foreground mt-0.5">
@@ -456,12 +456,12 @@ const Dashboard = () => {
           </div>
           
           <div className="flex items-center gap-2 shrink-0">
-            {/* Fleet Command */}
+            {/* Global Settings */}
             <Button
               onClick={() => setIsFleetControlOpen(true)}
-              className="h-8 bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 border border-blue-500/30 rounded-full font-bold text-[10px] px-3 mr-1"
+              className="h-8 bg-primary/20 text-primary hover:bg-primary/30 border border-primary/30 rounded-full font-bold text-[10px] px-3 mr-1"
             >
-              <Target className="h-3.5 w-3.5 mr-1" /> Fleet Command
+              <Settings className="h-3.5 w-3.5 mr-1" /> Settings
             </Button>
 
             {/* Grid view select */}
@@ -475,11 +475,11 @@ const Dashboard = () => {
                       }
                     }}
                     disabled={selectedCameras.size < 2}
-                    className="h-8 rounded-full bg-primary text-black hover:bg-primary/90 text-[10px] font-bold px-3"
+                    className="h-8 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 text-[10px] font-bold px-3"
                   >
                     <Grid2x2 className="h-3.5 w-3.5 mr-1" /> View {selectedCameras.size}
                   </Button>
-                  <button onClick={() => { setGridSelectMode(false); setSelectedCameras(new Set()); }} className="h-8 w-8 rounded-full bg-white/5 flex items-center justify-center text-white/40 hover:text-white">
+                  <button onClick={() => { setGridSelectMode(false); setSelectedCameras(new Set()); }} className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground">
                     <X className="h-3.5 w-3.5" />
                   </button>
                 </div>
@@ -487,7 +487,7 @@ const Dashboard = () => {
                 <Button
                   onClick={() => setGridSelectMode(true)}
                   variant="outline"
-                  className="h-8 rounded-full border-white/10 hover:bg-white/5 text-[10px] font-bold px-3"
+                  className="h-8 rounded-full border-border hover:bg-muted text-[10px] font-bold px-3"
                 >
                   <Grid2x2 className="h-3.5 w-3.5 mr-1" /> Grid
                 </Button>
@@ -496,7 +496,7 @@ const Dashboard = () => {
             <Button 
               onClick={handleUseAsCamera} 
               disabled={registering}
-              className="h-8 bg-primary text-black hover:bg-primary/90 rounded-full font-bold text-[10px] px-3"
+              className="h-8 bg-primary text-primary-foreground hover:bg-primary/90 rounded-full font-bold text-[10px] px-3"
             >
               <Camera className="h-3.5 w-3.5 mr-1" /> Camera
             </Button>
@@ -504,7 +504,7 @@ const Dashboard = () => {
               onClick={handleUseAsViewer} 
               disabled={registering}
               variant="outline"
-              className="h-8 rounded-full border-white/10 hover:bg-white/5 font-bold text-[10px] px-3"
+              className="h-8 rounded-full border-border hover:bg-muted font-bold text-[10px] px-3"
             >
               <MonitorSmartphone className="h-3.5 w-3.5 mr-1" /> Viewer
             </Button>
@@ -518,13 +518,13 @@ const Dashboard = () => {
             <p className="mt-4 text-xs font-medium text-muted-foreground">Loading cameras...</p>
           </div>
         ) : devices.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 px-4 text-center bg-white/[0.01] border border-white/5 rounded-3xl border-dashed">
-            <LayoutGrid className="h-12 w-12 text-white/10 mb-4" />
-            <h2 className="text-lg font-bold text-white mb-2">No cameras found</h2>
+          <div className="flex flex-col items-center justify-center py-20 px-4 text-center bg-muted/10 border border-border rounded-3xl border-dashed">
+            <LayoutGrid className="h-12 w-12 text-muted-foreground/30 mb-4" />
+            <h2 className="text-lg font-bold text-foreground mb-2">No cameras found</h2>
             <p className="text-xs text-muted-foreground max-w-sm mb-6">
               You haven't added any cameras yet. Install this app on a spare phone or tablet and tap "Add Camera".
             </p>
-            <Button onClick={handleUseAsCamera} variant="outline" className="rounded-full border-white/10 hover:bg-white/5">
+            <Button onClick={handleUseAsCamera} variant="outline" className="rounded-full border-border hover:bg-muted">
               Set up this device as a camera instead
             </Button>
           </div>
@@ -536,10 +536,10 @@ const Dashboard = () => {
                 <div
                   key={camera.id}
                   className={cn(
-                    "w-full h-[18rem] rounded-2xl overflow-hidden border shadow-lg relative bg-black/50 group transition-all",
+                    "w-full h-[18rem] rounded-2xl overflow-hidden border shadow-lg relative bg-card group transition-all",
                     gridSelectMode && isSelected
                       ? "border-primary ring-2 ring-primary/30"
-                      : "border-white/10"
+                      : "border-border"
                   )}
                 >
                   {/* Grid select overlay */}
@@ -553,11 +553,11 @@ const Dashboard = () => {
                           return next;
                         });
                       }}
-                      className="absolute inset-0 z-30 flex items-center justify-center bg-black/40 backdrop-blur-[2px] cursor-pointer"
+                      className="absolute inset-0 z-30 flex items-center justify-center bg-background/40 backdrop-blur-[2px] cursor-pointer"
                     >
                       <div className={cn(
                         "h-10 w-10 rounded-full flex items-center justify-center transition-all",
-                        isSelected ? "bg-primary text-black scale-110" : "bg-white/10 text-white/50 border border-white/20"
+                        isSelected ? "bg-primary text-primary-foreground scale-110" : "bg-muted text-muted-foreground border border-border"
                       )}>
                         <CheckSquare className="h-5 w-5" />
                       </div>
@@ -579,13 +579,13 @@ const Dashboard = () => {
                   {/* Bottom status pill — Alfred-style compact */}
                   {!gridSelectMode && (
                     <div className="absolute bottom-2.5 left-2.5 right-2.5 z-20 flex items-center justify-between pointer-events-none">
-                      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md border border-white/10">
+                      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-background/60 backdrop-blur-md border border-border">
                         <div className={cn(
                           "h-1.5 w-1.5 rounded-full",
                           camera.status === 'recording' ? 'bg-red-500 animate-pulse' :
-                          camera.status === 'online' ? 'bg-green-500' : 'bg-white/20'
+                          camera.status === 'online' ? 'bg-green-500' : 'bg-muted-foreground'
                         )} />
-                        <span className="text-[10px] font-bold text-white/80 truncate max-w-[100px]">{camera.name}</span>
+                        <span className="text-[10px] font-bold text-foreground/80 truncate max-w-[100px]">{camera.name}</span>
                         {(camera.settings as any)?.cloud_recording && (
                           <Shield className="h-3 w-3 text-primary" />
                         )}
@@ -602,31 +602,31 @@ const Dashboard = () => {
         {viewers.length > 0 && (
           <div className="space-y-3">
             <div className="flex items-center gap-2 px-1">
-              <MonitorSmartphone className="h-4 w-4 text-white/40" />
-              <span className="text-xs font-bold uppercase tracking-widest text-white/40">Active Viewers ({viewers.length})</span>
+              <MonitorSmartphone className="h-4 w-4 text-muted-foreground" />
+              <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Active Viewers ({viewers.length})</span>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pb-12">
               {viewers.map((viewer) => (
-                <div key={viewer.id} className="flex items-center gap-4 p-4 bg-white/[0.02] border border-white/10 rounded-2xl">
+                <div key={viewer.id} className="flex items-center gap-4 p-4 bg-muted/20 border border-border rounded-2xl">
                   <div className={`h-10 w-10 rounded-full flex items-center justify-center shrink-0 ${
-                    viewer.status === 'online' ? 'bg-green-500/10 text-green-400' : 'bg-white/5 text-white/30'
+                    viewer.status === 'online' ? 'bg-green-500/10 text-green-600 dark:text-green-400' : 'bg-muted text-muted-foreground'
                   }`}>
                     <MonitorSmartphone className="h-5 w-5" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-white truncate">{viewer.name}</p>
+                    <p className="text-sm font-bold text-foreground truncate">{viewer.name}</p>
                     <div className="flex items-center gap-2 mt-0.5">
                       <div className={`h-1.5 w-1.5 rounded-full ${
-                        viewer.status === 'online' ? 'bg-green-500 animate-pulse' : 'bg-white/20'
+                        viewer.status === 'online' ? 'bg-green-500 animate-pulse' : 'bg-muted-foreground'
                       }`} />
-                      <p className="text-[10px] text-white/40 font-medium capitalize">{viewer.status}</p>
+                      <p className="text-[10px] text-muted-foreground font-medium capitalize">{viewer.status}</p>
                     </div>
                   </div>
                   <Button 
                     variant="ghost" 
                     size="icon" 
                     onClick={() => handleDeleteDevice(viewer.id, viewer.name)} 
-                    className="h-8 w-8 text-white/30 hover:text-red-400 hover:bg-red-400/10 rounded-xl"
+                    className="h-8 w-8 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 rounded-xl"
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -638,14 +638,14 @@ const Dashboard = () => {
 
       </div>
 
-      {/* Global Fleet Control Modal */}
+      {/* Global Camera Settings Modal */}
       <AnimatePresence>
         {isFleetControlOpen && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm"
             onClick={() => setIsFleetControlOpen(false)}
           >
             <motion.div
@@ -653,54 +653,54 @@ const Dashboard = () => {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-[#111] border border-white/10 w-full max-w-md rounded-3xl overflow-hidden shadow-2xl"
+              className="bg-card border w-full max-w-md rounded-3xl overflow-hidden shadow-2xl"
             >
-              <div className="p-6 border-b border-white/5 flex items-center justify-between">
+              <div className="p-6 border-b flex items-center justify-between bg-muted/30">
                 <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center">
-                    <Target className="h-5 w-5" />
+                  <div className="h-10 w-10 rounded-full bg-primary/20 text-primary flex items-center justify-center">
+                    <Settings className="h-5 w-5" />
                   </div>
                   <div>
-                    <h2 className="text-white font-bold text-lg">Fleet Command</h2>
-                    <p className="text-white/40 text-xs">Push updates to all {devices.length} cameras instantly.</p>
+                    <h2 className="text-foreground font-bold text-lg">Global Camera Settings</h2>
+                    <p className="text-muted-foreground text-xs">Apply settings to all {devices.length} cameras.</p>
                   </div>
                 </div>
-                <button onClick={() => setIsFleetControlOpen(false)} className="text-white/40 hover:text-white">
+                <button onClick={() => setIsFleetControlOpen(false)} className="text-muted-foreground hover:text-foreground">
                   <X className="h-5 w-5" />
                 </button>
               </div>
 
               <div className="p-6 space-y-4">
-                <div className="flex items-center justify-between p-4 bg-white/[0.02] border border-white/5 rounded-2xl">
+                <div className="flex items-center justify-between p-4 bg-background border rounded-2xl">
                   <div>
-                    <p className="text-white font-bold text-sm">AI Security Guard</p>
-                    <p className="text-white/40 text-[10px]">Enable Gemini AI narrative descriptions globally.</p>
+                    <p className="text-foreground font-bold text-sm">Smart AI Alerts</p>
+                    <p className="text-muted-foreground text-[10px]">Enable AI descriptions globally.</p>
                   </div>
                   <div className="flex gap-2">
-                    <Button size="sm" onClick={() => handleGlobalSetting('ai_active', true)} className="h-7 text-[10px] bg-green-500/20 text-green-400 hover:bg-green-500/30 border border-green-500/30">ON</Button>
-                    <Button size="sm" onClick={() => handleGlobalSetting('ai_active', false)} className="h-7 text-[10px] bg-white/5 text-white hover:bg-white/10">OFF</Button>
+                    <Button size="sm" onClick={() => handleGlobalSetting('ai_active', true)} className="h-7 text-[10px] bg-green-500/20 text-green-600 dark:text-green-400 hover:bg-green-500/30 border border-green-500/30">ON</Button>
+                    <Button size="sm" variant="outline" onClick={() => handleGlobalSetting('ai_active', false)} className="h-7 text-[10px]">OFF</Button>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between p-4 bg-white/[0.02] border border-white/5 rounded-2xl">
+                <div className="flex items-center justify-between p-4 bg-background border rounded-2xl">
                   <div>
-                    <p className="text-white font-bold text-sm">Auto Night Vision</p>
-                    <p className="text-white/40 text-[10px]">Cameras engage Night Vision automatically in low light.</p>
+                    <p className="text-foreground font-bold text-sm">Automatic Night Vision</p>
+                    <p className="text-muted-foreground text-[10px]">Turn on night vision automatically in low light.</p>
                   </div>
                   <div className="flex gap-2">
-                    <Button size="sm" onClick={() => handleGlobalSetting('auto_night_vision', true)} className="h-7 text-[10px] bg-green-500/20 text-green-400 hover:bg-green-500/30 border border-green-500/30">ON</Button>
-                    <Button size="sm" onClick={() => handleGlobalSetting('auto_night_vision', false)} className="h-7 text-[10px] bg-white/5 text-white hover:bg-white/10">OFF</Button>
+                    <Button size="sm" onClick={() => handleGlobalSetting('auto_night_vision', true)} className="h-7 text-[10px] bg-green-500/20 text-green-600 dark:text-green-400 hover:bg-green-500/30 border border-green-500/30">ON</Button>
+                    <Button size="sm" variant="outline" onClick={() => handleGlobalSetting('auto_night_vision', false)} className="h-7 text-[10px]">OFF</Button>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between p-4 bg-white/[0.02] border border-white/5 rounded-2xl">
+                <div className="flex items-center justify-between p-4 bg-background border rounded-2xl">
                   <div>
-                    <p className="text-white font-bold text-sm">Force Sleep (Power Save)</p>
-                    <p className="text-white/40 text-[10px]">Turn off all camera screens to save maximum battery.</p>
+                    <p className="text-foreground font-bold text-sm">Save Battery (Screen Off)</p>
+                    <p className="text-muted-foreground text-[10px]">Turn off all camera screens to save battery.</p>
                   </div>
                   <div className="flex gap-2">
-                    <Button size="sm" onClick={() => handleGlobalSetting('power_save', true)} className="h-7 text-[10px] bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 border border-blue-500/30">SLEEP</Button>
-                    <Button size="sm" onClick={() => handleGlobalSetting('power_save', false)} className="h-7 text-[10px] bg-white/5 text-white hover:bg-white/10">WAKE</Button>
+                    <Button size="sm" onClick={() => handleGlobalSetting('power_save', true)} className="h-7 text-[10px] bg-blue-500/20 text-blue-600 dark:text-blue-400 hover:bg-blue-500/30 border border-blue-500/30">SLEEP</Button>
+                    <Button size="sm" variant="outline" onClick={() => handleGlobalSetting('power_save', false)} className="h-7 text-[10px]">WAKE</Button>
                   </div>
                 </div>
               </div>

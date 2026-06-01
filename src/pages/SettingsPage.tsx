@@ -24,7 +24,7 @@ import {
   Trash2, Save, LogOut, AlertTriangle, ShieldCheck, Settings2, Shield, Bell, Clock, 
   UserCheck, HardDrive, Edit3, Share2, Activity, Moon, Zap, Palette, 
   VolumeX, Smartphone, Music, Calendar, Lock as LockIcon, Unlock as UnlockIcon,
-  HardDrive as DiscIcon, Download, CloudOff, Check, Camera as CameraIcon, Monitor
+  HardDrive as DiscIcon, Download, CloudOff, Check, Camera as CameraIcon, Monitor, Sun
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
@@ -422,9 +422,27 @@ const SettingsPage = () => {
   return (
     <AppLayout>
       <div className="p-6 max-w-2xl mx-auto space-y-10 mb-20 tracking-tighter">
-        <div className="space-y-2">
-          <h1 className="text-3xl font-black uppercase leading-none">Settings</h1>
-          <p className="text-base text-muted-foreground font-medium">Control your security settings and preferences.</p>
+        <div className="flex items-center justify-between">
+          <div className="space-y-2">
+            <h1 className="text-3xl font-black uppercase leading-none">Settings</h1>
+            <p className="text-base text-muted-foreground font-medium">Control your security settings and preferences.</p>
+          </div>
+          <div className="flex items-center gap-2 bg-card border rounded-full p-1">
+            <Button
+              variant={theme === "light" ? "default" : "ghost"}
+              onClick={() => setTheme("light")}
+              className="h-8 w-8 rounded-full p-0"
+            >
+              <Sun className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={theme === "dark" ? "default" : "ghost"}
+              onClick={() => setTheme("dark")}
+              className="h-8 w-8 rounded-full p-0"
+            >
+              <Moon className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
 
         {/* My Cameras & Viewers — Rename Section */}

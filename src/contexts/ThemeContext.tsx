@@ -1,14 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { auth, db } from "@/lib/firebase";
-import { doc, getDoc, updateDoc, onSnapshot } from "firebase/firestore";
 
-export type ThemeType =
-    | "dark-blue"
-    | "dark-onyx"
-    | "dark-slate"
-    | "pastel"
-    | "light-pure"
-    | "light-cream";
+export type ThemeType = "light" | "dark";
 
 interface ThemeContextType {
     theme: ThemeType;
@@ -18,16 +10,20 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const [theme] = useState<ThemeType>("dark-onyx");
+    const [theme, setThemeState] = useState<ThemeType>(() => {
+        const saved = localStorage.getItem("hguard_theme");
+        return (saved as ThemeType) || "dark";
+    });
 
     useEffect(() => {
         const root = window.document.documentElement;
-        root.classList.remove(...root.classList); // Clear all classes
-        root.classList.add("dark", "dark-onyx");
-    }, []);
+        root.classList.remove("light", "dark");
+        root.classList.add(theme);
+        localStorage.setItem("hguard_theme", theme);
+    }, [theme]);
 
-    const setTheme = async () => {
-        // No-op to disable theme switching
+    const setTheme = (newTheme: ThemeType) => {
+        setThemeState(newTheme);
     };
 
     return (
@@ -44,3 +40,4 @@ export const useTheme = () => {
     }
     return context;
 };
+
