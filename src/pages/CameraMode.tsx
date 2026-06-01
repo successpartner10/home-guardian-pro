@@ -44,97 +44,7 @@ interface PendingAlert {
   created_at: string;
 }
 
-const ActionBar = React.memo(({
-  toggleSiren,
-  sirenActive,
-  handleSnapshot,
-  isMuted,
-  toggleMute,
-  flashOn,
-  toggleFlash,
-  isOnline,
-  batteryLevel,
-  isCharging,
-  isPowerSaveMode,
-  togglePowerSave,
-  deviceName,
-  handleRename
-}: any) => {
-  return (
-    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-40 w-full max-w-sm px-4 flex flex-col items-center gap-4">
-      <div className="bg-black/20 backdrop-blur-2xl border border-white/5 rounded-full p-2 flex items-center justify-between gap-6 shadow-[0_20px_50px_rgba(0,0,0,0.5)] w-full">
-        <div className="flex items-center gap-2 pl-4">
-          <motion.div
-            animate={{ opacity: [1, 0.4, 1] }}
-            transition={{ duration: 1.5, repeat: Infinity }}
-            className="h-2 w-2 rounded-full bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.8)]"
-          />
-          <span className="text-[10px] font-black text-white uppercase tracking-[0.2em]">Live</span>
-        </div>
-
-        <div className="flex items-center gap-4">
-          <Button
-            onClick={handleRename}
-            variant="ghost"
-            className="px-4 py-1 h-auto text-[10px] font-black text-white/40 hover:text-white uppercase tracking-widest bg-white/5 rounded-full border border-white/10"
-          >
-            {deviceName || "Unnamed Camera"}
-          </Button>
-        </div>
-
-        <div className="flex items-center gap-4">
-          <Button
-            onClick={togglePowerSave}
-            variant="ghost"
-            size="icon"
-            className={cn(
-              "h-10 w-10 rounded-full transition-all border border-transparent",
-              isPowerSaveMode ? "bg-primary text-black" : "bg-white/5 text-white/60 hover:bg-white/10"
-            )}
-          >
-             <Moon className="h-5 w-5" />
-          </Button>
-
-          <Button
-            onClick={toggleFlash}
-            variant="ghost"
-            size="icon"
-            className={cn(
-              "h-10 w-10 rounded-full transition-all border border-transparent",
-              flashOn ? "bg-primary text-black" : "bg-white/5 text-white/60 hover:bg-white/10"
-            )}
-          >
-             {flashOn ? <Flashlight className="h-5 w-5" /> : <FlashlightOff className="h-5 w-5" />}
-          </Button>
-
-          <Button
-            onClick={handleSnapshot}
-            className="h-12 w-12 rounded-full bg-white text-black hover:bg-white/90 shadow-2xl transition-all active:scale-90 p-0"
-          >
-            <Camera className="h-6 w-6" />
-          </Button>
-
-          <Button
-            onClick={toggleSiren}
-            variant="ghost"
-            size="icon"
-            className={cn(
-              "h-10 w-10 rounded-full transition-all border border-transparent",
-              sirenActive ? "bg-destructive text-white animate-pulse" : "bg-white/5 text-white/60 hover:bg-white/10"
-            )}
-          >
-             <AlertTriangle className="h-5 w-5" />
-          </Button>
-        </div>
-
-        <div className="flex items-center gap-2 pr-4">
-          <BatteryIcon className={cn("h-4 w-4", isCharging ? "text-green-400" : "text-white/60")} />
-          <span className="text-[10px] font-black text-white/80">{batteryLevel}%</span>
-        </div>
-      </div>
-    </div>
-  );
-});
+// ActionBar removed per architecture shift - Camera is a dumb node
 
 const CameraMode = () => {
   const { deviceId } = useParams<{ deviceId: string }>();
@@ -667,105 +577,24 @@ const CameraMode = () => {
         )}
       </div>
 
-      {/* Source Selection Controls */}
-      <div className="absolute top-20 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-4 w-full max-w-xs">
-        <div className="bg-black/60 backdrop-blur-xl border border-white/10 rounded-2xl p-1.5 flex gap-1 shadow-2xl">
-          <button
-            onClick={() => { setIsBridgeMode(false); restartCamera(); }}
-            className={cn(
-              "px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all",
-              !isBridgeMode ? "bg-primary text-black" : "text-white/40 hover:text-white/60"
-            )}
-          >
-            Camera
-          </button>
-          <button
-            onClick={() => { setIsBridgeMode(true); restartCamera(); }}
-            className={cn(
-              "px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all",
-              isBridgeMode ? "bg-blue-500 text-white" : "text-white/40 hover:text-white/60"
-            )}
-          >
-            Screen share
-          </button>
-        </div>
-
-        {isBridgeMode && (
-          <motion.div 
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="px-4 py-2 rounded-xl bg-blue-500/20 border border-blue-500/30 text-center"
-          >
-            <p className="text-[8px] font-bold text-blue-300 uppercase tracking-widest leading-tight">
-              Open another camera in a tab,<br/>then pick it here to share that view
-            </p>
-          </motion.div>
-        )}
-
-        {!isBridgeMode && availableCameras.length > 1 && (
-          <div className="flex flex-wrap justify-center gap-1.5">
-            {availableCameras.map((cam, idx) => (
-              <button
-                key={cam.deviceId}
-                onClick={() => handleCameraChange(cam.deviceId)}
-                className={cn(
-                  "px-3 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all border",
-                  selectedCameraId === cam.deviceId 
-                    ? "bg-white border-white text-black" 
-                    : "bg-black/40 border-white/10 text-white/40 hover:bg-white/10"
-                )}
-              >
-                {cam.label || `Cam ${idx + 1}`}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <ActionBar
-        toggleSiren={toggleSiren} sirenActive={sirenActive} handleSnapshot={() => { const s = takeSnapshot(); if (s) toast({ title: "Snapshot Saved" }); }}
-        isMuted={isMuted} toggleMute={toggleMute} flashOn={flashOn} toggleFlash={toggleFlash}
-        batteryLevel={battery.level} isCharging={battery.isCharging} isPowerSaveMode={isPowerSaveMode}
-        togglePowerSave={() => setIsPowerSaveMode(!isPowerSaveMode)} deviceName={deviceName} handleRename={handleRename}
-      />
+      {/* Camera is now a pure viewer node; all controls are managed remotely via WebRTC */}
 
       <div className="absolute top-6 left-6 z-50 flex items-center gap-3">
         <Button variant="ghost" size="icon" onClick={() => { localStorage.removeItem("hguard_role"); navigate("/dashboard"); }} className="h-12 w-12 rounded-2xl bg-white/10 backdrop-blur-3xl border border-white/20 text-white">
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <Button 
-          variant="ghost" 
-          onClick={relinkGoogle}
-          className="h-12 px-4 rounded-2xl bg-blue-500/10 backdrop-blur-3xl border border-blue-500/20 text-blue-400 text-[9px] font-black uppercase tracking-widest"
-        >
-          <RefreshCw className="h-3 w-3 mr-2" />
-          Connect Google Drive
-        </Button>
       </div>
 
-      {/* Power Save Mode Overlay */}
-      <AnimatePresence>
-        {isPowerSaveMode && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="absolute inset-0 z-[60] bg-black flex flex-col items-center justify-center cursor-pointer"
-            onClick={() => setIsPowerSaveMode(false)}
-          >
-            <div className="flex flex-col items-center gap-6 opacity-40">
-              <Padlock className="h-12 w-12 text-white" />
-              <p className="text-white text-sm font-bold tracking-widest uppercase">Power-Saving Mode</p>
-              <p className="text-white/50 text-xs">Tap anywhere to unlock</p>
-            </div>
-            
-            <div className="absolute bottom-12 flex items-center gap-2 opacity-30">
-              <BatteryIcon className={cn("h-4 w-4", battery.isCharging ? "text-green-400" : "text-white")} />
-              <span className="text-xs font-bold text-white">{battery.level}%</span>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2">
+        <div className="px-4 py-2 rounded-2xl bg-black/40 backdrop-blur-3xl border border-white/10 shadow-2xl flex items-center gap-3">
+          <BatteryIcon className={cn("h-4 w-4", battery.isCharging ? "text-green-400" : "text-white/60")} />
+          <span className="text-[10px] font-black text-white/80">{battery.level}%</span>
+          <div className="w-[1px] h-3 bg-white/20" />
+          <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">
+            {deviceName || "Camera Node"}
+          </span>
+        </div>
+      </div>
     </div>
   );
 };

@@ -299,7 +299,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (isNative || Capacitor.isNativePlatform()) {
         try {
-          const result = await FirebaseAuthentication.signInWithGoogle();
+          const result = await FirebaseAuthentication.signInWithGoogle({ 
+            scopes: [
+              "https://www.googleapis.com/auth/drive.file",
+              "https://www.googleapis.com/auth/drive.install"
+            ] 
+          });
           if (!result.credential) throw new Error("No credential returned from native sign-in");
           
           const credential = GoogleAuthProvider.credential(
@@ -363,7 +368,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const isNative = typeof window !== 'undefined' && (window as any).Capacitor?.isNative;
       
       if (isNative || Capacitor.isNativePlatform()) {
-        const result = await FirebaseAuthentication.signInWithGoogle();
+        const result = await FirebaseAuthentication.signInWithGoogle({ 
+          scopes: [
+            "https://www.googleapis.com/auth/drive.file",
+            "https://www.googleapis.com/auth/drive.install"
+          ] 
+        });
         if (!result.credential) throw new Error("No credential returned from native sign-in");
         const credential = GoogleAuthProvider.credential(
           result.credential.idToken,
