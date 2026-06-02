@@ -14,7 +14,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import AppLayout from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { UserCheck, UserX, Shield, Mail, Calendar, Share2 } from "lucide-react";
+import { UserCheck, UserX, Shield, Mail, Calendar, Share2, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
@@ -95,6 +95,17 @@ const UserManagement = () => {
             });
         } catch (e: any) {
             toast({ title: "Update Failed", description: e.message, variant: "destructive" });
+        }
+    };
+
+    const handleDeleteUser = async (userId: string, userName: string) => {
+        if (!window.confirm(`Are you sure you want to permanently delete ${userName} from the network?`)) return;
+        try {
+            await deleteDoc(doc(db, "profiles", userId));
+            setUsers(prev => prev.filter(u => u.user_id !== userId));
+            toast({ title: "User Terminated", description: "Profile has been completely removed." });
+        } catch (e: any) {
+            toast({ title: "Deletion Failed", description: e.message, variant: "destructive" });
         }
     };
 
@@ -192,6 +203,15 @@ const UserManagement = () => {
                                                         <span>PENDING</span>
                                                     </div>
                                                 )}
+                                            </Button>
+                                            
+                                            <Button
+                                                variant="outline"
+                                                size="icon"
+                                                onClick={() => handleDeleteUser(profile.user_id, profile.display_name || "User")}
+                                                className="h-16 w-16 shrink-0 rounded-3xl border-2 border-red-500/20 text-red-500 hover:bg-red-500 hover:text-white transition-all shadow-sm"
+                                            >
+                                                <Trash2 className="h-6 w-6" />
                                             </Button>
                                         </div>
 
