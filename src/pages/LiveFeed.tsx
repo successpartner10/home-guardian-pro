@@ -398,10 +398,17 @@ const LiveFeed = () => {
 
         const playVideo = () => {
           video.play()
-            .then(() => console.log("[LiveFeed] Remote video playback started."))
+            .then(() => {
+              console.log("[LiveFeed] Remote video playback started.");
+              setPlayAttempted(true);
+            })
             .catch(e => {
               console.warn("[LiveFeed] Remote play failed, retrying...", e);
-              setTimeout(() => video.play().catch(p => console.error("[LiveFeed] Final remote play failed:", p)), 1000);
+              setTimeout(() => {
+                video.play()
+                  .then(() => setPlayAttempted(true))
+                  .catch(p => console.error("[LiveFeed] Final remote play failed:", p));
+              }, 1000);
             });
         };
 
@@ -449,7 +456,7 @@ const LiveFeed = () => {
   // ── Super Zoom Capture: grab frame → unsharp mask → AI read ──────────────
   const superZoomCapture = useCallback(async () => {
     const video = remoteVideoRef.current;
-    if (!video || !isConnected) return;
+    if (!video || (!isConnected && !video.srcObject)) return;
 
     // 1. Capture raw frame to canvas at native resolution
     const canvas = document.createElement("canvas");
@@ -462,13 +469,13 @@ const LiveFeed = () => {
     if (zoomLevel > 1) {
       const cw = Math.round(canvas.width / zoomLevel);
       const ch = Math.round(canvas.height / zoomLevel);
-      const sx = Math.round((zoomCenter.x / 100) * canvas.width - cw / 2);
-      const sy = Math.round((zoomCenter.y / 100) * canvas.height - ch / 2);
+      const sx = Math.max(0, Math.min(canvas.width - cw, Math.round((zoomCenter.x / 100) * canvas.width - cw / 2)));
+      const sy = Math.max(0, Math.min(canvas.height - ch, Math.round((zoomCenter.y / 100) * canvas.height - ch / 2)));
       const cropped = document.createElement("canvas");
       cropped.width = canvas.width;
       cropped.height = canvas.height;
       const cctx = cropped.getContext("2d")!;
-      cctx.drawImage(canvas, Math.max(0, sx), Math.max(0, sy), cw, ch, 0, 0, canvas.width, canvas.height);
+      cctx.drawImage(canvas, sx, sy, cw, ch, 0, 0, canvas.width, canvas.height);
       canvas.getContext("2d")!.drawImage(cropped, 0, 0);
     }
 
@@ -836,7 +843,7 @@ const LiveFeed = () => {
                     </div>
                   )}
 
-                  <DrawerBtn icon={<ScanSearch className="h-4 w-4" />} label="Super Zoom Capture" onClick={superZoomCapture} disabled={!isConnected} />
+                  <DrawerBtn icon={<ScanSearch className="h-4 w-4" />} label="Super Zoom Capture" onClick={superZoomCapture} disabled={!isConnected && !remoteStream} />
                   <DrawerBtn icon={<Maximize className="h-4 w-4" />} label="Fullscreen" onClick={toggleFullscreen} />
                   <DrawerBtn icon={<Maximize2 className="h-4 w-4" />} label="Picture-in-Picture" onClick={togglePiP} />
                 </DrawerSection>

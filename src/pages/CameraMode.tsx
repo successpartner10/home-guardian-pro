@@ -28,7 +28,7 @@ import {
   Moon, Sun, AlertTriangle, Mic, MicOff, Flashlight, FlashlightOff,
   Camera, ArrowLeft, Users, Zap, Battery as BatteryIcon, WifiOff, Wifi,
   RefreshCcw, Lock as Padlock, Maximize, ChevronRight, RotateCw, Tag,
-  Settings, Terminal, Clock, ShieldAlert, RefreshCw, Shield, Eye, Activity
+  Settings, Terminal, Clock, ShieldAlert, RefreshCw, Shield, Eye, EyeOff, Activity
 } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { useToast } from "@/hooks/use-toast";
@@ -91,6 +91,7 @@ const CameraMode = () => {
   const [isPowerSaveMode, setIsPowerSaveMode] = useState(false);
   const [deviceName, setDeviceName] = useState("");
   const activeRecorderRef = useRef<{ extend: () => void } | null>(null);
+  const [showControls, setShowControls] = useState(false);
   const [ambientBrightness, setAmbientBrightness] = useState(100);
   const [availableCameras, setAvailableCameras] = useState<MediaDeviceInfo[]>([]);
   const [selectedCameraId, setSelectedCameraId] = useState<string>(localStorage.getItem("hguard_preferred_camera") || "");
@@ -721,7 +722,7 @@ const CameraMode = () => {
       />
       <canvas ref={canvasRef} className="hidden" />
       {/* Broadcast Status */}
-      {isReceivingAudio && (
+      {showControls && isReceivingAudio && (
         <div className="absolute top-6 right-6 z-50 flex items-center gap-3 px-4 py-2 bg-red-600/90 backdrop-blur-md rounded-2xl animate-pulse shadow-[0_0_20px_rgba(220,38,38,0.4)] border border-red-500/50">
           <Mic className="h-4 w-4 text-foreground" />
           <span className="text-[10px] font-black uppercase tracking-widest text-foreground">Viewer is talking</span>
@@ -729,7 +730,7 @@ const CameraMode = () => {
       )}
 
       {/* Civic Mesh Badge — shown when opted in */}
-      {civicMeshEnabled && activeBolos.length > 0 && (
+      {showControls && civicMeshEnabled && activeBolos.length > 0 && (
         <div className="absolute top-6 left-6 z-50 flex items-center gap-2 px-3 py-1.5 bg-amber-500/90 backdrop-blur-md rounded-xl border border-amber-400/50 shadow-lg">
           <div className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
           <span className="text-[9px] font-black uppercase tracking-widest text-black">Civic Mesh Active</span>
@@ -737,81 +738,94 @@ const CameraMode = () => {
       )}
 
       {/* Header HUD */}
+      {showControls && (
+        <div className="absolute top-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2">
+          <div className="px-4 py-2 rounded-2xl bg-background/40 backdrop-blur-3xl border border-border flex items-center gap-3 shadow-2xl">
+            <div className={cn(
+              "h-2 w-2 rounded-full animate-pulse",
+              !resolvedDeviceId ? "bg-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.8)]" : 
+              viewerConnected ? "bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.8)]" :
+              "bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.8)]"
+            )} />
+            <span className="text-[9px] font-black uppercase tracking-[0.2em] text-foreground/80">
+              {!resolvedDeviceId ? "Setting up…" : viewerConnected ? "Someone is watching" : "Ready to watch"}
+            </span>
+          </div>
 
-      <div className="absolute top-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2">
-        <div className="px-4 py-2 rounded-2xl bg-background/40 backdrop-blur-3xl border border-border flex items-center gap-3 shadow-2xl">
-          <div className={cn(
-            "h-2 w-2 rounded-full animate-pulse",
-            !resolvedDeviceId ? "bg-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.8)]" : 
-            viewerConnected ? "bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.8)]" :
-            "bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.8)]"
-          )} />
-          <span className="text-[9px] font-black uppercase tracking-[0.2em] text-foreground/80">
-            {!resolvedDeviceId ? "Setting up…" : viewerConnected ? "Someone is watching" : "Ready to watch"}
-          </span>
-        </div>
-
-        {cameraMode !== 'select' && (
-          <button
-            onClick={async () => {
-              const nextMode = cameraMode === 'lite' ? 'full' : 'lite';
-              if (nextMode === 'full') {
-                const fullCameras = devices.filter(d => d.settings?.cloud_recording === true && d.id !== resolvedDeviceId);
-                if (fullCameras.length >= 4) {
-                  toast({ title: "Limit Reached", description: "Maximum of 4 cameras can save to Google Drive simultaneously.", variant: "destructive" });
-                  return;
+          {cameraMode !== 'select' && (
+            <button
+              onClick={async () => {
+                const nextMode = cameraMode === 'lite' ? 'full' : 'lite';
+                if (nextMode === 'full') {
+                  const fullCameras = devices.filter(d => d.settings?.cloud_recording === true && d.id !== resolvedDeviceId);
+                  if (fullCameras.length >= 4) {
+                    toast({ title: "Limit Reached", description: "Maximum of 4 cameras can save to Google Drive simultaneously.", variant: "destructive" });
+                    return;
+                  }
                 }
-              }
-              setCameraMode(nextMode);
-              localStorage.setItem("hguard_camera_mode", nextMode);
-              if (resolvedDeviceId) await updateDoc(doc(db, "devices", resolvedDeviceId), { "settings.cloud_recording": nextMode === 'full' });
-              toast({
-                title: `Switched to ${nextMode === 'lite' ? 'Watch only' : 'Full protection'}`,
-                description: nextMode === 'lite' 
-                  ? "Streaming only — AI and cloud recording are off."
-                  : "AI alerts and cloud recording are on."
-              });
-            }}
-            className={cn(
-              "px-3 py-2 rounded-2xl border backdrop-blur-3xl text-[9px] font-black uppercase tracking-[0.15em] flex items-center gap-1.5 transition-all shadow-2xl",
-              cameraMode === 'lite' 
-                ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20" 
-                : "bg-purple-500/10 border-purple-500/30 text-purple-400 hover:bg-purple-500/20"
-            )}
-          >
-            {cameraMode === 'lite' ? (
-              <>
-                <Eye className="h-3 w-3 animate-pulse" />
-                <span>Watch only</span>
-              </>
-            ) : (
-              <>
-                <Shield className="h-3 w-3" />
-                <span>Full</span>
-              </>
-            )}
-          </button>
-        )}
-      </div>
+                setCameraMode(nextMode);
+                localStorage.setItem("hguard_camera_mode", nextMode);
+                if (resolvedDeviceId) await updateDoc(doc(db, "devices", resolvedDeviceId), { "settings.cloud_recording": nextMode === 'full' });
+                toast({
+                  title: `Switched to ${nextMode === 'lite' ? 'Watch only' : 'Full protection'}`,
+                  description: nextMode === 'lite' 
+                    ? "Streaming only — AI and cloud recording are off."
+                    : "AI alerts and cloud recording are on."
+                });
+              }}
+              className={cn(
+                "px-3 py-2 rounded-2xl border backdrop-blur-3xl text-[9px] font-black uppercase tracking-[0.15em] flex items-center gap-1.5 transition-all shadow-2xl",
+                cameraMode === 'lite' 
+                  ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20" 
+                  : "bg-purple-500/10 border-purple-500/30 text-purple-400 hover:bg-purple-500/20"
+              )}
+            >
+              {cameraMode === 'lite' ? (
+                <>
+                  <Eye className="h-3 w-3 animate-pulse" />
+                  <span>Watch only</span>
+                </>
+              ) : (
+                <>
+                  <Shield className="h-3 w-3" />
+                  <span>Full</span>
+                </>
+              )}
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Camera is now a pure viewer node; all controls are managed remotely via WebRTC */}
-
-      <div className="absolute top-6 left-6 z-50 flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => { localStorage.removeItem("hguard_role"); navigate("/dashboard"); }} className="h-12 w-12 rounded-2xl bg-muted/50 backdrop-blur-3xl border border-border text-foreground">
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-      </div>
-
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2">
-        <div className="px-4 py-2 rounded-2xl bg-background/40 backdrop-blur-3xl border border-border shadow-2xl flex items-center gap-3">
-          <BatteryIcon className={cn("h-4 w-4", battery.isCharging ? "text-green-400" : "text-muted-foreground")} />
-          <span className="text-[10px] font-black text-foreground/80">{battery.level}%</span>
-          <div className="w-[1px] h-3 bg-white/20" />
-          <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
-            {deviceName || "Camera Node"}
-          </span>
+      {showControls && (
+        <div className="absolute top-6 left-6 z-50 flex items-center gap-3">
+          <Button variant="ghost" size="icon" onClick={() => { localStorage.removeItem("hguard_role"); navigate("/dashboard"); }} className="h-12 w-12 rounded-2xl bg-muted/50 backdrop-blur-3xl border border-border text-foreground">
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
         </div>
-      </div>
+      )}
+
+      {showControls && (
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2">
+          <div className="px-4 py-2 rounded-2xl bg-background/40 backdrop-blur-3xl border border-border shadow-2xl flex items-center gap-3">
+            <BatteryIcon className={cn("h-4 w-4", battery.isCharging ? "text-green-400" : "text-muted-foreground")} />
+            <span className="text-[10px] font-black text-foreground/80">{battery.level}%</span>
+            <div className="w-[1px] h-3 bg-white/20" />
+            <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+              {deviceName || "Camera Node"}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Floating Toggle HUD button */}
+      <button
+        onClick={() => setShowControls(p => !p)}
+        className="absolute bottom-6 right-6 z-[70] h-12 w-12 rounded-2xl bg-background/50 hover:bg-background/80 backdrop-blur-3xl border border-border/80 flex items-center justify-center text-foreground hover:scale-105 transition-all shadow-2xl"
+        title={showControls ? "Hide Controls" : "Show Controls"}
+      >
+        {showControls ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+      </button>
 
       <AnimatePresence>
         {isPowerSaveMode && (

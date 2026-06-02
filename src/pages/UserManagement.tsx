@@ -27,6 +27,8 @@ interface UserProfile {
     email?: string;
     is_approved?: boolean;
     created_at: string;
+    role_category?: "individual" | "gov_admin" | "investor";
+    gov_org_name?: string;
 }
 
 const UserManagement = () => {
@@ -71,6 +73,25 @@ const UserManagement = () => {
             toast({
                 title: !currentStatus ? "User Approved" : "Access Revoked",
                 description: `That person can ${!currentStatus ? 'now watch your cameras' : 'no longer access your cameras'}.`
+            });
+        } catch (e: any) {
+            toast({ title: "Update Failed", description: e.message, variant: "destructive" });
+        }
+    };
+
+    const handleUpdateRoleCategory = async (userId: string, roleCategory: "individual" | "gov_admin" | "investor", govOrgName?: string) => {
+        try {
+            const docRef = doc(db, "profiles", userId);
+            const updates: any = { role_category: roleCategory };
+            if (govOrgName !== undefined) {
+                updates.gov_org_name = govOrgName;
+            }
+            await updateDoc(docRef, updates);
+
+            setUsers(prev => prev.map(u => u.user_id === userId ? { ...u, role_category: roleCategory, gov_org_name: govOrgName ?? u.gov_org_name } : u));
+            toast({
+                title: "Category Updated",
+                description: `User is now classified as ${roleCategory === 'gov_admin' ? `Gov Admin (${govOrgName || 'N/A'})` : roleCategory}.`
             });
         } catch (e: any) {
             toast({ title: "Update Failed", description: e.message, variant: "destructive" });
@@ -127,50 +148,97 @@ const UserManagement = () => {
                                     exit={{ opacity: 0, scale: 0.95 }}
                                 >
                                     <div className={cn(
-                                        "relative overflow-hidden p-6 rounded-[2.5rem] border-2 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-6",
+                                        "relative overflow-hidden p-6 rounded-[2.5rem] border-2 transition-all flex flex-col gap-6",
                                         profile.is_approved ? "bg-primary/5 border-primary/20" : "bg-orange-500/10 border-orange-500/40 animate-pulse-subtle shadow-[0_0_20px_rgba(249,115,22,0.1)]"
                                     )}>
-                                        <div className="flex items-center gap-6">
-                                            <div className={cn(
-                                                "h-16 w-16 rounded-3xl flex items-center justify-center text-3xl font-black shadow-xl",
-                                                profile.is_approved ? "bg-primary text-foreground" : "bg-muted text-muted-foreground"
-                                            )}>
-                                                {profile.display_name?.[0]?.toUpperCase() || "N"}
-                                            </div>
-                                            <div className="space-y-1">
-                                                <p className="text-2xl font-black uppercase tracking-tight leading-none">
-                                                    {profile.display_name || "New user"}
-                                                </p>
-                                                <div className="flex items-center gap-3 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-                                                    <span className="flex items-center gap-1.5"><Mail className="h-3 w-3" /> {profile.user_id.slice(0, 8)}...</span>
-                                                    <span className="flex items-center gap-1.5"><Calendar className="h-3 w-3" /> {format(new Date(profile.created_at), "MMM d, yyyy")}</span>
+                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+                                            <div className="flex items-center gap-6">
+                                                <div className={cn(
+                                                    "h-16 w-16 rounded-3xl flex items-center justify-center text-3xl font-black shadow-xl",
+                                                    profile.is_approved ? "bg-primary text-foreground" : "bg-muted text-muted-foreground"
+                                                )}>
+                                                    {profile.display_name?.[0]?.toUpperCase() || "N"}
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <p className="text-2xl font-black uppercase tracking-tight leading-none">
+                                                        {profile.display_name || "New user"}
+                                                    </p>
+                                                    <div className="flex items-center gap-3 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                                                        <span className="flex items-center gap-1.5"><Mail className="h-3 w-3" /> {profile.user_id.slice(0, 8)}...</span>
+                                                        <span className="flex items-center gap-1.5"><Calendar className="h-3 w-3" /> {profile.created_at ? format(new Date(profile.created_at), "MMM d, yyyy") : "N/A"}</span>
+                                                    </div>
                                                 </div>
                                             </div>
+
+                                            <Button
+                                                variant={profile.is_approved ? "default" : "outline"}
+                                                size="lg"
+                                                onClick={() => handleToggleApproval(profile.user_id, !!profile.is_approved)}
+                                                className={cn(
+                                                    "h-16 px-8 rounded-3xl font-black transition-all active:scale-95",
+                                                    profile.is_approved
+                                                        ? "bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20"
+                                                        : "border-2 border-primary/40 text-primary hover:bg-primary/10"
+                                                )}
+                                            >
+                                                {profile.is_approved ? (
+                                                    <div className="flex items-center gap-2">
+                                                        <UserCheck className="h-6 w-6" />
+                                                        <span>APPROVED</span>
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex items-center gap-2">
+                                                        <UserX className="h-6 w-6" />
+                                                        <span>PENDING</span>
+                                                    </div>
+                                                )}
+                                            </Button>
                                         </div>
 
-                                        <Button
-                                            variant={profile.is_approved ? "default" : "outline"}
-                                            size="lg"
-                                            onClick={() => handleToggleApproval(profile.user_id, !!profile.is_approved)}
-                                            className={cn(
-                                                "h-16 px-8 rounded-3xl font-black transition-all active:scale-95",
-                                                profile.is_approved
-                                                    ? "bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20"
-                                                    : "border-2 border-primary/40 text-primary hover:bg-primary/10"
-                                            )}
-                                        >
-                                            {profile.is_approved ? (
-                                                <div className="flex items-center gap-2">
-                                                    <UserCheck className="h-6 w-6" />
-                                                    <span>APPROVED</span>
+                                        {/* Category Assignment Configuration */}
+                                        {profile.is_approved && (
+                                            <div className="pt-4 border-t border-border/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                                <div className="flex flex-col gap-1.5">
+                                                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">User Category</label>
+                                                    <div className="flex flex-wrap gap-1.5">
+                                                        {[
+                                                            { id: "individual", label: "Home User" },
+                                                            { id: "gov_admin", label: "Gov Admin" },
+                                                            { id: "investor", label: "Investor" }
+                                                        ].map(cat => {
+                                                            const active = (profile.role_category || "individual") === cat.id;
+                                                            return (
+                                                                <button
+                                                                    key={cat.id}
+                                                                    onClick={() => handleUpdateRoleCategory(profile.user_id, cat.id as any, profile.gov_org_name)}
+                                                                    className={cn(
+                                                                        "px-3 py-1.5 rounded-lg text-[9px] font-black uppercase border transition-all",
+                                                                        active
+                                                                            ? "bg-primary border-primary text-black"
+                                                                            : "bg-muted border-border/40 text-muted-foreground hover:text-foreground"
+                                                                    )}
+                                                                >
+                                                                    {cat.label}
+                                                                </button>
+                                                            );
+                                                        })}
+                                                    </div>
                                                 </div>
-                                            ) : (
-                                                <div className="flex items-center gap-2">
-                                                    <UserX className="h-6 w-6" />
-                                                    <span>PENDING</span>
-                                                </div>
-                                            )}
-                                        </Button>
+
+                                                {profile.role_category === "gov_admin" && (
+                                                    <div className="flex flex-col gap-1.5 w-full sm:w-auto">
+                                                        <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Gov Organization Name</label>
+                                                        <input
+                                                            type="text"
+                                                            placeholder="e.g. 1st Gov Org, 2nd, etc"
+                                                            value={profile.gov_org_name || ""}
+                                                            onChange={(e) => handleUpdateRoleCategory(profile.user_id, "gov_admin", e.target.value)}
+                                                            className="h-9 px-3 bg-muted border border-border/60 text-xs font-black uppercase rounded-lg text-foreground focus:outline-none focus:border-primary w-full sm:w-60"
+                                                        />
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
                                 </motion.div>
                             ))}

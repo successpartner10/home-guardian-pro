@@ -47,6 +47,8 @@ interface AuthContextType {
   isAdmin: boolean;
   aiDegraded: boolean;
   aiEventsThisMonth: number;
+  adminViewMode: "home" | "civic";
+  setAdminViewMode: (mode: "home" | "civic") => void;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   signUp: (email: string, password: string) => Promise<void>;
@@ -72,6 +74,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const isAdmin = user?.email === ADMIN_EMAIL;
   const AI_EVENT_LIMIT = 1000;
   const aiDegraded = aiEventsThisMonth >= AI_EVENT_LIMIT;
+  const [adminViewMode, setAdminViewMode] = useState<"home" | "civic">("home");
 
   // Record when this browser session started — used to detect force-reauth from other devices
   const sessionStartTime = useRef<number>(
@@ -406,7 +409,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, profileData, loading, isApproved, isAdmin, aiDegraded, aiEventsThisMonth, signInWithGoogle, signOut, signUp, signIn, forceLogoutAllDevices, relinkGoogle }}>
+    <AuthContext.Provider value={{ user, profileData, loading, isApproved, isAdmin, aiDegraded, aiEventsThisMonth, adminViewMode, setAdminViewMode, signInWithGoogle, signOut, signUp, signIn, forceLogoutAllDevices, relinkGoogle }}>
       {children}
     </AuthContext.Provider>
   );

@@ -9,16 +9,21 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import { Logo } from "@/components/Logo";
-import { Zap, Cloud, Mail, Lock, ChevronDown } from "lucide-react";
+import { Zap, Cloud, Mail, Lock, ChevronDown, ShieldCheck, KeyRound } from "lucide-react";
+import * as OTPAuth from "otpauth";
 
 const Login = () => {
   const [loading, setLoading] = useState(false);
   const [showEmailForm, setShowEmailForm] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const { signInWithGoogle, signIn, signUp, user } = useAuth();
+  const { signInWithGoogle, signIn, signUp, user, profileData, signOut } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  
+  const [requires2FA, setRequires2FA] = useState(false);
+  const [totpCode, setTotpCode] = useState("");
+  const [verifying2FA, setVerifying2FA] = useState(false);
 
   const handleHardReset = async () => {
     if (confirm("This will clear all local data and force a fresh reload. Use this if you are stuck in a login loop. Continue?")) {
@@ -35,8 +40,47 @@ const Login = () => {
   };
 
   useEffect(() => {
-    if (user) navigate("/dashboard");
-  }, [user, navigate]);
+    if (user && profileData !== null) {
+      if (profileData.totp_enabled && !sessionStorage.getItem("totp_verified")) {
+        setRequires2FA(true);
+        setLoading(false); // Make sure loading is false so UI shows
+      } else {
+        navigate("/dashboard");
+      }
+    }
+  }, [user, profileData, navigate]);
+
+  const verifyTOTP = () => {
+    if (!profileData?.totp_secret || totpCode.length !== 6) return;
+    setVerifying2FA(true);
+    
+    const totp = new OTPAuth.TOTP({
+      issuer: "HGUARD Elite",
+      label: user?.email || "user",
+      algorithm: "SHA1",
+      digits: 6,
+      period: 30,
+      secret: OTPAuth.Secret.fromBase32(profileData.totp_secret),
+    });
+
+    const delta = totp.validate({ token: totpCode, window: 1 });
+    
+    if (delta !== null) {
+      sessionStorage.setItem("totp_verified", "true");
+      toast({ title: "Verification Successful" });
+      navigate("/dashboard");
+    } else {
+      toast({ title: "Invalid Code", description: "The code is incorrect or expired.", variant: "destructive" });
+      setTotpCode("");
+    }
+    setVerifying2FA(false);
+  };
+
+  const handleCancel2FA = async () => {
+    await signOut();
+    setRequires2FA(false);
+    setTotpCode("");
+  };
 
   const handleGoogleLogin = async () => {
     setLoading(true);
@@ -106,11 +150,47 @@ const Login = () => {
 
         <Card className="border-border bg-muted/20 backdrop-blur-2xl shadow-2xl relative overflow-hidden rounded-[2.5rem] p-4">
           <CardHeader className="space-y-1 text-center pb-6 pt-6">
-            <CardTitle className="text-xl font-bold tracking-tight text-foreground">Welcome Back</CardTitle>
-            <CardDescription className="text-sm text-muted-foreground">Sign in to watch and manage your cameras</CardDescription>
+            <CardTitle className="text-xl font-bold tracking-tight text-foreground">
+              {requires2FA ? "Two-Factor Authentication" : "Welcome Back"}
+            </CardTitle>
+            <CardDescription className="text-sm text-muted-foreground">
+              {requires2FA ? "Enter the 6-digit code from your authenticator app" : "Sign in to watch and manage your cameras"}
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4 pb-8 flex flex-col items-center px-6">
-            {/* Google Login */}
+            {requires2FA ? (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="w-full space-y-4 flex flex-col items-center"
+              >
+                <div className="p-4 bg-primary/10 text-primary rounded-full mb-2">
+                  <ShieldCheck className="h-8 w-8" />
+                </div>
+                <Input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  placeholder="000000"
+                  value={totpCode}
+                  onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, ""))}
+                  className="h-16 text-center text-3xl font-black tracking-[0.5em] rounded-2xl border-2 border-primary/20 focus:border-primary"
+                  autoFocus
+                />
+                <Button
+                  onClick={verifyTOTP}
+                  disabled={verifying2FA || totpCode.length !== 6}
+                  className="w-full h-14 bg-primary text-black font-bold rounded-xl text-lg hover:bg-primary/90"
+                >
+                  {verifying2FA ? "Verifying..." : "Verify Code"}
+                </Button>
+                <Button variant="ghost" onClick={handleCancel2FA} className="text-xs text-muted-foreground mt-2">
+                  Cancel and Sign Out
+                </Button>
+              </motion.div>
+            ) : (
+              <>
+                {/* Google Login */}
             <Button
               type="button"
               id="google-login-btn"
@@ -204,6 +284,8 @@ const Login = () => {
                 </motion.form>
               )}
             </AnimatePresence>
+            </>
+            )}
           </CardContent>
         </Card>
 

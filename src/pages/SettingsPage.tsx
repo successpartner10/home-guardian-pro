@@ -26,8 +26,8 @@ import {
   Trash2, Save, LogOut, AlertTriangle, ShieldCheck, Settings2, Shield, Bell, Clock, 
   UserCheck, HardDrive, Edit3, Share2, Activity, Moon, Zap, Palette, 
   VolumeX, Smartphone, Music, Calendar, Lock as LockIcon, Unlock as UnlockIcon,
-  HardDrive as DiscIcon, Download, CloudOff, Check, Camera as CameraIcon, Monitor, Sun,
-  Radio, ShieldAlert, Heart, ChevronDown, ChevronUp, BellRing, Settings, Thermometer, AlertOctagon
+  DiscIcon, Download, CloudOff, Check, Camera as CameraIcon, Monitor, Sun,
+  Radio, ShieldAlert, Heart, ChevronDown, ChevronUp, BellRing, Settings, Thermometer, AlertOctagon, Terminal, RefreshCw, Eye
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
@@ -36,6 +36,7 @@ import { localFileSystem, LocalFile } from "@/lib/localFileSystem";
 import { useTheme, ThemeType } from "@/contexts/ThemeContext";
 import { cn } from "@/lib/utils";
 import PinModal from "@/components/PinModal";
+import TwoFactorSetup from "@/components/TwoFactorSetup";
 
 import { googleDrive } from "@/lib/googleDrive";
 import { aiOrchestrator } from "@/lib/ai/aiOrchestrator";
@@ -101,6 +102,7 @@ const SettingsPage = () => {
  
   const [ignorePets, setIgnorePets] = useState(false);
   const [archiveLimit, setArchiveLimit] = useState(10);
+  const [purgeThreshold, setPurgeThreshold] = useState(80);
   const [driveQuota, setDriveQuota] = useState<{ used: number, limit: number } | null>(null);
   const [activeBrain, setActiveBrain] = useState(aiOrchestrator.getProviderId());
   const [autoUpgrade, setAutoUpgrade] = useState(true);
@@ -144,6 +146,7 @@ const SettingsPage = () => {
       setSchedule(profileData.detection_schedule || { enabled: false, start: "22:00", end: "06:00" });
       setIgnorePets(profileData.ignore_pets ?? false);
       setArchiveLimit(profileData.archive_limit_gb || 10);
+      setPurgeThreshold(profileData.purge_threshold_percent || 80);
       setWebhookUrl(profileData.webhook_url || "");
       setAutoUpgrade(profileData.auto_upgrade_ai ?? true);
 
@@ -195,9 +198,51 @@ const SettingsPage = () => {
     if (!user) return;
     try {
       await updateDoc(doc(db, "profiles", user.uid), { archive_limit_gb: limit });
-      toast({ title: "Storage Limit Updated", description: `FIFO buffer set to ${limit} GB.` });
+      toast({ title: "Storage Limit Updated", description: limit === 9999 ? "FIFO buffer set to Unlimited." : `FIFO buffer set to ${limit} GB.` });
     } catch (e) {
       console.error(e);
+    }
+  };
+
+  const savePurgeThreshold = async (val: number) => {
+    setPurgeThreshold(val);
+    if (!user) return;
+    try {
+      await updateDoc(doc(db, "profiles", user.uid), { purge_threshold_percent: val });
+      toast({ title: "Purge Threshold Updated", description: `Auto-purge will trigger at ${val}% capacity.` });
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleBulkToggle = async (key: string, enabled: boolean) => {
+    const cameras = devices.filter(d => d.type === 'camera');
+    if (cameras.length === 0) {
+      toast({ title: "No Cameras", description: "No camera devices registered yet." });
+      return;
+    }
+    try {
+      const { writeBatch, doc } = await import("firebase/firestore");
+      const batch = writeBatch(db);
+      cameras.forEach(device => {
+        if (key === "civic_mesh_enabled") {
+          batch.update(doc(db, "devices", device.id), {
+            civic_mesh_enabled: enabled,
+            "settings.civic_mesh_enabled": enabled
+          });
+        } else {
+          batch.update(doc(db, "devices", device.id), {
+            [`settings.${key}`]: enabled
+          });
+        }
+      });
+      await batch.commit();
+      toast({
+        title: "Bulk Update Done",
+        description: `Set ${key.replace(/_/g, ' ')} to ${enabled ? "ON" : "OFF"} for all cameras.`
+      });
+    } catch (e) {
+      toast({ title: "Failed bulk update", variant: "destructive" });
     }
   };
 
@@ -535,6 +580,64 @@ const SettingsPage = () => {
             </div>
           </div>
 
+          {/* Explanation Banner & Civic Mesh Detail */}
+          <div className="p-4 rounded-2xl bg-muted/60 border border-border/80 space-y-3 text-xs font-medium">
+            <div className="space-y-1">
+              <p className="text-foreground font-black text-xs">Is the Features Manager required?</p>
+              <p className="text-muted-foreground leading-relaxed">
+                <span className="text-primary font-bold">Yes.</span> It is essential for managing individual hardware and software capabilities on each active camera node. Since different devices have different battery capacities, processing power, and surveillance locations, configuring features per-device ensures optimal resource usage and stops unnecessary power drain.
+              </p>
+            </div>
+
+            <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl space-y-2">
+              <div className="flex items-center gap-1.5">
+                <Radio className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+                <span className="text-[10px] font-black uppercase text-amber-300 tracking-wider">Civic Mesh & GPS Performance profile</span>
+              </div>
+              <p className="text-[9px] text-amber-200/80 leading-normal">
+                <strong>Impact of 20+ active alerts:</strong> Comparing descriptors uses highly optimized 128-dimensional Euclidean distance calculations. Matching a face against 20 active alerts takes less than 1 millisecond on the device's CPU, presenting <strong>0% visual or streaming lag</strong>.
+              </p>
+              <p className="text-[9px] text-amber-200/80 leading-normal">
+                <strong>GPS Delivery Speed:</strong> Signals are sent instantly (throttled to 20-second intervals per alert). The coordinates sent are the <strong>precise geolocation of the camera device itself</strong>, acting as an exact physical proxy of where the match occurred.
+              </p>
+            </div>
+          </div>
+
+          {/* Bulk Actions Panel */}
+          <div className="p-4 bg-muted/40 border border-border rounded-xl space-y-3">
+            <p className="text-[10px] font-black uppercase tracking-widest text-primary">Global Controls (Set all cameras at once)</p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {[
+                { key: "night_vision", label: "Night Vision" },
+                { key: "ai_active", label: "Smart AI Alerts" },
+                { key: "power_save", label: "Battery Saver" },
+                { key: "cloud_recording", label: "Cloud Sync" },
+                { key: "motion_alerts", label: "Motion Alerts" },
+                { key: "civic_mesh_enabled", label: "Civic Mesh" },
+                { key: "thermal_mode", label: "Thermal View" },
+                { key: "siren_defense", label: "Siren Rules" },
+              ].map(feat => (
+                <div key={feat.key} className="flex flex-col gap-1 p-2 bg-background/50 rounded-lg border border-border/40 text-center">
+                  <span className="text-[9px] font-black truncate">{feat.label}</span>
+                  <div className="flex gap-1 justify-center mt-1">
+                    <button
+                      onClick={() => handleBulkToggle(feat.key, true)}
+                      className="px-1.5 py-0.5 text-[8px] font-black bg-green-500/10 hover:bg-green-500/20 text-green-400 border border-green-500/20 rounded"
+                    >
+                      ON
+                    </button>
+                    <button
+                      onClick={() => handleBulkToggle(feat.key, false)}
+                      className="px-1.5 py-0.5 text-[8px] font-black bg-destructive/10 hover:bg-destructive/20 text-destructive border border-destructive/20 rounded"
+                    >
+                      OFF
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
           <div className="space-y-3">
             {devices.filter(d => d.type === 'camera').length === 0 && (
               <p className="text-sm text-muted-foreground text-center py-4">No cameras registered yet.</p>
@@ -748,6 +851,8 @@ const SettingsPage = () => {
             <h2 className="text-xl font-black tracking-tight">Security & PIN</h2>
           </div>
           <div className="space-y-6">
+            <TwoFactorSetup />
+            
             <div className="p-6 bg-primary/5 border-2 border-primary/20 rounded-[2.5rem] space-y-4">
               <div className="flex items-center justify-between">
                 <div className="space-y-1">
@@ -803,18 +908,61 @@ const SettingsPage = () => {
             <div className="space-y-6">
               <div className="flex justify-between items-center">
                 <p className="text-base font-black leading-none">Storage Limit</p>
-                <div className="flex items-center gap-2">
-                  <Input
-                    type="number"
-                    value={archiveLimit}
-                    onChange={(e) => saveArchiveLimit([parseInt(e.target.value) || 0])}
-                    className="w-20 h-10 bg-background/40 border-border text-center font-black rounded-xl"
-                  />
-                  <span className="text-[10px] font-black text-muted-foreground uppercase">GB</span>
+                <div className="flex items-center gap-1.5">
+                  {[5, 10, 50, 100, 500, 9999].map((val) => {
+                    const isUnlimited = val === 9999;
+                    const active = archiveLimit === val;
+                    return (
+                      <button
+                        key={val}
+                        onClick={() => saveArchiveLimit([val])}
+                        className={cn(
+                          "px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase border transition-all",
+                          active
+                            ? "bg-primary border-primary text-black"
+                            : "bg-background/40 border-border text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        {isUnlimited ? "Unlimited" : `${val}GB`}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
               
-              <p className="text-xs font-bold opacity-80 tracking-tight">Set how much Google Drive space to use. Older videos will be automatically deleted when this limit is reached.</p>
+              <p className="text-xs font-bold opacity-80 tracking-tight">Set HGUARD storage space limit. Select Unlimited to utilize the total drive capacity.</p>
+
+              {/* Deletion Purge Threshold Settings */}
+              <div className="space-y-3 pt-4 border-t border-primary/10">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-wider text-foreground">Auto-Purge Threshold (%)</p>
+                    <p className="text-[9px] text-muted-foreground uppercase">Triggers automatic oldest recording cleanup when storage exceeds this target</p>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="number"
+                      min={10}
+                      max={95}
+                      value={purgeThreshold}
+                      onChange={(e) => savePurgeThreshold(Math.max(10, Math.min(95, parseInt(e.target.value) || 80)))}
+                      className="w-14 h-8 bg-background/40 border border-border text-center font-black rounded-lg text-xs"
+                    />
+                    <span className="text-[9px] font-black text-muted-foreground">%</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="range"
+                    min={10}
+                    max={95}
+                    step={5}
+                    value={purgeThreshold}
+                    onChange={(e) => savePurgeThreshold(parseInt(e.target.value))}
+                    className="w-full h-1.5 rounded-full accent-primary cursor-pointer"
+                  />
+                </div>
+              </div>
 
               <div className="flex items-center justify-between p-4 bg-muted border border-border rounded-[1.5rem]">
                 <div className="flex items-center gap-3">
@@ -825,7 +973,7 @@ const SettingsPage = () => {
                     <Label className="text-sm font-bold uppercase tracking-widest">Drive Status</Label>
                     <p className="text-[10px] text-muted-foreground uppercase tracking-widest mt-0.5">
                       {driveQuota 
-                        ? `${Math.round(driveQuota.used / 1024 / 1024 / 1024 * 10) / 10} GB of ${Math.round(driveQuota.limit / 1024 / 1024 / 1024)} GB used`
+                        ? `${Math.round(driveQuota.used / 1024 / 1024 / 1024 * 10) / 10} GB of ${Math.round(driveQuota.limit / 1024 / 1024 / 1024)} GB used (${Math.round((driveQuota.used / driveQuota.limit) * 100)}% full)`
                         : "Info Not Available — Connect Drive"}
                     </p>
                   </div>
@@ -835,7 +983,11 @@ const SettingsPage = () => {
               <div className="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-2xl flex items-start gap-4">
                 <AlertTriangle className="h-5 w-5 text-yellow-500 mt-1 shrink-0" />
                 <p className="text-[11px] text-yellow-500/80 leading-relaxed font-medium">
-                  When your Google Drive usage for HGUARD exceeds <span className="font-bold text-yellow-400">{archiveLimit} GB</span>, the oldest recordings will be automatically deleted to free up space.
+                  {archiveLimit === 9999 ? (
+                    <span>Auto-purge will trigger to delete the oldest recordings once your storage capacity reaches <span className="font-bold text-yellow-400">{purgeThreshold}%</span>.</span>
+                  ) : (
+                    <span>When your storage usage for HGUARD exceeds <span className="font-bold text-yellow-400">{archiveLimit} GB</span>, or overall space hits <span className="font-bold text-yellow-400">{purgeThreshold}%</span>, the oldest recordings will be automatically cleaned up.</span>
+                  )}
                 </p>
               </div>
             </div>

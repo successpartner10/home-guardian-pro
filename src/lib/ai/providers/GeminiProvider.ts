@@ -1,6 +1,23 @@
 // © 2026 HGUARD Elite by Successpartner10. All rights reserved.
 // Unauthorized copying, modification, or distribution is strictly prohibited.
 import { AIProvider, AIResponse } from "../aiOrchestrator";
+import { db } from "@/lib/firebase";
+import { doc, setDoc, increment, serverTimestamp } from "firebase/firestore";
+
+// Silently increment the daily AI call counter in Firestore system_metrics
+async function trackAiCall(success: boolean) {
+  try {
+    const today = new Date();
+    const key = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+    await setDoc(doc(db, "system_metrics", key), {
+      ai_calls: increment(1),
+      ...(success ? {} : { quota_errors: increment(1) }),
+      updated_at: serverTimestamp(),
+    }, { merge: true });
+  } catch (_) {
+    // Never block AI pipeline for tracking errors
+  }
+}
 
 export class GeminiProvider implements AIProvider {
   id = "gemini";
@@ -55,6 +72,7 @@ IMPORTANT: ALL detected objects (people, animals, notable items) MUST have a box
       if (!response.ok) {
         if (response.status === 429) {
           console.warn("[AI] Gemini Rate Limit/Quota Exceeded.");
+          trackAiCall(false); // count rate-limit hit
           return {
             label: "API QUOTA EXCEEDED",
             tags: ["RATE_LIMIT", "NO_FUNDS"],
@@ -79,6 +97,9 @@ IMPORTANT: ALL detected objects (people, animals, notable items) MUST have a box
         cleanedJson = cleaned.substring(startIdx, endIdx + 1);
       }
       const result = JSON.parse(cleanedJson);
+
+      // Track successful call in background — non-blocking
+      trackAiCall(true);
 
       return {
         label: result.label || "Activity detected",

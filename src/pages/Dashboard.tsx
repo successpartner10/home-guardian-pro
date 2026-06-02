@@ -26,6 +26,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import LiveCameraStream from "@/components/LiveCameraStream";
+import QuotaMeter from "@/components/QuotaMeter";
 
 interface Device {
   id: string;
@@ -41,7 +42,7 @@ interface Device {
 }
 
 const Dashboard = () => {
-  const { user } = useAuth();
+  const { user, isAdmin, adminViewMode, setAdminViewMode } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [devices, setDevices] = useState<Device[]>([]);
@@ -194,13 +195,50 @@ const Dashboard = () => {
           ))}
         </div>
 
+        {/* Admin View Mode Toggle */}
+        {isAdmin && (
+          <div className="flex items-center gap-2 p-3 bg-card border border-border rounded-2xl">
+            <div className="flex items-center gap-1.5 mr-auto">
+              <ShieldCheck className="h-4 w-4 text-primary" />
+              <span className="text-xs font-black uppercase tracking-widest text-foreground">Admin View</span>
+            </div>
+            <div className="flex items-center gap-1 p-1 bg-muted rounded-xl">
+              <button
+                onClick={() => setAdminViewMode("home")}
+                className={cn(
+                  "px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all",
+                  adminViewMode === "home"
+                    ? "bg-primary text-black shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                🏠 Home User
+              </button>
+              <button
+                onClick={() => { setAdminViewMode("civic"); navigate("/sentinel"); }}
+                className={cn(
+                  "px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all",
+                  adminViewMode === "civic"
+                    ? "bg-amber-500 text-black shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                🛡️ Civic Command
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Admin Quota Monitor */}
+        <QuotaMeter />
+
         {/* Action bar */}
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <h1 className="text-xl font-black text-foreground tracking-tight">
             My Cameras
             {unreadAlerts > 0 && (
               <span className="ml-2 px-2 py-0.5 rounded-full bg-red-500/20 text-red-500 text-[10px] font-black align-middle animate-pulse">
-                {unreadAlerts} alert{unreadAlerts > 1 ? "s" : ""}
+                {unreadAlerts > 99 ? "99+" : unreadAlerts} alert{unreadAlerts > 1 ? "s" : ""}
               </span>
             )}
           </h1>
@@ -418,7 +456,21 @@ const Dashboard = () => {
                 </button>
               </div>
 
-              <div className="p-4 space-y-2 max-h-[70vh] overflow-y-auto">
+              <div className="p-4 space-y-3 max-h-[75vh] overflow-y-auto">
+
+                {/* Civic Mesh Info Panel */}
+                <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4 space-y-3 mb-1">
+                  <div className="flex items-center gap-2">
+                    <Radio className="h-4 w-4 text-amber-400 shrink-0" />
+                    <p className="text-amber-300 font-black text-xs uppercase tracking-widest">Civic Mesh — What it does</p>
+                  </div>
+                  <div className="space-y-2 text-[10px] text-amber-200/80 leading-relaxed font-medium">
+                    <p><span className="text-amber-300 font-black">BOLO (Be On the Lookout):</span> When Civic Mesh is ON, your camera silently compares faces it sees against active BOLO alerts issued by Sentinel Command. These are opt-in community safety alerts — for example, a missing person or a known threat posted by an authorized administrator.</p>
+                    <p><span className="text-amber-300 font-black">Privacy:</span> Your camera video never leaves your device. Only anonymous face match scores are transmitted. No raw footage is shared with any third party. You can opt out at any time by toggling Civic Mesh OFF.</p>
+                    <p><span className="text-amber-300 font-black">What happens on a match?</span> A silent hit report (confidence score + GPS location if permitted) is sent to Sentinel Command. No notification is sent to the person being scanned. Law enforcement is not automatically contacted.</p>
+                  </div>
+                </div>
+
                 {[
                   { key: "ai_active", label: "Smart AI Alerts", desc: "Enable live AI scene descriptions on all cameras", icon: Brain, color: "text-primary" },
                   { key: "auto_night_vision", label: "Auto Night Vision", desc: "Automatically switch to night mode in low light", icon: Moon, color: "text-blue-400" },
@@ -426,7 +478,7 @@ const Dashboard = () => {
                   { key: "cloud_recording", label: "Cloud Recording", desc: "Save clips to Google Drive automatically", icon: Shield, color: "text-green-500" },
                   { key: "motion_alerts", label: "Motion Alerts", desc: "Send push notifications on motion detection", icon: BellRing, color: "text-orange-500" },
                   { key: "high_quality", label: "High Quality Mode", desc: "Stream at maximum resolution (uses more data)", icon: Activity, color: "text-purple-500" },
-                  { key: "civic_mesh_enabled", label: "Civic Mesh (AMBER)", desc: "Allow cameras to scan for active BOLO alerts", icon: Radio, color: "text-amber-500" },
+                  { key: "civic_mesh_enabled", label: "Civic Mesh (AMBER)", desc: "Silent BOLO face scanning — anonymous, opt-in, privacy-first", icon: Radio, color: "text-amber-500" },
                 ].map(setting => (
                   <div key={setting.key} className="flex items-center justify-between p-4 bg-background/60 border border-border/60 rounded-2xl gap-3 hover:border-border transition-all">
                     <div className="flex items-center gap-3 min-w-0">
