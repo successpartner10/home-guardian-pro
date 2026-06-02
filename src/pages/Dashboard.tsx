@@ -55,6 +55,11 @@ const Dashboard = () => {
   const [selectedCameras, setSelectedCameras] = useState<Set<string>>(new Set());
 
   useEffect(() => {
+    // If the user navigates back to Dashboard via browser back button, reset the toggle
+    if (adminViewMode === "civic") {
+      setAdminViewMode("home");
+    }
+
     if (!user) return;
     const devicesQuery = query(collection(db, "devices"), where("user_id", "==", user.uid));
     const alertsQuery = query(collection(db, "alerts"), where("user_id", "==", user.uid));

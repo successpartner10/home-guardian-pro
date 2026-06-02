@@ -12,6 +12,7 @@ import {
   collection, doc, setDoc, getDocs, onSnapshot,
   deleteDoc, serverTimestamp, addDoc, query, orderBy, limit, updateDoc, increment
 } from "firebase/firestore";
+import { useNavigate } from "react-router-dom";
 import {
   ShieldAlert, Upload, X, Radio, MapPin, Camera,
   Clock, CheckCircle, AlertTriangle, Loader2, Trash2,
@@ -47,8 +48,9 @@ interface MeshHit {
 }
 
 const SentinelPage = () => {
-  const { user } = useAuth();
+  const { user, adminViewMode, setAdminViewMode } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const [modelsLoaded, setModelsLoaded] = useState(false);
   const [activeBolos, setActiveBolos] = useState<BoloAlert[]>([]);
@@ -440,6 +442,30 @@ const SentinelPage = () => {
           </div>
 
           <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 p-1 bg-muted rounded-xl border border-border mr-2 hidden sm:flex">
+              <button
+                onClick={() => { setAdminViewMode("home"); navigate("/dashboard"); }}
+                className={cn(
+                  "px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all",
+                  adminViewMode === "home"
+                    ? "bg-primary text-black shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                🏠 Home User
+              </button>
+              <button
+                onClick={() => setAdminViewMode("civic")}
+                className={cn(
+                  "px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all",
+                  adminViewMode === "civic"
+                    ? "bg-amber-500 text-black shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                🛡️ Civic Command
+              </button>
+            </div>
             <Button
               variant="outline"
               size="sm"
