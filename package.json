@@ -24,6 +24,7 @@
     "@capacitor/ios": "^8.3.4",
     "@capacitor/splash-screen": "^8.0.1",
     "@capacitor/status-bar": "^8.0.2",
+    "@cycjimmy/jsmpeg-player": "^6.1.2",
     "@hookform/resolvers": "^3.10.0",
     "@mediapipe/pose": "^0.5.1675469404",
     "@radix-ui/react-accordion": "^1.2.11",

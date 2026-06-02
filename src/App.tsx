@@ -24,6 +24,7 @@ import ArchivePage from "./pages/ArchivePage";
 import HelpPage from "./pages/HelpPage";
 import AILab from "./pages/AILab";
 import SentinelPage from "./pages/SentinelPage";
+import IPCameraBridge from "./pages/IPCameraBridge";
 import NotFound from "./pages/NotFound";
 import InstallPrompt from "./components/InstallPrompt";
 
@@ -64,6 +65,7 @@ const App = () => (
               <Route path="/help" element={<ProtectedRoute><HelpPage /></ProtectedRoute>} />
               <Route path="/ai-lab" element={<ProtectedRoute><AILab /></ProtectedRoute>} />
               <Route path="/sentinel" element={<ProtectedRoute><SentinelPage /></ProtectedRoute>} />
+              <Route path="/bridge" element={<ProtectedRoute><IPCameraBridge /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
             <InstallPrompt />

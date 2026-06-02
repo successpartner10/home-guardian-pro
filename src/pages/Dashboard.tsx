@@ -15,7 +15,7 @@ import {
   Camera, Wifi, WifiOff, Video, MonitorSmartphone,
   Trash2, Settings, Grid2x2, CheckSquare, X,
   Shield, ShieldCheck, Moon, Brain, Zap, BellRing,
-  Activity, Radio, Eye, ChevronRight, RefreshCw
+  Activity, Radio, Eye, ChevronRight, RefreshCw, Server
 } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
@@ -270,6 +270,9 @@ const Dashboard = () => {
             )}
             <Button onClick={() => setIsFleetControlOpen(true)} variant="outline" className="h-9 rounded-xl border-border text-xs font-bold px-3">
               <Settings className="h-3.5 w-3.5 mr-1.5" /> Fleet Settings
+            </Button>
+            <Button onClick={() => navigate("/bridge")} disabled={registering} className="h-9 rounded-xl bg-amber-500 hover:bg-amber-600 text-black text-xs font-bold px-3 shadow-sm hidden sm:flex">
+              <Server className="h-3.5 w-3.5 mr-1.5" /> IP Bridge
             </Button>
             <Button onClick={handleUseAsCamera} disabled={registering} className="h-9 rounded-xl bg-primary text-primary-foreground text-xs font-bold px-3">
               <Camera className="h-3.5 w-3.5 mr-1.5" /> Add Camera
