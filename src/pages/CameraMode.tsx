@@ -530,11 +530,22 @@ const CameraMode = () => {
     const unsub = onSnapshot(collection(db, "bolo_alerts"), snap => {
       const bolos = snap.docs
         .filter(d => d.data().status === "active")
-        .map(d => ({
-          id: d.id,
-          label: d.data().label,
-          descriptor: new Float32Array(d.data().descriptor)
-        }));
+        .map(d => {
+          const raw = d.data().descriptor;
+          // Validate — must be a non-empty numeric array (face-api uses 128-dim)
+          if (!Array.isArray(raw) || raw.length !== 128) {
+            console.warn(`[BOLO] Skipping "${d.data().label}" — descriptor missing or wrong length (got ${raw?.length ?? 'null'}).`);
+            return null;
+          }
+          return {
+            id: d.id,
+            label: d.data().label,
+            descriptor: new Float32Array(raw),
+          };
+        })
+        .filter(Boolean) as { id: string; label: string; descriptor: Float32Array }[];
+
+      console.log(`[BOLO] Loaded ${bolos.length} valid BOLO(s) from Sentinel.`);
       setActiveBolos(bolos);
     });
     return () => unsub();
@@ -543,17 +554,24 @@ const CameraMode = () => {
   // Edge Facial Recognition Loop (Personal + BOLO)
   useEffect(() => {
     if (!faceModelsLoaded || cameraMode !== 'full' || !isActive || isPowerSaveMode) return;
+    console.log("[BOLO] Detection loop starting. Active BOLOs:", activeBolos.length, activeBolos.map(b => b.label));
     let timeout: any;
+    let running = true;
     const detectFaces = async () => {
+      if (!running) return;
       try {
-        if (videoRef.current) {
-          const detections = await faceapi.detectAllFaces(videoRef.current)
+        if (!videoRef.current) {
+          console.warn("[BOLO] videoRef not ready, skipping cycle");
+        } else {
+          const detections = await faceapi
+            .detectAllFaces(videoRef.current, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.1 }))
             .withFaceLandmarks()
             .withFaceDescriptors();
 
           if (detections.length > 0 && userRef.current && resolvedDeviceIdRef.current) {
             const now = Date.now();
             const deviceName = devices.find((d: any) => d.id === resolvedDeviceIdRef.current)?.name || "Unknown Camera";
+            console.log(`[BOLO] Detected ${detections.length} face(s) in frame`);
 
             // — Personal identity matching —
             let names: string[] = [];
@@ -580,16 +598,24 @@ const CameraMode = () => {
               wakeUp();
             }
 
-            // — BOLO / Sentinel matching — only if user opted into Civic Mesh —
-            if (civicMeshEnabled && activeBolos.length > 0) {
-              detections.forEach(det => {
+            // — BOLO / Sentinel matching — always active for all camera nodes —
+            if (activeBolos.length > 0) {
+              detections.forEach((det, di) => {
                 activeBolos.forEach(bolo => {
+                  // Guard: skip if descriptor is empty or wrong size
+                  if (!bolo.descriptor || bolo.descriptor.length !== 128) {
+                    console.warn(`[BOLO] Skipping ${bolo.label} — invalid descriptor in memory.`);
+                    return;
+                  }
                   const dist = faceapi.euclideanDistance(det.descriptor, bolo.descriptor);
-                  const confidence = Math.max(0, 1 - dist);
+                  // Clamp dist to [0,1] before inverting to prevent negative confidence
+                  const confidence = Math.max(0, 1 - Math.min(1, dist));
                   const lastHit = lastBoloHitRef.current[bolo.id] || 0;
+                  console.log(`[BOLO] Face#${di} vs ${bolo.label}: dist=${dist.toFixed(3)}, confidence=${(confidence * 100).toFixed(1)}%`);
                   
-                  // Fire hit if confidence > 60% and not hit in last 20 seconds
-                  if (confidence > 0.60 && now - lastHit > 20000) {
+                  // Fire hit if confidence > 10% and not hit in last 20 seconds (TEST MODE)
+                  if (confidence > 0.10 && now - lastHit > 20000) {
+                    console.log(`[BOLO] *** HIT *** ${bolo.label} at ${(confidence * 100).toFixed(1)}% confidence`);
                     lastBoloHitRef.current[bolo.id] = now;
 
                     // Try to get GPS coords
@@ -603,9 +629,9 @@ const CameraMode = () => {
                     };
 
                     const fireHit = (payload: any) => {
-                      addDoc(collection(db, "bolo_hits"), payload).catch(() => {});
+                      addDoc(collection(db, "bolo_hits"), payload).catch(err => console.error("[BOLO] Hit write failed:", err));
                       // Also update hit count on the BOLO
-                      updateDoc(doc(db, "bolo_alerts", bolo.id), { hitCount: (increment as any)(1) }).catch(() => {});
+                      updateDoc(doc(db, "bolo_alerts", bolo.id), { hitCount: (increment as any)(1) }).catch(err => console.error("[BOLO] Hit count update failed:", err));
                       wakeUp();
                     };
 
@@ -624,12 +650,16 @@ const CameraMode = () => {
             }
           }
         }
-      } catch (e) { }
-      timeout = setTimeout(detectFaces, 2000); // Check every 2 seconds
+      } catch (e) {
+        console.error("[BOLO] Detection loop error:", e);
+      } finally {
+        // Always schedule next cycle — never let the loop die
+        if (running) timeout = setTimeout(detectFaces, 2000);
+      }
     };
     detectFaces();
-    return () => clearTimeout(timeout);
-  }, [faceModelsLoaded, cameraMode, isActive, isPowerSaveMode, knownFaces, activeBolos, civicMeshEnabled, triggerWebhook, wakeUp, devices]);
+    return () => { running = false; clearTimeout(timeout); };
+  }, [faceModelsLoaded, cameraMode, isActive, isPowerSaveMode, knownFaces, activeBolos, triggerWebhook, wakeUp, devices]);
 
   useEffect(() => {
     if (viewerConnected) {

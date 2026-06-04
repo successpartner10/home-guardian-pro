@@ -14,34 +14,37 @@ import {
   Timestamp,
 } from "firebase/firestore";
 
-// Free public STUN + TURN servers (open-relay.metered.ca provides free TURN)
+// STUN + TURN servers — optimized for fastest ICE gathering
 const ICE_SERVERS: RTCConfiguration = {
   iceServers: [
+    // Google STUN — fastest, most reliable globally
     { urls: "stun:stun.l.google.com:19302" },
     { urls: "stun:stun1.l.google.com:19302" },
     { urls: "stun:stun2.l.google.com:19302" },
-    { urls: "stun:stun3.l.google.com:19302" },
-    { urls: "stun:stun4.l.google.com:19302" },
+    // Cloudflare STUN — low latency fallback
     { urls: "stun:stun.cloudflare.com:3478" },
+    // Twilio STUN — enterprise-grade
+    { urls: "stun:global.stun.twilio.com:3478" },
+    // Open TURN relay for strict NAT/firewall environments
     {
-      urls: "turn:openrelay.metered.ca:80",
+      urls: [
+        "turn:openrelay.metered.ca:80",
+        "turn:openrelay.metered.ca:443",
+      ],
       username: "openrelayproject",
       credential: "openrelayproject",
     },
     {
-      urls: "turn:openrelay.metered.ca:443",
-      username: "openrelayproject",
-      credential: "openrelayproject",
-    },
-    {
-      urls: "turn:openrelay.metered.ca:443?transport=tcp",
+      urls: "turns:openrelay.metered.ca:443?transport=tcp",
       username: "openrelayproject",
       credential: "openrelayproject",
     },
   ],
-  iceCandidatePoolSize: 10,
+  // Pre-gather 15 candidates before offer — reduces connect time significantly
+  iceCandidatePoolSize: 15,
   iceTransportPolicy: 'all',
   bundlePolicy: 'max-bundle',
+  rtcpMuxPolicy: 'require',
 };
 
 type SignalMessage = {
@@ -248,7 +251,7 @@ export const useWebRTC = ({
         } finally {
           isNegotiatingRef.current.set(remotePeerId, false);
         }
-      }, 100);
+      }, 20); // 20ms debounce — fast enough to batch track adds without stalling
     };
 
     // Camera side: receive data channel created by viewer
@@ -554,7 +557,7 @@ export const useWebRTC = ({
       // and handle offer creation via the Perfect Negotiation pattern.
       // Do NOT manually create an offer here — it would cause dual-offer glare.
 
-      // Auto-retry if no connection in 20 seconds (with max retry limit)
+      // Auto-retry if no connection in 12 seconds (faster failure detection)
       retryTimeoutRef.current = window.setTimeout(() => {
         const anyConnected = Array.from(pcsRef.current.values()).some(
           (p) => p.connectionState === "connected"
@@ -566,10 +569,10 @@ export const useWebRTC = ({
             setConnectionState("failed");
             return;
           }
-          console.warn(`[WebRTC] No connection after 20s — retry ${retryCountRef.current}/${MAX_RETRIES}...`);
+          console.warn(`[WebRTC] No connection after 12s — retry ${retryCountRef.current}/${MAX_RETRIES}...`);
           connect();
         }
-      }, 20000);
+      }, 12000);
     } catch (e) {
       console.error("[WebRTC] Connection initiation failed:", e);
       setConnectionState("failed");

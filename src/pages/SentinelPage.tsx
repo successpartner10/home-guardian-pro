@@ -207,7 +207,6 @@ const SentinelPage = () => {
     const reader = new FileReader();
     reader.onload = async (ev) => {
       const dataUrl = ev.target?.result as string;
-      setPreviewImage(dataUrl);
 
       const img = new Image();
       img.src = dataUrl;
@@ -222,10 +221,42 @@ const SentinelPage = () => {
             setPreviewImage(null);
             return;
           }
+
+          // Compress image to fit within Firestore's 1MB document limit
+          const canvas = document.createElement("canvas");
+          const MAX_WIDTH = 240;
+          const MAX_HEIGHT = 240;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > MAX_WIDTH) {
+              height *= MAX_WIDTH / width;
+              width = MAX_WIDTH;
+            }
+          } else {
+            if (height > MAX_HEIGHT) {
+              width *= MAX_HEIGHT / height;
+              height = MAX_HEIGHT;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            const compressedDataUrl = canvas.toDataURL("image/jpeg", 0.7);
+            setPreviewImage(compressedDataUrl);
+          } else {
+            setPreviewImage(dataUrl);
+          }
+
           setSelectedDescriptor(detection.descriptor);
           toast({ title: "Signature extracted", description: "128D Cryptographic BOLO key generated." });
         } catch (e) {
           toast({ title: "Scan failed", variant: "destructive" });
+          setPreviewImage(null);
         }
       };
     };
@@ -253,15 +284,45 @@ const SentinelPage = () => {
       setPreviewImage(null);
       setSelectedDescriptor(null);
       setSubjectName("");
-    } catch (e) {
-      toast({ title: "Broadcast failed", variant: "destructive" });
+    } catch (e: any) {
+      console.error("BOLO broadcast failed:", e);
+      toast({ 
+        title: "Broadcast failed", 
+        description: e.message || String(e), 
+        variant: "destructive" 
+      });
     }
     setIsIssuing(false);
   };
 
   const handleResolveBolo = async (id: string) => {
-    await deleteDoc(doc(db, "bolo_alerts", id));
-    toast({ title: "BOLO Terminated", description: "BOLO payload removed from active node memory." });
+    try {
+      await updateDoc(doc(db, "bolo_alerts", id), { status: "resolved" });
+      toast({ title: "BOLO Resolved", description: "Status changed to resolved. Camera nodes will stop scanning for this BOLO." });
+    } catch (e) {
+      toast({ title: "Failed to resolve BOLO", variant: "destructive" });
+    }
+  };
+
+  const handleDeleteBolo = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, "bolo_alerts", id));
+      toast({ title: "BOLO Deleted", description: "BOLO has been permanently removed from the database." });
+    } catch (e) {
+      toast({ title: "Failed to delete BOLO", variant: "destructive" });
+    }
+  };
+
+  const handleDeleteHit = async (hitId: string) => {
+    try {
+      await deleteDoc(doc(db, "bolo_hits", hitId));
+      toast({ title: "Hit record deleted", description: "BOLO hit record has been permanently removed." });
+      if (selectedHitDetails?.id === hitId) {
+        setSelectedHitDetails(null);
+      }
+    } catch (e) {
+      toast({ title: "Failed to delete hit record", variant: "destructive" });
+    }
   };
 
   const acceptEula = () => {
@@ -602,7 +663,7 @@ const SentinelPage = () => {
         {activeBolos.length > 0 && (
           <div className="space-y-3">
             <h2 className="text-xs font-black uppercase tracking-widest text-muted-foreground px-1">
-              Active Alerts ({activeBolos.length})
+              Municipal BOLO Payloads ({activeBolos.length})
             </h2>
             <div className="grid sm:grid-cols-2 gap-3">
               {activeBolos.map(bolo => (
@@ -610,7 +671,10 @@ const SentinelPage = () => {
                   key={bolo.id}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="bg-card border border-red-500/20 rounded-2xl overflow-hidden shadow-sm"
+                  className={cn(
+                    "bg-card border rounded-2xl overflow-hidden shadow-sm",
+                    bolo.status === "active" ? "border-red-500/20" : "border-muted opacity-80"
+                  )}
                 >
                   <div className="flex gap-3 p-3">
                     {bolo.imageUrl && (
@@ -618,22 +682,39 @@ const SentinelPage = () => {
                     )}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2">
-                        <div>
+                        <div className="min-w-0 flex-1">
                           <p className="font-black text-foreground text-sm leading-tight truncate">{bolo.label}</p>
                           <p className="text-[9px] text-muted-foreground font-bold uppercase tracking-widest mt-0.5">
                             {bolo.hitCount || 0} hits · {bolo.category}
                           </p>
                         </div>
-                        <span className="shrink-0 px-2 py-0.5 rounded-full bg-red-500/20 text-red-500 text-[8px] font-black uppercase animate-pulse">LIVE</span>
+                        <span className={cn(
+                          "shrink-0 px-2 py-0.5 rounded-full text-[8px] font-black uppercase",
+                          bolo.status === "active" 
+                            ? "bg-red-500/20 text-red-500 animate-pulse" 
+                            : "bg-green-500/20 text-green-500"
+                        )}>
+                          {bolo.status === "active" ? "LIVE" : "RESOLVED"}
+                        </span>
                       </div>
                       <div className="flex gap-2 mt-2">
+                        {bolo.status === "active" && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleResolveBolo(bolo.id)}
+                            className="h-7 rounded-lg text-[9px] font-black uppercase tracking-wider border-border hover:bg-green-500/10 hover:text-green-500 hover:border-green-500/30"
+                          >
+                            <CheckCircle className="h-3 w-3 mr-1" /> Resolve
+                          </Button>
+                        )}
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => handleResolveBolo(bolo.id)}
-                          className="h-7 rounded-lg text-[9px] font-black uppercase tracking-wider border-border hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/30"
+                          onClick={() => handleDeleteBolo(bolo.id)}
+                          className="h-7 rounded-lg text-[9px] font-black uppercase tracking-wider border-border text-red-500 hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/30"
                         >
-                          <CheckCircle className="h-3 w-3 mr-1" /> Resolve
+                          <Trash2 className="h-3 w-3 mr-1" /> Delete BOLO
                         </Button>
                       </div>
                     </div>
@@ -881,6 +962,13 @@ const SentinelPage = () => {
                       Locate Node on Google Maps
                     </Button>
                   )}
+                  <Button 
+                    variant="destructive" 
+                    onClick={() => handleDeleteHit(selectedHitDetails.id)}
+                    className="w-full h-11 rounded-xl font-black uppercase tracking-widest bg-red-600 hover:bg-red-700 text-white"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" /> Delete Match Record
+                  </Button>
                   <Button 
                     variant="outline" 
                     onClick={() => setSelectedHitDetails(null)}

@@ -368,15 +368,15 @@ const LiveFeed = () => {
     if (!isOnline || !isChannelReady) return;
 
     if (isNew) {
-      // First connection attempt — short delay
-      const timer = setTimeout(() => connect(), 400);
+      // First connection attempt — minimal delay for fast start
+      const timer = setTimeout(() => connect(), 150);
       return () => clearTimeout(timer);
     }
 
     if (isTerminal) {
-      // Exponential backoff: 3s, 6s, 12s, 20s (capped)
+      // Exponential backoff: 2s, 4s, 8s, 10s (capped)
       const attempt = reconnectAttempt + 1;
-      const backoff = Math.min(3000 * Math.pow(2, reconnectAttempt), 20000);
+      const backoff = Math.min(2000 * Math.pow(2, reconnectAttempt), 10000);
       setReconnectAttempt(attempt);
       setIsReconnecting(true);
       console.log(`[LiveFeed] Reconnect attempt ${attempt} in ${backoff}ms...`);
